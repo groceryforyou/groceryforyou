@@ -2121,7 +2121,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     tl.style.display = 'grid';
 
     try {
-      const snap = await db.collection('support_tickets')
+      const snap = await db.collection('support')
         .where('customerUid', '==', user.uid)
         .orderBy('createdAt', 'desc')
         .get();
@@ -2146,9 +2146,9 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       // Helpful console hint for the developer
       if (err && err.code === 'permission-denied') {
         console.warn(
-          '%c[SupportPatch] Firestore permission denied for support_tickets.\n' +
+          '%c[SupportPatch] Firestore permission denied for support.\n' +
           'Add these rules in Firebase Console → Firestore → Rules:\n\n' +
-          'match /support_tickets/{id} {\n' +
+          'match /support/{id} {\n' +
           '  allow read, write: if request.auth != null\n' +
           '    && request.auth.uid == resource.data.customerUid;\n' +
           '  allow create: if request.auth != null;\n' +

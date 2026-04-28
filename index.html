@@ -74,7 +74,39 @@
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Grocery For You Sirsilla","item":"https://groceryforyou.github.io/"},{"@type":"ListItem","position":2,"name":"Order Grocery Online Sirsilla","item":"https://groceryforyou.github.io/"}]}
   </script>
-  <link href="https://fonts.googleapis.com/css2?family=Yeseva+One&family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@0,700;1,400&family=Poppins:wght@300;400;700&family=Roboto:wght@300;400;700&family=Nunito:wght@300;400;700&family=Merriweather:wght@300;400;700&family=Josefin+Sans:wght@300;400;700&family=Raleway:wght@300;400;700&family=Dancing+Script:wght@700&family=Ubuntu:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <!-- Structured Data: FAQPage -->
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+    {"@type":"Question","name":"What is GroceryForYou Sirsilla?","acceptedAnswer":{"@type":"Answer","text":"GroceryForYou (Grocery For You Sirsilla) is a local online grocery delivery store based in Town Center, Sirsilla, Telangana. We deliver fresh vegetables, fruits, dairy, staples and more to your doorstep within 5km of Sirsilla."}},
+    {"@type":"Question","name":"How to order groceries online in Sircilla?","acceptedAnswer":{"@type":"Answer","text":"You can order groceries online in Sircilla through GroceryForYou at groceryforyou.github.io. Browse our menu, add items to cart, and place your order with COD or UPI payment. We deliver within 5km of Town Center, Sirsilla."}},
+    {"@type":"Question","name":"What are the delivery hours for GroceryForYou Sircilla?","acceptedAnswer":{"@type":"Answer","text":"GroceryForYou Sircilla delivers from 9 AM to 10 PM daily, all 7 days a week. We serve the Sirsilla area including Rajanna Sirsilla district."}},
+    {"@type":"Question","name":"What payment methods does GroceryForYou accept?","acceptedAnswer":{"@type":"Answer","text":"GroceryForYou accepts Cash on Delivery (COD), UPI, PhonePe, Google Pay (GPay) and Paytm. All payments are safe and secure."}},
+    {"@type":"Question","name":"What is the delivery area for grocery delivery in Sirsilla?","acceptedAnswer":{"@type":"Answer","text":"We deliver groceries within a 5km radius of Town Center, Sirsilla, Telangana (PIN: 505301). This covers most of Sirsilla town and nearby localities in Rajanna Sirsilla district."}}
+  ]}
+  </script>
+  <!-- Structured Data: ItemList (Product Categories) -->
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"ItemList","name":"GroceryForYou Sircilla — Product Categories","description":"Fresh grocery categories available for home delivery in Sirsilla","url":"https://groceryforyou.github.io/","numberOfItems":5,"itemListElement":[
+    {"@type":"ListItem","position":1,"name":"Fresh Vegetables Sirsilla","url":"https://groceryforyou.github.io/"},
+    {"@type":"ListItem","position":2,"name":"Fresh Fruits Sirsilla","url":"https://groceryforyou.github.io/"},
+    {"@type":"ListItem","position":3,"name":"Dairy Products Sirsilla","url":"https://groceryforyou.github.io/"},
+    {"@type":"ListItem","position":4,"name":"Staples & Grains Sirsilla","url":"https://groceryforyou.github.io/"},
+    {"@type":"ListItem","position":5,"name":"Grocery Delivery in Sircilla","url":"https://groceryforyou.github.io/"}
+  ]}
+  </script>
+  <!-- Structured Data: Organization -->
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"Organization","name":"GroceryForYou Sirsilla","alternateName":"GroceryForSircilla","url":"https://groceryforyou.github.io/","logo":"https://groceryforyou.github.io/og-image.jpg","contactPoint":{"@type":"ContactPoint","contactType":"customer service","areaServed":"Sirsilla, Rajanna Sirsilla, Telangana","availableLanguage":["English","Telugu"]},"address":{"@type":"PostalAddress","streetAddress":"Town Center","addressLocality":"Sirsilla","addressRegion":"Telangana","postalCode":"505301","addressCountry":"IN"}}
+  </script>
+  <!-- Performance: Resource Hints -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="preconnect" href="https://www.gstatic.com"/>
+  <link rel="dns-prefetch" href="https://unpkg.com"/>
+  <link rel="dns-prefetch" href="https://checkout.razorpay.com"/>
+  <!-- Optimized Google Fonts with font-display=swap -->
+  <link href="https://fonts.googleapis.com/css2?family=Yeseva+One&family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@0,700;1,400&family=Poppins:wght@300;400;700&family=Roboto:wght@300;400;700&family=Nunito:wght@300;400;700&family=Merriweather:wght@300;400;700&family=Josefin+Sans:wght@300;400;700&family=Raleway:wght@300;400;700&family=Dancing+Script:wght@700&family=Ubuntu:wght@300;400;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'"/>
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Yeseva+One&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/></noscript>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
@@ -946,7 +978,8 @@
   }
 })();
 </script>
-  <h1 style="display:none;">Grocery For You Sirsilla</h1>
+  <!-- Visually hidden but accessible H1 for screen readers + SEO -->
+  <h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">GroceryForYou Sirsilla — Online Grocery Delivery in Sircilla</h1>
 
 <!-- MOBILE SEARCH OVERLAY -->
 <div class="mob-search-overlay" id="mob-search-overlay">
@@ -1000,14 +1033,17 @@
 </header>
 
 <!-- HERO -->
-<div class="hero" id="hero-section">
-  <h1> Fresh Groceries Delivered! 🛒</h1>
-  <p>Fresh hot grocery home delivery · Town Center, Sirsilla, Telangana</p>
+<div class="hero" id="hero-section" role="banner">
+  <h2 style="font-family:'Yeseva One',serif;font-size:2.2rem;color:var(--turmeric);text-shadow:0 2px 12px rgba(0,0,0,0.5);margin-bottom:0">GroceryForYou Sirsilla 🛒</h2>
+  <p style="color:#c8e6c9;font-size:1rem;margin-top:6px;font-style:italic">Online Grocery Delivery in Sircilla · Town Center, Sirsilla, Telangana</p>
+  <p style="color:#a5d6a7;font-size:.85rem;margin-top:4px">Fresh Vegetables · Fruits · Dairy · Staples — Delivered to your door!</p>
   <div class="hero-badges">
-    <span class="badge">🛒 🥦 Vegetables · 🍎 Fruits · 🥛 Dairy · 🌾 Staples</span>
-    <span class="badge">🚴 🚴 Fast Delivery Sirsilla</span>
-    <span class="badge">⭐ Farm Fresh</span>
-    <span class="badge">💳 UPI · COD</span>
+    <span class="badge">🥦 Vegetables &amp; Fruits</span>
+    <span class="badge">🥛 Dairy &amp; Staples</span>
+    <span class="badge">🚴 Fast Delivery Sirsilla</span>
+    <span class="badge">⭐ 4.8 Rating · 50+ Reviews</span>
+    <span class="badge">💳 UPI · COD Accepted</span>
+    <span class="badge">🕘 Open 9AM–10PM Daily</span>
   </div>
 </div>
 
@@ -1202,6 +1238,48 @@
   <div class="page active" id="page-menu">
     <div class="menu-filter-bar" id="menu-filter-bar"></div>
     <div id="menu-sections-container"></div>
+
+    <!-- SEO CONTENT SECTION: keyword-rich, visible to Google -->
+    <section aria-label="About GroceryForYou Sircilla" style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:28px 24px;margin-top:40px;box-shadow:var(--shadow)">
+      <h2 style="font-family:'Yeseva One',serif;font-size:1.4rem;color:var(--brown);margin-bottom:12px;border-left:4px solid var(--saffron);padding-left:12px">🛒 GroceryForYou — Best Grocery Delivery in Sircilla</h2>
+      <p style="color:#444;font-size:.92rem;line-height:1.8;margin-bottom:14px">
+        <strong>GroceryForYou Sirsilla</strong> is your trusted online grocery store for <strong>grocery delivery in Sircilla</strong>. Based at <strong>Town Center, Sirsilla</strong> (Rajanna Sirsilla District, Telangana — PIN 505301), we deliver fresh vegetables, fruits, dairy products and daily staples right to your doorstep.
+        Order from <strong>GroceryForSircilla</strong> and get your groceries delivered fast within a 5km radius — open <strong>9 AM to 10 PM, every day</strong>.
+      </p>
+
+      <h3 style="font-family:'Yeseva One',serif;font-size:1.1rem;color:var(--brown);margin-bottom:10px">Why Choose GroceryForYou Sircilla?</h3>
+      <ul style="list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:18px">
+        <li style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:.85rem;color:var(--brown)">✅ <strong>Fresh Vegetables</strong> sourced daily in Sirsilla</li>
+        <li style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:.85rem;color:var(--brown)">🍎 <strong>Fresh Fruits</strong> including seasonal local varieties</li>
+        <li style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:.85rem;color:var(--brown)">🥛 <strong>Dairy Products</strong> — milk, curd, paneer &amp; more</li>
+        <li style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:.85rem;color:var(--brown)">🌾 <strong>Staples &amp; Grains</strong> — Godhuma, Jonna, Biyyam</li>
+        <li style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:.85rem;color:var(--brown)">🚴 <strong>Fast Delivery</strong> within Sircilla town limits</li>
+        <li style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:.85rem;color:var(--brown)">💳 <strong>COD &amp; UPI</strong> — PhonePe, GPay, Paytm accepted</li>
+        <li style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:.85rem;color:var(--brown)">⭐ <strong>4.8 ★ Rating</strong> from happy customers in Sirsilla</li>
+        <li style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:.85rem;color:var(--brown)">🕘 <strong>Open 9AM–10PM</strong> daily — no holidays!</li>
+      </ul>
+
+      <h3 style="font-family:'Yeseva One',serif;font-size:1.1rem;color:var(--brown);margin-bottom:10px">Frequently Asked Questions — Grocery Delivery Sircilla</h3>
+      <div style="display:grid;gap:10px">
+        <details style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:12px 16px">
+          <summary style="font-weight:800;color:var(--brown);cursor:pointer;font-size:.88rem">What is GroceryForYou Sircilla?</summary>
+          <p style="margin-top:8px;font-size:.84rem;color:#555;line-height:1.7">GroceryForYou (also known as <strong>GroceryForSircilla</strong>) is a local online grocery delivery service in Sirsilla, Telangana. We deliver fresh vegetables, fruits, dairy &amp; staples to homes within 5km of Town Center, Sirsilla.</p>
+        </details>
+        <details style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:12px 16px">
+          <summary style="font-weight:800;color:var(--brown);cursor:pointer;font-size:.88rem">How do I order groceries online in Sirsilla?</summary>
+          <p style="margin-top:8px;font-size:.84rem;color:#555;line-height:1.7">Simply browse our menu above, add items to your cart, and place your order. We accept COD (Cash on Delivery) and UPI payments including PhonePe, Google Pay &amp; Paytm. Your order will be delivered to your address in Sirsilla.</p>
+        </details>
+        <details style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:12px 16px">
+          <summary style="font-weight:800;color:var(--brown);cursor:pointer;font-size:.88rem">What areas in Sircilla do you deliver to?</summary>
+          <p style="margin-top:8px;font-size:.84rem;color:#555;line-height:1.7">We deliver groceries across Sirsilla town within a 5km radius of Town Center. This covers most areas in Rajanna Sirsilla District, Telangana (PIN 505301).</p>
+        </details>
+      </div>
+
+      <div style="margin-top:20px;padding:14px 18px;background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border:2px solid var(--green);border-radius:14px;text-align:center">
+        <p style="font-size:.9rem;color:var(--brown);margin:0">📍 <strong>GroceryForYou</strong> · Town Center, Sirsilla, Telangana 505301 · Open <strong>9AM–10PM</strong> · ⭐ 4.8/5 Rating<br>
+        <span style="font-size:.8rem;color:#666">Serving Sirsilla &amp; Rajanna Sirsilla District for fast grocery home delivery</span></p>
+      </div>
+    </section>
   </div>
 
   <!-- TRACKING PAGE -->
@@ -2505,5 +2583,67 @@ waitFor(
 
 })();
 </script>
+
+<!-- ===== SEO FOOTER ===== -->
+<footer itemscope itemtype="https://schema.org/GroceryStore" style="background:linear-gradient(180deg,#0a1a0e,#0d3b1a);color:#c8e6c9;padding:40px 20px 80px;margin-top:0;font-family:'Lato',sans-serif">
+  <div style="max-width:1200px;margin:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:32px">
+
+    <!-- Brand + NAP -->
+    <div>
+      <div style="font-family:'Yeseva One',serif;font-size:1.3rem;color:#ffcc00;margin-bottom:10px">🛒 GroceryForYou</div>
+      <p style="font-size:.82rem;line-height:1.8;color:#a5d6a7;margin-bottom:12px">
+        Your trusted <strong style="color:#fff">online grocery store in Sirsilla</strong>.<br>
+        Fresh vegetables, fruits, dairy &amp; staples delivered fast.
+      </p>
+      <!-- NAP for Local SEO -->
+      <address itemprop="address" itemscope itemtype="https://schema.org/PostalAddress" style="font-style:normal;font-size:.82rem;line-height:2;color:#a5d6a7">
+        <span>📍 <span itemprop="streetAddress">Town Center</span>,</span><br>
+        <span itemprop="addressLocality">Sirsilla</span>,
+        <span itemprop="addressRegion">Telangana</span>
+        <span itemprop="postalCode">505301</span>,
+        <span itemprop="addressCountry">India</span><br>
+        <span>🕘 Open: <span itemprop="openingHours" content="Mo-Su 09:00-22:00">9 AM – 10 PM, Daily</span></span><br>
+        <span itemprop="aggregateRating" itemscope itemtype="https://schema.org/AggregateRating">
+          ⭐ <span itemprop="ratingValue">4.8</span>/5 from <span itemprop="reviewCount">50</span>+ customers
+        </span>
+      </address>
+    </div>
+
+    <!-- Quick Links -->
+    <nav aria-label="Footer Navigation">
+      <div style="font-family:'Yeseva One',serif;font-size:1rem;color:#ffcc00;margin-bottom:12px">Quick Links</div>
+      <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:8px;font-size:.83rem">
+        <li><a href="/" onclick="showPage('menu');return false;" style="color:#a5d6a7;text-decoration:none;hover:color:#fff">🍽️ Browse Grocery Menu</a></li>
+        <li><a href="/#tracking" onclick="showPage('tracking');return false;" style="color:#a5d6a7;text-decoration:none">📦 Track Your Order</a></li>
+        <li><a href="/#support" onclick="showPage('support');return false;" style="color:#a5d6a7;text-decoration:none">💬 Customer Support</a></li>
+        <li><a href="/sitemap.xml" style="color:#a5d6a7;text-decoration:none">🗺️ Sitemap</a></li>
+      </ul>
+    </nav>
+
+    <!-- Keywords / Categories -->
+    <div>
+      <div style="font-family:'Yeseva One',serif;font-size:1rem;color:#ffcc00;margin-bottom:12px">We Deliver In Sircilla</div>
+      <ul style="list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:7px">
+        <li><span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:4px 10px;border-radius:14px;font-size:.75rem">🥦 Fresh Vegetables</span></li>
+        <li><span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:4px 10px;border-radius:14px;font-size:.75rem">🍎 Fresh Fruits</span></li>
+        <li><span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:4px 10px;border-radius:14px;font-size:.75rem">🥛 Dairy Products</span></li>
+        <li><span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:4px 10px;border-radius:14px;font-size:.75rem">🌾 Godhuma &amp; Jonna</span></li>
+        <li><span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:4px 10px;border-radius:14px;font-size:.75rem">🛒 Grocery Delivery</span></li>
+        <li><span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:4px 10px;border-radius:14px;font-size:.75rem">💳 COD &amp; UPI</span></li>
+        <li><span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:4px 10px;border-radius:14px;font-size:.75rem">🚴 Fast Delivery</span></li>
+        <li><span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:4px 10px;border-radius:14px;font-size:.75rem">📍 Rajanna Sirsilla</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Bottom bar -->
+  <div style="max-width:1200px;margin:28px auto 0;padding-top:20px;border-top:1px solid rgba(255,255,255,0.1);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;font-size:.78rem;color:#6a9e6a">
+    <span itemprop="name">© 2026 <strong style="color:#a5d6a7">GroceryForYou Sirsilla</strong> (GroceryForSircilla) — All rights reserved.</span>
+    <span>
+      <a href="https://groceryforyou.github.io/" itemprop="url" style="color:#6a9e6a;text-decoration:none">groceryforyou.github.io</a>
+      &nbsp;|&nbsp; Grocery delivery in Sirsilla, Telangana
+    </span>
+  </div>
+</footer>
 
 </html>

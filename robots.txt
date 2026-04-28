@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+# Disallow admin paths from indexing
+Disallow: /#manage
+Disallow: /#dashboard
+Disallow: /#payments
+Disallow: /#customers
+Disallow: /#admin-support
+
+# Sitemap location
+Sitemap: https://groceryforyou.github.io/sitemap.xml

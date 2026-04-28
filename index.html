@@ -2751,20 +2751,29 @@ waitFor(
 
   function setupAdminTicketWatch(db) {
     if (_ticketUnsub) { _ticketUnsub(); _ticketUnsub = null; }
+    // Watch ALL support tickets (no status filter) so we never miss a new one
     _ticketUnsub = db.collection('support')
-      .where('status', '==', 'open')
+      .orderBy('createdAt', 'desc')
       .onSnapshot(function(snap) {
-        var openCount = snap.size;
+        // Count unresolved tickets for badge
+        var openCount = 0;
+        snap.forEach(function(doc) {
+          var s = doc.data().status;
+          if (s !== 'resolved') openCount++;
+        });
         updateSupportBadge(openCount);
 
-        // Detect genuinely NEW tickets (not first load)
+        // Detect genuinely NEW tickets after first load
         if (_adminTicketInit) {
           snap.docChanges().forEach(function(change) {
             if (change.type === 'added') {
               var d = change.doc.data();
-              // Only notify if ticket was created in last 30 seconds
-              var createdAt = d.createdAt ? (d.createdAt.toMillis ? d.createdAt.toMillis() : new Date(d.createdAt).getTime()) : 0;
-              if (Date.now() - createdAt < 30000) {
+              // Notify for any ticket added in last 60 seconds
+              var createdAt = 0;
+              if (d.createdAt) {
+                createdAt = d.createdAt.toMillis ? d.createdAt.toMillis() : new Date(d.createdAt).getTime();
+              }
+              if (Date.now() - createdAt < 60000) {
                 showTicketNotification(d);
               }
             }
@@ -2772,10 +2781,12 @@ waitFor(
         }
         _adminTicketInit = true;
 
-        // Refresh the list if admin is on support page
+        // Refresh the admin list if currently viewing the support page
         refreshAdminSupportList(db);
       }, function(err) {
         console.warn('[SupportWatch] Error:', err && (err.code || err.message));
+        // Fallback: poll every 15 seconds if onSnapshot fails
+        setTimeout(function() { setupAdminTicketWatch(db); }, 15000);
       });
   }
 

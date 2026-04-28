@@ -1,3 +1,61 @@
+/* --- NOTIFICATION LAYOUT --- */
+
+#ticket-toast, #ticket-popup-banner {
+    display: none; /* This hides them until a ticket arrives */
+    position: fixed;
+    right: 20px;
+    bottom: 80px; /* Adjusted so it's above your bottom menu */
+    z-index: 9999;
+    background: white;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    border-left: 6px solid #c62828;
+    color: #333;
+    font-family: sans-serif;
+    min-width: 250px;
+}
+
+#ticket-toast.visible {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.tt-icon, .tpb-icon {
+    font-size: 24px;
+}
+
+.tt-title, .tpb-title {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.tt-sub, .tpb-body {
+    font-size: 12px;
+    color: #666;
+}
+
+button.tt-close, button.tpb-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: #999;
+}
+
+.tpb-cta {
+    background: #c62828;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-top: 10px;
+    width: 100%;
+    cursor: pointer;
+    font-weight: bold;
+}
+
 /* ===== SUPPORT TICKET SYSTEM ===== */
 
 /* Sidebar badge - unread count */

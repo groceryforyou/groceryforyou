@@ -2062,7 +2062,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     if (tl && tl.innerHTML.trim() !== '' && !tl.innerHTML.includes('Loading')) {
       if (tl) tl.style.display = 'grid';   // keep list visible above form
     }
-    if (fs) { fs.style.display = 'block'; }
+    if (fs) { fs.style.display = 'grid'; }
     if (cancelBtn()) cancelBtn().style.display = 'inline-flex';
     if (newBtn())    newBtn().style.display    = 'none';
   }
@@ -2074,8 +2074,9 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     const ts  = d.createdAt?.toDate ? d.createdAt.toDate().toLocaleString('en-IN', {dateStyle:'medium',timeStyle:'short'}) : '';
     const statusColor = { open:'#00b04e', resolved:'#2e7d32', pending:'#1565c0' };
     const col = statusColor[d.status] || '#888';
-    const adminReply = d.adminReply
-      ? `<div style="margin-top:8px;background:#f0fff4;border:1px solid #b2dfdb;border-radius:8px;padding:8px 11px;font-size:.8rem"><strong style="color:#2e7d32">💬 Admin Reply:</strong> ${d.adminReply}</div>`
+    const ticketReply = d.reply || d.adminReply || '';
+    const adminReply = ticketReply
+      ? `<div style="margin-top:8px;background:#f0fff4;border:1px solid #b2dfdb;border-radius:8px;padding:8px 11px;font-size:.8rem"><strong style="color:#2e7d32">💬 Admin Reply:</strong> ${ticketReply}</div>`
       : '';
     return `
       <div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow)">
@@ -2086,7 +2087,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           </div>
           <span style="background:${col}18;color:${col};border:1.5px solid ${col};border-radius:12px;padding:3px 10px;font-size:.7rem;font-weight:800;text-transform:uppercase">${(d.status||'open').toUpperCase()}</span>
         </div>
-        <div style="margin-top:8px;font-size:.85rem;color:#444;line-height:1.5">${d.description || ''}</div>
+        <div style="margin-top:8px;font-size:.85rem;color:#444;line-height:1.5">${d.desc || d.description || ''}</div>
         ${adminReply}
       </div>`;
   }
@@ -2107,7 +2108,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     const user = typeof currentUser !== 'undefined' ? currentUser : null;
     if (!user || !user.uid) {
       // Not signed in — just show the form
-      if (formSection()) formSection().style.display = 'block';
+      if (formSection()) formSection().style.display = 'grid';
       tl.style.display = 'none';
       if (newBtn()) newBtn().style.display = 'none';
       return;
@@ -2128,7 +2129,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       if (snap.empty) {
         // No tickets — show the form directly
         tl.style.display = 'none';
-        if (formSection()) formSection().style.display = 'block';
+        if (formSection()) formSection().style.display = 'grid';
         if (newBtn()) newBtn().style.display = 'none';
       } else {
         let html = '';
@@ -2140,7 +2141,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       console.warn('[SupportPatch] Ticket load error:', err && (err.code || err.message));
       // Firestore rules may be blocking — show form as fallback
       tl.style.display = 'none';
-      if (formSection()) formSection().style.display = 'block';
+      if (formSection()) formSection().style.display = 'grid';
       if (newBtn()) newBtn().style.display = 'none';
       // Helpful console hint for the developer
       if (err && err.code === 'permission-denied') {

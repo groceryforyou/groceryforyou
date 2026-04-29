@@ -2324,77 +2324,120 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 (function patchAdminSupportNotifications() {
   'use strict';
 
+  let _supportTicketWatcherUnsub = null;
+  let _supportTicketWatcherInit = false;
   let _adminSupportNotifUnsub = null;
   let _adminSupportNotifInit = false;
 
-  /* Hook the original submitSupportTicket to create admin notification */
-  function hookSupportNotification() {
-    const original = window.submitSupportTicket;
-    if (typeof original !== 'function') {
-      setTimeout(hookSupportNotification, 300);
-      return;
+  /* Watch the support collection for new tickets and create admin notifications */
+  function startSupportTicketWatcher() {
+    if (_supportTicketWatcherUnsub || typeof db === 'undefined' || !db) return;
+
+    _supportTicketWatcherInit = false;
+    _supportTicketWatcherUnsub = db
+      .collection('support')
+      .orderBy('createdAt', 'desc')
+      .limit(50)
+      .onSnapshot(
+        (snapshot) => {
+          if (!_supportTicketWatcherInit) {
+            _supportTicketWatcherInit = true;
+            return;
+          }
+
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+              const ticketData = change.doc.data() || {};
+              const ticketId = change.doc.id;
+              
+              console.log('[SupportWatcher] New ticket detected:', ticketId, ticketData);
+              
+              // Create admin notification for this ticket
+              createAdminSupportNotification(ticketData, ticketId);
+            }
+          });
+        },
+        (error) => {
+          console.error('[SupportWatcher] Error:', error);
+        }
+      );
+  }
+
+  /* Stop watching support tickets */
+  function stopSupportTicketWatcher() {
+    if (_supportTicketWatcherUnsub) {
+      _supportTicketWatcherUnsub();
+      _supportTicketWatcherUnsub = null;
+      _supportTicketWatcherInit = false;
     }
-
-    window.submitSupportTicket = async function(...args) {
-      // Get form values before submitting
-      const typeEl = document.getElementById('support-type');
-      const descEl = document.getElementById('support-desc');
-      const orderIdEl = document.getElementById('support-order-id');
-      
-      const ticketType = typeEl ? typeEl.value : 'General';
-      const description = descEl ? descEl.value : '';
-      const orderId = orderIdEl ? orderIdEl.value : '';
-
-      // Call original function
-      let result;
-      if (typeof original === 'function') {
-        result = await original.apply(this, args);
-      }
-
-      // After original completes, create admin notification
-      setTimeout(() => {
-        createAdminSupportNotification(ticketType, description, orderId);
-      }, 500);
-
-      return result;
-    };
   }
 
   /* Create admin notification for new support ticket */
-  async function createAdminSupportNotification(type, description, orderId) {
+  async function createAdminSupportNotification(ticketData, ticketId) {
     if (typeof db === 'undefined' || !db) {
       console.warn('[SupportNotify] Firestore not ready');
       return;
     }
 
     try {
-      const user = typeof currentUser !== 'undefined' ? currentUser : null;
-      const customerEmail = user?.email || 'Guest';
-      const customerPhone = user?.phone || 'N/A';
+      const ticketType = ticketData.type || ticketData.category || 'General Issue';
+      const description = ticketData.desc || ticketData.description || '';
+      const customerEmail = ticketData.customerEmail || 'Guest Customer';
+      const customerPhone = ticketData.customerPhone || '';
+      const orderId = ticketData.orderId || '';
+
+      console.log('[SupportNotify] Creating notification for ticket:', ticketType);
 
       // Create admin notification
       await db.collection('admin_notifications').add({
-        type: 'support_ticket_submitted',
+        type: 'support_ticket',
+        ticketId: ticketId,
         category: 'Support Tickets',
-        title: '🎟️ New Support Ticket: ' + type,
+        title: '🎟️ New Support Ticket',
+        ticketType: ticketType,
         message: description,
         customerEmail: customerEmail,
         customerPhone: customerPhone,
-        orderId: orderId || '',
-        ticketType: type,
-        status: 'unread',
+        orderId: orderId,
+        status: 'open',
         read: false,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      console.log('[SupportNotify] Admin notification created for ticket:', type);
+      console.log('[SupportNotify] Notification created successfully');
+      
+      // Show alert/notification to admin if admin is currently logged in
+      displayAdminSupportAlert(ticketType, customerEmail, orderId);
     } catch (err) {
       console.error('[SupportNotify] Error creating admin notification:', err);
     }
   }
 
-  /* Start watching for new support ticket notifications for admin */
+  /* Display alert to admin about new support ticket */
+  function displayAdminSupportAlert(ticketType, customerEmail, orderId) {
+    const currentRole = window.currentRole || null;
+    
+    // Only show if admin is logged in
+    if (currentRole === 'admin') {
+      console.log('[SupportNotify] Showing alert to admin');
+      
+      if (typeof showToast === 'function') {
+        showToast('🎟️ New Support Ticket: ' + ticketType + ' from ' + customerEmail, 4000);
+      }
+      
+      if (typeof playChimePattern === 'function') {
+        playChimePattern();
+      }
+      
+      if (typeof showPromoNotification === 'function') {
+        const msg = 'New ticket from: ' + customerEmail + (orderId ? '\nOrder ID: ' + orderId : '');
+        showPromoNotification('🎟️ New Support Ticket', msg, '📋');
+      }
+    }
+  }
+
+  /* Start watching for admin support notifications */
   function startAdminSupportNotificationWatcher() {
     if (_adminSupportNotifUnsub || typeof db === 'undefined' || !db) return;
     
@@ -2404,7 +2447,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     _adminSupportNotifInit = false;
     _adminSupportNotifUnsub = db
       .collection('admin_notifications')
-      .where('type', '==', 'support_ticket_submitted')
+      .where('type', '==', 'support_ticket')
       .where('read', '==', false)
       .orderBy('createdAt', 'desc')
       .limit(20)
@@ -2412,33 +2455,18 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         (snapshot) => {
           if (!_adminSupportNotifInit) {
             _adminSupportNotifInit = true;
+            updateSupportTicketsBadge();
             return;
           }
 
-          // Process changes
           snapshot.docChanges().forEach((change) => {
             if (change.type === 'added') {
-              const data = change.doc.data() || {};
-              const docId = change.doc.id;
-              const ticketType = data.ticketType || 'Support';
-              const customerEmail = data.customerEmail || 'Customer';
-              
-              // Show notification to admin
-              showAdminSupportNotification({
-                ticketType: ticketType,
-                customerEmail: customerEmail,
-                message: data.message || '',
-                orderId: data.orderId || '',
-                docId: docId
-              });
-              
-              // Update support tickets badge
               updateSupportTicketsBadge();
             }
           });
         },
         (error) => {
-          console.error('[SupportWatcher] Error:', error);
+          console.error('[SupportNotifWatcher] Error:', error);
         }
       );
   }
@@ -2452,28 +2480,6 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     }
   }
 
-  /* Show notification popup for new support ticket */
-  function showAdminSupportNotification({ticketType, customerEmail, message, orderId, docId}) {
-    if (typeof playChimePattern === 'function') playChimePattern();
-    if (typeof showToast === 'function') {
-      showToast('🎟️ New Support Ticket from ' + customerEmail, 3000);
-    }
-    if (typeof showPromoNotification === 'function') {
-      showPromoNotification(
-        '🎟️ New Support Ticket: ' + ticketType,
-        'From: ' + customerEmail + (orderId ? '\nOrder: ' + orderId : ''),
-        '📋'
-      );
-    }
-    // Mark as read in admin_notifications
-    if (typeof db !== 'undefined' && db && docId) {
-      db.collection('admin_notifications')
-        .doc(docId)
-        .set({read: true}, {merge: true})
-        .catch(() => {});
-    }
-  }
-
   /* Update support tickets badge in admin sidebar */
   async function updateSupportTicketsBadge() {
     if (typeof db === 'undefined' || !db) return;
@@ -2481,7 +2487,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     try {
       const snapshot = await db
         .collection('admin_notifications')
-        .where('type', '==', 'support_ticket_submitted')
+        .where('type', '==', 'support_ticket')
         .where('read', '==', false)
         .get();
 
@@ -2490,6 +2496,8 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         badgeEl.textContent = snapshot.size;
         badgeEl.classList.toggle('visible', snapshot.size > 0);
       }
+      
+      console.log('[SupportBadge] Updated: ' + snapshot.size + ' unread tickets');
     } catch (err) {
       console.error('[SupportBadge] Error:', err);
     }
@@ -2504,16 +2512,21 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     }
 
     window.syncAdminRealtimeFeatures = function(...args) {
-      original.apply(this, args);
-      
-      // Also handle support ticket watcher
       const currentRole = window.currentRole || null;
       const currentUser = window.currentUser || null;
       
+      // Call original function
+      original.apply(this, args);
+      
+      // Handle support ticket watchers
       if (currentUser && currentRole === 'admin') {
+        console.log('[SupportNotify] Admin logged in, starting watchers');
+        startSupportTicketWatcher();
         startAdminSupportNotificationWatcher();
         updateSupportTicketsBadge();
       } else {
+        console.log('[SupportNotify] Admin logged out, stopping watchers');
+        stopSupportTicketWatcher();
         stopAdminSupportNotificationWatcher();
         const badgeEl = document.getElementById('support-tickets-badge');
         if (badgeEl) {
@@ -2526,14 +2539,22 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 
   // Initialize when ready
   function bootstrap() {
-    hookSupportNotification();
+    console.log('[SupportNotify] Bootstrapping support notifications');
     hookAdminSync();
     
-    // Also start watcher if already admin on page load
+    // Start watching support collection immediately (for all users)
+    setTimeout(() => {
+      if (typeof db !== 'undefined' && db) {
+        startSupportTicketWatcher();
+      }
+    }, 1000);
+    
+    // If already admin on page load, start watchers
     setTimeout(() => {
       const currentRole = window.currentRole || null;
       const currentUser = window.currentUser || null;
       if (currentUser && currentRole === 'admin') {
+        console.log('[SupportNotify] Admin detected on load, starting watchers');
         startAdminSupportNotificationWatcher();
         updateSupportTicketsBadge();
       }

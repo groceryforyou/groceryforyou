@@ -2326,246 +2326,189 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 
   let _supportTicketWatcherUnsub = null;
   let _supportTicketWatcherInit = false;
-  let _adminSupportNotifUnsub = null;
-  let _adminSupportNotifInit = false;
+  let _seenTicketIds = new Set();
 
-  /* Watch the support collection for new tickets and create admin notifications */
+  /* Watch the support collection for new tickets and notify admin in real-time */
   function startSupportTicketWatcher() {
-    if (_supportTicketWatcherUnsub || typeof db === 'undefined' || !db) return;
+    if (_supportTicketWatcherUnsub || typeof db === 'undefined' || !db) {
+      console.log('[SupportWatcher] Cannot start - db or unsub exists');
+      return;
+    }
 
+    console.log('[SupportWatcher] Starting support ticket watcher...');
     _supportTicketWatcherInit = false;
+    
     _supportTicketWatcherUnsub = db
       .collection('support')
       .orderBy('createdAt', 'desc')
-      .limit(50)
+      .limit(100)
       .onSnapshot(
         (snapshot) => {
+          console.log('[SupportWatcher] Snapshot received, isInit:', _supportTicketWatcherInit);
+          
           if (!_supportTicketWatcherInit) {
+            // First load - just mark as initialized and store all IDs
             _supportTicketWatcherInit = true;
+            snapshot.forEach(doc => {
+              _seenTicketIds.add(doc.id);
+            });
+            console.log('[SupportWatcher] Initial load complete, known tickets:', _seenTicketIds.size);
             return;
           }
 
+          // Check for new tickets
           snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
+            const ticketId = change.doc.id;
+            const isNew = !_seenTicketIds.has(ticketId);
+            
+            console.log('[SupportWatcher] Change:', change.type, 'ID:', ticketId, 'IsNew:', isNew);
+            
+            if (change.type === 'added' && isNew) {
+              _seenTicketIds.add(ticketId);
               const ticketData = change.doc.data() || {};
-              const ticketId = change.doc.id;
+              console.log('[SupportWatcher] NEW TICKET DETECTED:', ticketData);
               
-              console.log('[SupportWatcher] New ticket detected:', ticketId, ticketData);
-              
-              // Create admin notification for this ticket
-              createAdminSupportNotification(ticketData, ticketId);
+              // Notify admin immediately
+              notifyAdminAboutTicket(ticketData, ticketId);
             }
           });
         },
         (error) => {
-          console.error('[SupportWatcher] Error:', error);
+          console.error('[SupportWatcher] Firestore error:', error.code, error.message);
+          console.log('[SupportWatcher] This might be a permission issue. Check Firestore rules.');
         }
       );
+  }
+
+  /* Notify admin about new ticket */
+  function notifyAdminAboutTicket(ticketData, ticketId) {
+    console.log('[TicketNotify] Processing new ticket:', ticketId);
+    
+    const currentRole = window.currentRole || null;
+    const currentUser = window.currentUser || null;
+    
+    // Extract ticket details
+    const ticketType = ticketData.type || ticketData.category || 'General Issue';
+    const customerEmail = ticketData.customerEmail || ticketData.email || 'Customer';
+    const orderId = ticketData.orderId || '';
+    const description = ticketData.desc || ticketData.description || '';
+    
+    // Log for debugging
+    console.log('[TicketNotify] Ticket details:', {
+      type: ticketType,
+      email: customerEmail,
+      orderId: orderId,
+      adminLoggedIn: currentRole === 'admin',
+      currentUser: currentUser?.email
+    });
+    
+    // Show notification to current user if admin
+    if (currentRole === 'admin') {
+      console.log('[TicketNotify] Showing notification to admin');
+      
+      // Try different notification methods
+      const message = '🎟️ New Support Ticket: ' + ticketType + '\nFrom: ' + customerEmail + (orderId ? '\nOrder: ' + orderId : '');
+      
+      if (typeof showToast === 'function') {
+        console.log('[TicketNotify] Using showToast');
+        showToast(message, 5000);
+      }
+      
+      if (typeof playChimePattern === 'function') {
+        console.log('[TicketNotify] Playing chime');
+        playChimePattern();
+      }
+      
+      if (typeof showPromoNotification === 'function') {
+        console.log('[TicketNotify] Using showPromoNotification');
+        showPromoNotification('🎟️ New Support Ticket: ' + ticketType, 'From: ' + customerEmail + (orderId ? '\nOrder ID: ' + orderId : ''), '📋');
+      }
+      
+      // As fallback, show alert if nothing else worked
+      if (typeof showToast !== 'function' && typeof showPromoNotification !== 'function') {
+        console.log('[TicketNotify] Using fallback alert');
+        alert('🎟️ New Support Ticket: ' + ticketType + '\nFrom: ' + customerEmail);
+      }
+    } else {
+      console.log('[TicketNotify] Admin not logged in, skipping notification');
+    }
   }
 
   /* Stop watching support tickets */
   function stopSupportTicketWatcher() {
     if (_supportTicketWatcherUnsub) {
+      console.log('[SupportWatcher] Stopping watcher');
       _supportTicketWatcherUnsub();
       _supportTicketWatcherUnsub = null;
       _supportTicketWatcherInit = false;
+      _seenTicketIds.clear();
     }
-  }
-
-  /* Create admin notification for new support ticket */
-  async function createAdminSupportNotification(ticketData, ticketId) {
-    if (typeof db === 'undefined' || !db) {
-      console.warn('[SupportNotify] Firestore not ready');
-      return;
-    }
-
-    try {
-      const ticketType = ticketData.type || ticketData.category || 'General Issue';
-      const description = ticketData.desc || ticketData.description || '';
-      const customerEmail = ticketData.customerEmail || 'Guest Customer';
-      const customerPhone = ticketData.customerPhone || '';
-      const orderId = ticketData.orderId || '';
-
-      console.log('[SupportNotify] Creating notification for ticket:', ticketType);
-
-      // Create admin notification
-      await db.collection('admin_notifications').add({
-        type: 'support_ticket',
-        ticketId: ticketId,
-        category: 'Support Tickets',
-        title: '🎟️ New Support Ticket',
-        ticketType: ticketType,
-        message: description,
-        customerEmail: customerEmail,
-        customerPhone: customerPhone,
-        orderId: orderId,
-        status: 'open',
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-
-      console.log('[SupportNotify] Notification created successfully');
-      
-      // Show alert/notification to admin if admin is currently logged in
-      displayAdminSupportAlert(ticketType, customerEmail, orderId);
-    } catch (err) {
-      console.error('[SupportNotify] Error creating admin notification:', err);
-    }
-  }
-
-  /* Display alert to admin about new support ticket */
-  function displayAdminSupportAlert(ticketType, customerEmail, orderId) {
-    const currentRole = window.currentRole || null;
-    
-    // Only show if admin is logged in
-    if (currentRole === 'admin') {
-      console.log('[SupportNotify] Showing alert to admin');
-      
-      if (typeof showToast === 'function') {
-        showToast('🎟️ New Support Ticket: ' + ticketType + ' from ' + customerEmail, 4000);
-      }
-      
-      if (typeof playChimePattern === 'function') {
-        playChimePattern();
-      }
-      
-      if (typeof showPromoNotification === 'function') {
-        const msg = 'New ticket from: ' + customerEmail + (orderId ? '\nOrder ID: ' + orderId : '');
-        showPromoNotification('🎟️ New Support Ticket', msg, '📋');
-      }
-    }
-  }
-
-  /* Start watching for admin support notifications */
-  function startAdminSupportNotificationWatcher() {
-    if (_adminSupportNotifUnsub || typeof db === 'undefined' || !db) return;
-    
-    const currentRole = window.currentRole || null;
-    if (currentRole !== 'admin') return;
-
-    _adminSupportNotifInit = false;
-    _adminSupportNotifUnsub = db
-      .collection('admin_notifications')
-      .where('type', '==', 'support_ticket')
-      .where('read', '==', false)
-      .orderBy('createdAt', 'desc')
-      .limit(20)
-      .onSnapshot(
-        (snapshot) => {
-          if (!_adminSupportNotifInit) {
-            _adminSupportNotifInit = true;
-            updateSupportTicketsBadge();
-            return;
-          }
-
-          snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-              updateSupportTicketsBadge();
-            }
-          });
-        },
-        (error) => {
-          console.error('[SupportNotifWatcher] Error:', error);
-        }
-      );
-  }
-
-  /* Stop watching for support notifications */
-  function stopAdminSupportNotificationWatcher() {
-    if (_adminSupportNotifUnsub) {
-      _adminSupportNotifUnsub();
-      _adminSupportNotifUnsub = null;
-      _adminSupportNotifInit = false;
-    }
-  }
-
-  /* Update support tickets badge in admin sidebar */
-  async function updateSupportTicketsBadge() {
-    if (typeof db === 'undefined' || !db) return;
-    
-    try {
-      const snapshot = await db
-        .collection('admin_notifications')
-        .where('type', '==', 'support_ticket')
-        .where('read', '==', false)
-        .get();
-
-      const badgeEl = document.getElementById('support-tickets-badge');
-      if (badgeEl) {
-        badgeEl.textContent = snapshot.size;
-        badgeEl.classList.toggle('visible', snapshot.size > 0);
-      }
-      
-      console.log('[SupportBadge] Updated: ' + snapshot.size + ' unread tickets');
-    } catch (err) {
-      console.error('[SupportBadge] Error:', err);
-    }
-  }
-
-  /* Hook into admin sync to start/stop support watcher */
-  function hookAdminSync() {
-    const original = window.syncAdminRealtimeFeatures;
-    if (typeof original !== 'function') {
-      setTimeout(hookAdminSync, 300);
-      return;
-    }
-
-    window.syncAdminRealtimeFeatures = function(...args) {
-      const currentRole = window.currentRole || null;
-      const currentUser = window.currentUser || null;
-      
-      // Call original function
-      original.apply(this, args);
-      
-      // Handle support ticket watchers
-      if (currentUser && currentRole === 'admin') {
-        console.log('[SupportNotify] Admin logged in, starting watchers');
-        startSupportTicketWatcher();
-        startAdminSupportNotificationWatcher();
-        updateSupportTicketsBadge();
-      } else {
-        console.log('[SupportNotify] Admin logged out, stopping watchers');
-        stopSupportTicketWatcher();
-        stopAdminSupportNotificationWatcher();
-        const badgeEl = document.getElementById('support-tickets-badge');
-        if (badgeEl) {
-          badgeEl.textContent = '0';
-          badgeEl.classList.remove('visible');
-        }
-      }
-    };
   }
 
   // Initialize when ready
   function bootstrap() {
-    console.log('[SupportNotify] Bootstrapping support notifications');
-    hookAdminSync();
+    console.log('[SupportNotify] Bootstrapping...');
     
-    // Start watching support collection immediately (for all users)
+    // Start watching support collection immediately
     setTimeout(() => {
       if (typeof db !== 'undefined' && db) {
+        console.log('[SupportNotify] DB ready, starting watcher');
         startSupportTicketWatcher();
+      } else {
+        console.log('[SupportNotify] DB not ready yet, retrying...');
+        setTimeout(bootstrap, 500);
+      }
+    }, 500);
+    
+    // Hook into showPage to start watcher when support page is viewed
+    setTimeout(() => {
+      const originalShowPage = window.showPage;
+      if (typeof originalShowPage === 'function') {
+        window.showPage = function(page, ...args) {
+          console.log('[SupportNotify] Page changed to:', page);
+          if (page === 'support' || page === 'support-tickets') {
+            console.log('[SupportNotify] Support page viewed, ensuring watcher is active');
+            if (!_supportTicketWatcherUnsub && typeof db !== 'undefined' && db) {
+              startSupportTicketWatcher();
+            }
+          }
+          return originalShowPage.apply(this, [page, ...args]);
+        };
       }
     }, 1000);
-    
-    // If already admin on page load, start watchers
-    setTimeout(() => {
-      const currentRole = window.currentRole || null;
-      const currentUser = window.currentUser || null;
-      if (currentUser && currentRole === 'admin') {
-        console.log('[SupportNotify] Admin detected on load, starting watchers');
-        startAdminSupportNotificationWatcher();
-        updateSupportTicketsBadge();
-      }
-    }, 2000);
   }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', bootstrap);
   } else {
-    setTimeout(bootstrap, 50);
+    setTimeout(bootstrap, 100);
   }
+  
+  // Hook into renderAdminSupportPage to ensure watcher is running
+  setTimeout(() => {
+    const originalRender = window.renderAdminSupportPage;
+    if (typeof originalRender === 'function') {
+      window.renderAdminSupportPage = function(...args) {
+        console.log('[SupportNotify] Admin support page rendered, starting watcher');
+        if (!_supportTicketWatcherUnsub && typeof db !== 'undefined' && db) {
+          startSupportTicketWatcher();
+        }
+        return originalRender.apply(this, args);
+      };
+    }
+  }, 2000);
+  
+  // Expose for debugging
+  window._supportNotifyDebug = {
+    startWatcher: startSupportTicketWatcher,
+    stopWatcher: stopSupportTicketWatcher,
+    seenTickets: () => _seenTicketIds,
+    status: () => ({
+      watching: _supportTicketWatcherUnsub !== null,
+      initialized: _supportTicketWatcherInit,
+      seenCount: _seenTicketIds.size
+    })
+  };
 })();
 </script>
 <!-- ✅ Sign-In Fix: Popup → Redirect fallback -->

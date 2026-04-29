@@ -3035,43 +3035,59 @@ waitFor(
 </footer>
   
 <script>
-// --- ADMIN SUPPORT TICKET ALERT ---
+// --- ADMIN NOTIFICATION SYSTEM WITH RINGTONE ---
 document.addEventListener('DOMContentLoaded', function() {
-    // Wait for Firebase to initialize
+    const pageLoadTime = new Date();
+
+    // 1. Function to play the sound
+    window.playNotificationSound = function() {
+        const sound = document.getElementById("adminNotificationSound");
+        if (sound) {
+            sound.play().catch(error => console.log("Autoplay blocked. Click page to enable sound."));
+        }
+    };
+
     setTimeout(() => {
         if (typeof db !== 'undefined') {
-            console.log("📡 Admin: Watching for new Support Tickets...");
+            console.log("📡 Notification Watcher active for Sircilla Admin...");
 
             db.collection("support")
               .orderBy("createdAt", "desc")
-              .limit(1) // Watch the newest incoming ticket
+              .limit(1)
               .onSnapshot((snapshot) => {
                 snapshot.docChanges().forEach((change) => {
-                    // Only trigger for brand NEW tickets, not local edits
                     if (change.type === "added" && !snapshot.metadata.hasPendingWrites) {
                         const data = change.doc.data();
-                        
-                        // 1. POPUP ALERT
-                        // This will show even if the admin is on a different tab
-                        alert("🚨 NEW SUPPORT TICKET\n\nFrom: " + (data.customerEmail || "Guest") + "\nIssue: " + data.message);
+                        const createdAt = data.createdAt ? data.createdAt.toDate() : new Date();
 
-                        // 2. TRIGGER SOUND (Optional)
-                        if (typeof playNotificationSound === "function") {
+                        // Only trigger for tickets created AFTER refresh
+                        if (createdAt > pageLoadTime) {
+                            
+                            // A. PLAY RINGTONE
                             playNotificationSound();
-                        }
 
-                        // 3. REFRESH LIST (If the list is on the current page)
-                        if (typeof renderSupportPage === "function") {
-                            renderSupportPage();
+                            // B. SHOW POPUP ALERT
+                            // Using a confirm box so you can click 'View' to refresh
+                            const userAction = confirm("🔔 NEW SUPPORT TICKET RECEIVED!\n\nMessage: " + data.message + "\n\nClick OK to refresh the list.");
+                            
+                            if (userAction) {
+                                if (typeof renderSupportPage === "function") {
+                                    renderSupportPage();
+                                } else {
+                                    location.reload(); // Hard refresh if function is missing
+                                }
+                            }
                         }
                     }
                 });
             });
         }
-    }, 2000); 
+    }, 2000);
 });
 </script>
   
 </html>
+
+
 
 

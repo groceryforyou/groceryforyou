@@ -2297,7 +2297,35 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     }
   }
 
-  /* ── patch showPage to trigger ticket loading ── */
+  const PAGE_STORAGE_KEY = 'activePage';
+
+  function saveActivePage(page) {
+    try {
+      if (!page) return;
+      localStorage.setItem(PAGE_STORAGE_KEY, page);
+    } catch (_error) {
+      // Ignore storage errors in private mode or restricted browsers
+    }
+  }
+
+  function restoreLastActivePage() {
+    try {
+      const saved = localStorage.getItem(PAGE_STORAGE_KEY);
+      if (!saved) return;
+      if (typeof window.showPage !== 'function') {
+        setTimeout(restoreLastActivePage, 300);
+        return;
+      }
+      const validPages = ['menu', 'tracking', 'support', 'dashboard', 'orders', 'payments', 'customers', 'manage', 'admin-support'];
+      if (validPages.includes(saved)) {
+        window.showPage(saved);
+      }
+    } catch (_error) {
+      // Ignore restore errors
+    }
+  }
+
+  /* ── patch showPage to trigger ticket loading and persist page state ── */
   function hookShowPage() {
     const original = window.showPage;
     if (typeof original !== 'function') {
@@ -2307,6 +2335,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     }
     window.showPage = function(page, ...rest) {
       original.call(this, page, ...rest);
+      saveActivePage(page);
       if (page === 'support') {
         // Small delay so the page element is visible first
         setTimeout(loadTickets, 80);
@@ -2429,6 +2458,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
   /* ── bootstrap: run after DOM + Firebase ready ── */
   function bootstrap() {
     hookShowPage();
+    restoreLastActivePage();
     hookOpenSupportForm();
     hookSubmitTicket();
 
@@ -3033,61 +3063,5 @@ waitFor(
     </span>
   </div>
 </footer>
-  
-<script>
-// --- ADMIN NOTIFICATION SYSTEM WITH RINGTONE ---
-document.addEventListener('DOMContentLoaded', function() {
-    const pageLoadTime = new Date();
 
-    // 1. Function to play the sound
-    window.playNotificationSound = function() {
-        const sound = document.getElementById("adminNotificationSound");
-        if (sound) {
-            sound.play().catch(error => console.log("Autoplay blocked. Click page to enable sound."));
-        }
-    };
-
-    setTimeout(() => {
-        if (typeof db !== 'undefined') {
-            console.log("📡 Notification Watcher active for Sircilla Admin...");
-
-            db.collection("support")
-              .orderBy("createdAt", "desc")
-              .limit(1)
-              .onSnapshot((snapshot) => {
-                snapshot.docChanges().forEach((change) => {
-                    if (change.type === "added" && !snapshot.metadata.hasPendingWrites) {
-                        const data = change.doc.data();
-                        const createdAt = data.createdAt ? data.createdAt.toDate() : new Date();
-
-                        // Only trigger for tickets created AFTER refresh
-                        if (createdAt > pageLoadTime) {
-                            
-                            // A. PLAY RINGTONE
-                            playNotificationSound();
-
-                            // B. SHOW POPUP ALERT
-                            // Using a confirm box so you can click 'View' to refresh
-                            const userAction = confirm("🔔 NEW SUPPORT TICKET RECEIVED!\n\nMessage: " + data.message + "\n\nClick OK to refresh the list.");
-                            
-                            if (userAction) {
-                                if (typeof renderSupportPage === "function") {
-                                    renderSupportPage();
-                                } else {
-                                    location.reload(); // Hard refresh if function is missing
-                                }
-                            }
-                        }
-                    }
-                });
-            });
-        }
-    }, 2000);
-});
-</script>
-  
 </html>
-
-
-
-

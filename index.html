@@ -3316,7 +3316,7 @@ function openUPIApp(app) {
         setTimeout(debugListAllTickets, 500);
       } else {
         console.log('[SupportNotify] ⏳ DB not ready yet, will retry...');
-        setTimeout(bootstrap, 500);
+        setTimeout(bootstrapSupport, 500);
       }
     }, 500);
   }

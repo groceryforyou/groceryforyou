@@ -1637,13 +1637,13 @@
           <div class="pay-toggle-sublabel">Toggle delivery fee on/off for all orders</div>
         </div>
         <label class="toggle-switch">
-          <input type="checkbox" id="delivery-fee-enabled" onchange="updateDeliveryFeeBadge()"/>
+          <input type="checkbox" id="delivery-fee-enabled" onchange="updateDeliveryFeeBadge(); saveDeliverySettings(true)"/>
           <span class="toggle-slider"></span>
         </label>
       </div>
 
       <div class="form-grid" id="delivery-fee-controls" style="display:none;margin-top:12px;opacity:0.6;pointer-events:none">
-        <div class="form-group full"><label>Delivery Fee Amount (₹)</label><input type="number" id="delivery-fee-amount" value="50" min="0" step="5" placeholder="Enter delivery fee in rupees"/></div>
+        <div class="form-group full"><label>Delivery Fee Amount (₹)</label><input type="number" id="delivery-fee-amount" value="50" min="0" step="5" placeholder="Enter delivery fee in rupees" onchange="saveDeliverySettings(true)"/></div>
         <div class="form-group full" style="background:#f0faf4;border:1px solid var(--border);border-radius:10px;padding:10px;font-size:.85rem;color:var(--brown);">
           ℹ️ This fee will be added to all customer orders. It will appear instantly in the order checkout.
         </div>
@@ -1660,30 +1660,30 @@
           <div class="pay-toggle-sublabel">Add extra fee during peak times or special conditions</div>
         </div>
         <label class="toggle-switch">
-          <input type="checkbox" id="high-demand-fee-enabled" onchange="updateHighDemandControls()"/>
+          <input type="checkbox" id="high-demand-fee-enabled" onchange="updateHighDemandControls(); saveDeliverySettings(true)"/>
           <span class="toggle-slider"></span>
         </label>
       </div>
 
       <div class="form-grid" id="high-demand-fee-controls" style="display:none;opacity:0.6;pointer-events:none;margin-top:12px">
-        <div class="form-group full"><label>High Demand Fee Amount (₹)</label><input type="number" id="high-demand-fee-amount" value="30" min="0" step="5" placeholder="Enter additional fee in rupees"/></div>
+        <div class="form-group full"><label>High Demand Fee Amount (₹)</label><input type="number" id="high-demand-fee-amount" value="30" min="0" step="5" placeholder="Enter additional fee in rupees" onchange="saveDeliverySettings(true)"/></div>
         
         <div class="form-group full"><label>High Demand Conditions (Select applicable)</label>
           <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px">
             <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--cream);border-radius:10px;border:1px solid var(--border);cursor:pointer">
-              <input type="checkbox" class="hd-condition" value="high-demand" onchange="updateHighDemandMessage()"/> 🔥 High Demand
+              <input type="checkbox" class="hd-condition" value="high-demand" onchange="updateHighDemandMessage(); saveDeliverySettings(true)"/> 🔥 High Demand
             </label>
             <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--cream);border-radius:10px;border:1px solid var(--border);cursor:pointer">
-              <input type="checkbox" class="hd-condition" value="heavy-rain" onchange="updateHighDemandMessage()"/> 🌧️ Heavy Rain
+              <input type="checkbox" class="hd-condition" value="heavy-rain" onchange="updateHighDemandMessage(); saveDeliverySettings(true)"/> 🌧️ Heavy Rain
             </label>
             <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--cream);border-radius:10px;border:1px solid var(--border);cursor:pointer">
-              <input type="checkbox" class="hd-condition" value="hot-weather" onchange="updateHighDemandMessage()"/> ☀️ Hot Weather
+              <input type="checkbox" class="hd-condition" value="hot-weather" onchange="updateHighDemandMessage(); saveDeliverySettings(true)"/> ☀️ Hot Weather
             </label>
           </div>
         </div>
 
         <div class="form-group full"><label>Dynamic High Demand Message</label>
-          <textarea id="high-demand-message" rows="3" placeholder="e.g., 'Delivery partner is on high demand right now. Additional fees apply.' or 'Heavy rain detected - extra charges for safe delivery.'" style="font-size:.85rem;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-family:'Lato',sans-serif;background:#fff;outline:none;transition:border-color .2s"></textarea>
+          <textarea id="high-demand-message" rows="3" placeholder="e.g., 'Delivery partner is on high demand right now. Additional fees apply.' or 'Heavy rain detected - extra charges for safe delivery.'" style="font-size:.85rem;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-family:'Lato',sans-serif;background:#fff;outline:none;transition:border-color .2s" onchange="saveDeliverySettings(true)"></textarea>
           <div style="font-size:.78rem;color:#888;margin-top:5px;font-style:italic">💡 Tip: Use dynamic keywords like {condition} to auto-populate messages based on selected conditions</div>
         </div>
 
@@ -1695,15 +1695,15 @@
 
     <!-- SAVE BUTTON -->
     <div style="margin-top:20px;display:flex;gap:10px">
-      <button class="aip-save" onclick="saveDeliverySettings()" style="flex:2">💾 Save Delivery Settings</button>
+      <button class="aip-save" onclick="saveDeliverySettings()" style="flex:2;font-size:.85rem">💾 Manual Save</button>
       <button class="aip-reset" onclick="resetDeliverySettings()" style="flex:1">🔄 Reset</button>
     </div>
 
     <!-- INFO BANNER -->
     <div style="background:#e8f5e9;border:2px solid var(--green);border-radius:12px;padding:12px 14px;margin-top:18px;font-size:.85rem;color:var(--brown);display:flex;gap:10px;align-items:flex-start">
-      <span style="font-size:1.2rem;flex-shrink:0">✓</span>
+      <span style="font-size:1.2rem;flex-shrink:0">⚡</span>
       <div>
-        <strong>Real-time Updates:</strong> All changes are reflected instantly in the customer's order view, similar to how "out of stock" status updates. Customers will see delivery fees before checkout.
+        <strong>Auto-Save Enabled:</strong> All changes are saved instantly and reflected immediately in the customer's order view. No need to click save - just change the values and they're live!
       </div>
     </div>
   </div>
@@ -2641,7 +2641,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     }
   }
 
-  function saveDeliverySettings() {
+  function saveDeliverySettings(autoSave = false) {
     // Delivery Fee Settings
     const deliveryFeeEnabled = !!document.getElementById('delivery-fee-enabled')?.checked;
     const deliveryFeeAmount = Math.max(0, parseInt(document.getElementById('delivery-fee-amount')?.value || '50', 10) || 50);
@@ -2684,7 +2684,11 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         .catch(err => console.warn('Delivery settings save failed:', err));
     }
 
-    showToast('✅ Delivery settings saved', 2500);
+    if (!autoSave) {
+      showToast('✅ Delivery settings saved', 2500);
+    } else {
+      showToast('💾 Settings auto-saved', 1500);
+    }
     renderDeliverySettings();
     updateDeliveryInfoDisplay();
   }

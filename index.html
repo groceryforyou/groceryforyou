@@ -3303,7 +3303,7 @@ function openUPIApp(app) {
   }
 
   // Initialize when ready
-  function bootstrap() {
+  function bootstrapSupport() {
     console.log('[SupportNotify] 🚀 Bootstrapping notification system...');
     
     // Start watching support collection after DB is ready
@@ -3322,9 +3322,9 @@ function openUPIApp(app) {
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bootstrap);
+    document.addEventListener('DOMContentLoaded', bootstrapSupport);
   } else {
-    setTimeout(bootstrap, 100);
+    setTimeout(bootstrapSupport, 100);
   }
   
   // Expose for debugging

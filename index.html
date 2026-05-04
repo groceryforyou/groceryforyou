@@ -755,6 +755,30 @@
     .toggle-slider:before{content:'';position:absolute;height:22px;width:22px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.35s;box-shadow:0 1px 5px rgba(0,0,0,.25)}
     input:checked+.toggle-slider{background:var(--green)}
     input:checked+.toggle-slider:before{transform:translateX(24px)}
+    /* ===== DELIVERY SETTINGS CARDS ===== */
+    .ds-toggle-card{background:var(--cream);border:2px solid var(--border);border-radius:16px;padding:16px 18px;margin-bottom:12px;transition:all .25s;position:relative;overflow:hidden}
+    .ds-toggle-card.active{border-color:var(--green);background:linear-gradient(135deg,#f0faf4,#f9fff9)}
+    .ds-toggle-card.active-hd{border-color:#e65100;background:linear-gradient(135deg,#fff8f0,#fff3e0)}
+    .ds-card-header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .ds-card-icon-wrap{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0}
+    .ds-card-icon-wrap.green{background:linear-gradient(135deg,#e8f5e9,#c8e6c9)}
+    .ds-card-icon-wrap.orange{background:linear-gradient(135deg,#fff3e0,#ffe0b2)}
+    .ds-card-title{font-weight:900;color:var(--brown);font-size:.92rem}
+    .ds-card-subtitle{font-size:.72rem;color:#888;margin-top:2px}
+    .ds-status-pill{padding:3px 10px;border-radius:20px;font-size:.68rem;font-weight:800;letter-spacing:.5px;text-transform:uppercase;transition:all .25s}
+    .ds-status-pill.on{background:#e8f5e9;color:var(--green);border:1.5px solid var(--green)}
+    .ds-status-pill.off{background:#f5f5f5;color:#999;border:1.5px solid #ddd}
+    .ds-status-pill.hd-on{background:#fff3e0;color:#e65100;border:1.5px solid #e65100}
+    .ds-expand{padding-top:14px;margin-top:14px;border-top:1.5px dashed var(--border);display:none;animation:dsExpand .2s ease}
+    .ds-toggle-card.active .ds-expand,.ds-toggle-card.active-hd .ds-expand{display:block}
+    @keyframes dsExpand{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+    .ds-fee-input-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+    .ds-fee-input-row label{font-size:.75rem;font-weight:800;color:var(--brown);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+    .ds-fee-input{width:100px;border:2px solid var(--border);border-radius:10px;padding:8px 12px;font-size:1rem;font-weight:700;color:var(--brown);font-family:'Yeseva One',serif;outline:none;transition:border-color .2s;background:#fff}
+    .ds-fee-input:focus{border-color:var(--saffron)}
+    .ds-msg-presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+    .ds-preset-btn{background:#fff;border:1.5px solid var(--border);border-radius:20px;padding:4px 11px;font-size:.72rem;font-weight:700;color:var(--brown);cursor:pointer;transition:all .2s}
+    .ds-preset-btn:hover{border-color:#e65100;color:#e65100;background:#fff8f0}
     /* Admin extra status buttons */
     .popup-ready{flex:1;background:linear-gradient(90deg,#ffcc00,#00b04e);color:#fff;border:none;border-radius:10px;padding:11px;font-family:"Yeseva One",serif;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;touch-action:manipulation}
     .popup-ofd{flex:1;background:linear-gradient(90deg,#1a5c2a,#1e7a3a);color:#fff;border:none;border-radius:10px;padding:11px;font-family:"Yeseva One",serif;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;touch-action:manipulation}
@@ -1529,19 +1553,96 @@
       <div class="transaction-list" id="dash-txn-list"></div>
     </div>
     <div class="revenue-section">
-      <div class="section-title" style="margin-bottom:14px">🚚 Delivery Settings</div>
-      <div class="form-grid">
-        <div class="form-group"><label>Service Radius (km)</label><input type="number" id="svc-radius" value="4" min="1" max="20"/></div>
-        <div class="form-group"><label>Delivery Charge (₹)</label><input type="number" id="svc-charge" value="20" min="0"/></div>
-        <div class="form-group"><label>Free Above (₹)</label><input type="number" id="svc-free-above" value="200" min="0"/></div>
-        <div class="form-group"><label>Est. Time (mins)</label><input type="number" id="svc-est-time" value="30" min="5"/></div>
-        <div class="form-group" style="grid-column: span 2;"><label>Delivery Fee Toggle</label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="svc-fee-enabled"/> Enabled</label></div>
-        <div class="form-group"><label>Delivery Fee Amount (₹)</label><input type="number" id="svc-fee-amount" value="20" min="0"/></div>
-        <div class="form-group" style="grid-column: span 2;"><label>High Demand Fee Toggle</label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="svc-highdemand-enabled"/> Enabled</label></div>
-        <div class="form-group"><label>High Demand Fee Amount (₹)</label><input type="number" id="svc-highdemand-amount" value="0" min="0"/></div>
-        <div class="form-group full"><label>High Demand Message</label><textarea id="svc-highdemand-msg" rows="3" placeholder="Delivery partner demand is high due to heavy rain or hot weather. Extra fee applies."></textarea></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px">
+        <div class="section-title" style="margin-bottom:0">🚚 Delivery Settings</div>
+        <div id="ds-live-badge" style="background:#e8f5e9;border:1px solid var(--green);border-radius:10px;padding:5px 12px;font-size:.75rem;font-weight:800;color:var(--green)">🟢 Live</div>
       </div>
-      <button class="aip-save" style="margin-top:14px;max-width:220px" onclick="saveDeliverySettings()">💾 Save Settings</button>
+
+      <!-- DELIVERY FEE TOGGLE CARD -->
+      <div class="ds-toggle-card" id="ds-card-svc-fee-enabled">
+        <div class="ds-card-header">
+          <div class="ds-card-icon-wrap green">🚴</div>
+          <div style="flex:1">
+            <div class="ds-card-title">Delivery Fee</div>
+            <div class="ds-card-subtitle">Charge customers for delivery</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="ds-status-pill off" id="ds-pill-fee">OFF</span>
+            <label class="toggle-switch" title="Toggle Delivery Fee">
+              <input type="checkbox" id="svc-fee-enabled" onchange="onDeliveryFeeToggle(this.checked)"/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="ds-expand">
+          <div class="ds-fee-input-row">
+            <label>Delivery Fee Amount</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:1rem;font-weight:700;color:var(--brown)">₹</span>
+              <input type="number" class="ds-fee-input" id="svc-fee-amount" value="20" min="0" placeholder="20"/>
+            </div>
+            <span style="font-size:.75rem;color:#888">charged per order</span>
+          </div>
+          <div style="font-size:.78rem;color:var(--green);font-weight:700">✅ Customers will see this fee at checkout instantly</div>
+        </div>
+      </div>
+
+      <!-- HIGH DEMAND FEE TOGGLE CARD -->
+      <div class="ds-toggle-card" id="ds-card-svc-highdemand-enabled">
+        <div class="ds-card-header">
+          <div class="ds-card-icon-wrap orange">⚡</div>
+          <div style="flex:1">
+            <div class="ds-card-title">High Demand / Surge Fee</div>
+            <div class="ds-card-subtitle">Rain, heat, peak hours — extra charge</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="ds-status-pill off" id="ds-pill-hd">OFF</span>
+            <label class="toggle-switch" title="Toggle High Demand Fee">
+              <input type="checkbox" id="svc-highdemand-enabled" onchange="onHighDemandToggle(this.checked)"/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="ds-expand">
+          <div class="ds-fee-input-row">
+            <label>Surge Fee Amount</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:1rem;font-weight:700;color:#e65100">₹</span>
+              <input type="number" class="ds-fee-input" id="svc-highdemand-amount" value="0" min="0" placeholder="0" style="border-color:#ffe0b2"/>
+            </div>
+            <span style="font-size:.75rem;color:#888">added to order</span>
+          </div>
+          <div style="margin-bottom:8px">
+            <div style="font-size:.75rem;font-weight:800;color:#e65100;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">⚡ Quick Message Templates</div>
+            <div class="ds-msg-presets">
+              <button class="ds-preset-btn" onclick="setHDPreset('🌧️ Heavy rain alert! Delivery partners are working hard to reach you. A small surge fee has been applied.')" title="Rain">🌧️ Heavy Rain</button>
+              <button class="ds-preset-btn" onclick="setHDPreset('☀️ Extreme heat today! Our delivery partners are managing tough conditions. Surge fee applied for their safety.')" title="Heat">☀️ Hot Weather</button>
+              <button class="ds-preset-btn" onclick="setHDPreset('🔥 High demand right now! Delivery partners are busy. We appreciate your patience — a small surge fee applies.')" title="Demand">🔥 High Demand</button>
+              <button class="ds-preset-btn" onclick="setHDPreset('⛈️ Bad weather conditions are affecting delivery. A temporary surge fee has been applied. Thank you for understanding!')" title="Storm">⛈️ Bad Weather</button>
+              <button class="ds-preset-btn" onclick="setHDPreset('🎉 Festival rush! Orders are peaking today. Delivery surge fee applies. We will deliver as fast as we can!')" title="Festival">🎉 Festival Rush</button>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:.75rem;font-weight:800;color:var(--brown);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Custom Message (shown to customers)</label>
+            <textarea id="svc-highdemand-msg" class="aip-input" rows="3" placeholder="e.g. Heavy rain alert! Delivery partners are working hard to reach you. A small surge fee applies."></textarea>
+            <div style="font-size:.72rem;color:#e65100;margin-top:5px">💡 This message appears on the customer checkout screen instantly</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OTHER SETTINGS -->
+      <div style="background:var(--cream);border:1.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:16px">
+        <div style="font-size:.78rem;font-weight:800;color:var(--brown);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">⚙️ Other Delivery Config</div>
+        <div class="form-grid" style="margin:0">
+          <div class="form-group"><label>Service Radius (km)</label><input type="number" id="svc-radius" value="4" min="1" max="20"/></div>
+          <div class="form-group"><label>Est. Time (mins)</label><input type="number" id="svc-est-time" value="30" min="5"/></div>
+        </div>
+      </div>
+
+      <button class="aip-save" style="margin-top:4px;width:100%;max-width:280px" onclick="saveDeliverySettings()">
+        💾 Save &amp; Apply Live
+      </button>
+      <div id="ds-save-status" style="font-size:.78rem;color:var(--green);font-weight:700;margin-top:8px;display:none">✅ Settings saved and applied to all customers!</div>
     </div>
     <div class="revenue-section">
       <div class="section-title" style="margin-bottom:14px">📢 Send Promo</div>
@@ -3341,4 +3442,221 @@ waitFor(
   </div>
 </footer>
 
+<script>
+/* ============================================================
+   DELIVERY SETTINGS — Full System
+   - Admin toggles delivery fee & high-demand fee ON/OFF
+   - Firestore onSnapshot pushes changes to all customers instantly
+   - Order modal shows fee breakdown in real time
+   - Orders saved with deliveryFee + highDemandFee fields
+   ============================================================ */
+
+let _deliverySettings = {
+  feeEnabled: false, feeAmount: 20,
+  highDemandEnabled: false, highDemandAmount: 0, highDemandMsg: '',
+  businessHoursEnabled: false, openHour: 9, closeHour: 22, outOfServiceMsg: '',
+  radius: 4, estTime: 30
+};
+let _deliverySettingsUnsub = null;
+
+/* ---- Load + Subscribe ---- */
+function loadDeliverySettings() {
+  try {
+    const c = localStorage.getItem('deliverySettings');
+    if (c) { _deliverySettings = Object.assign({}, _deliverySettings, JSON.parse(c)); _applyDSToUI(); }
+  } catch(e) {}
+  if (typeof db === 'undefined' || !db) { setTimeout(loadDeliverySettings, 800); return; }
+  if (_deliverySettingsUnsub) _deliverySettingsUnsub();
+  _deliverySettingsUnsub = db.collection('settings').doc('delivery').onSnapshot(snap => {
+    if (snap.exists) {
+      const d = snap.data();
+      _deliverySettings = {
+        feeEnabled: !!d.feeEnabled, feeAmount: d.feeAmount || 20,
+        highDemandEnabled: !!d.highDemandEnabled, highDemandAmount: d.highDemandAmount || 0,
+        highDemandMsg: d.highDemandMsg || '',
+        businessHoursEnabled: !!d.businessHoursEnabled, openHour: d.openHour || 9,
+        closeHour: d.closeHour || 22, outOfServiceMsg: d.outOfServiceMsg || '',
+        radius: d.radius || 4, estTime: d.estTime || 30
+      };
+    } else {
+      _deliverySettings = { feeEnabled:false, feeAmount:20, highDemandEnabled:false, highDemandAmount:0, highDemandMsg:'', businessHoursEnabled:false, openHour:9, closeHour:22, outOfServiceMsg:'', radius:4, estTime:30 };
+    }
+    localStorage.setItem('deliverySettings', JSON.stringify(_deliverySettings));
+    _applyDSToUI();
+    updateOrderModalFees();
+  }, err => console.error('Delivery settings listener error:', err));
+}
+
+/* ---- Apply to Admin UI ---- */
+function _applyDSToUI() {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  const chk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+  chk('svc-fee-enabled', _deliverySettings.feeEnabled);
+  set('svc-fee-amount', _deliverySettings.feeAmount);
+  chk('svc-highdemand-enabled', _deliverySettings.highDemandEnabled);
+  set('svc-highdemand-amount', _deliverySettings.highDemandAmount);
+  const msgEl = document.getElementById('svc-highdemand-msg');
+  if (msgEl && !msgEl.dataset.dirty) msgEl.value = _deliverySettings.highDemandMsg;
+  chk('svc-business-hours-enabled', _deliverySettings.businessHoursEnabled);
+  set('svc-open-hour', _deliverySettings.openHour);
+  set('svc-close-hour', _deliverySettings.closeHour);
+  const oosMsgEl = document.getElementById('svc-outofservice-msg');
+  if (oosMsgEl) oosMsgEl.value = _deliverySettings.outOfServiceMsg;
+  set('svc-radius', _deliverySettings.radius);
+  set('svc-est-time', _deliverySettings.estTime);
+  _refreshDSToggleVisuals();
+}
+
+/* ---- Toggle Visual Refresh ---- */
+function _refreshDSToggleVisuals() {
+  // Delivery fee card
+  const feeCard = document.getElementById('ds-card-svc-fee-enabled');
+  const feePill = document.getElementById('ds-pill-fee');
+  if (feeCard) { feeCard.className = 'ds-toggle-card' + (_deliverySettings.feeEnabled ? ' active' : ''); }
+  if (feePill) { feePill.className = 'ds-status-pill ' + (_deliverySettings.feeEnabled ? 'on' : 'off'); feePill.textContent = _deliverySettings.feeEnabled ? '🟢 ON' : 'OFF'; }
+  // High demand card
+  const hdCard = document.getElementById('ds-card-svc-highdemand-enabled');
+  const hdPill = document.getElementById('ds-pill-hd');
+  if (hdCard) { hdCard.className = 'ds-toggle-card' + (_deliverySettings.highDemandEnabled ? ' active-hd' : ''); }
+  if (hdPill) { hdPill.className = 'ds-status-pill ' + (_deliverySettings.highDemandEnabled ? 'hd-on' : 'off'); hdPill.textContent = _deliverySettings.highDemandEnabled ? '⚡ ON' : 'OFF'; }
+}
+
+/* ---- Toggle Handlers (called from onchange) ---- */
+function onDeliveryFeeToggle(checked) {
+  _deliverySettings.feeEnabled = !!checked;
+  _refreshDSToggleVisuals();
+  updateOrderModalFees();
+}
+function onHighDemandToggle(checked) {
+  _deliverySettings.highDemandEnabled = !!checked;
+  _refreshDSToggleVisuals();
+  updateOrderModalFees();
+}
+
+/* ---- Preset message buttons ---- */
+function setHDPreset(msg) {
+  const el = document.getElementById('svc-highdemand-msg');
+  if (el) { el.value = msg; el.dataset.dirty = '1'; el.style.borderColor = '#e65100'; setTimeout(() => el.style.borderColor = '', 800); }
+}
+
+/* ---- Save to Firestore ---- */
+function saveDeliverySettings() {
+  const g = id => document.getElementById(id);
+  const settings = {
+    feeEnabled:           !!(g('svc-fee-enabled')?.checked),
+    feeAmount:            parseFloat(g('svc-fee-amount')?.value) || 0,
+    highDemandEnabled:    !!(g('svc-highdemand-enabled')?.checked),
+    highDemandAmount:     parseFloat(g('svc-highdemand-amount')?.value) || 0,
+    highDemandMsg:        (g('svc-highdemand-msg')?.value || '').trim(),
+    businessHoursEnabled: !!(g('svc-business-hours-enabled')?.checked),
+    openHour:             parseInt(g('svc-open-hour')?.value) || 9,
+    closeHour:            parseInt(g('svc-close-hour')?.value) || 22,
+    outOfServiceMsg:      (g('svc-outofservice-msg')?.value || '').trim(),
+    radius:               parseFloat(g('svc-radius')?.value) || 4,
+    estTime:              parseInt(g('svc-est-time')?.value) || 30
+  };
+  Object.assign(_deliverySettings, settings);
+  localStorage.setItem('deliverySettings', JSON.stringify(_deliverySettings));
+  _refreshDSToggleVisuals();
+  updateOrderModalFees();
+  const msgEl = g('svc-highdemand-msg'); if (msgEl) delete msgEl.dataset.dirty;
+  if (typeof db === 'undefined' || !db || typeof currentUser === 'undefined' || !currentUser) {
+    showToast('✅ Settings saved locally (offline)', 2500);
+    return;
+  }
+  const savePayload = Object.assign({}, settings, {
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: (typeof currentUser !== 'undefined' && currentUser?.email) || 'admin'
+  });
+  db.collection('settings').doc('delivery').set(savePayload, { merge: true })
+    .then(() => {
+      showToast('💾 Delivery settings saved & live for all customers!', 2800);
+      const statusEl = document.getElementById('ds-save-status');
+      if (statusEl) { statusEl.style.display = 'block'; setTimeout(() => statusEl.style.display = 'none', 4000); }
+    })
+    .catch(err => { if (typeof showFirestoreWriteError === 'function') showFirestoreWriteError('Save delivery settings', err); else showToast('⚠️ Save failed: ' + err.message, 3000, 'error'); });
+}
+
+/* ---- Update Order Modal Fee Rows ---- */
+function updateOrderModalFees() {
+  const delivRow = document.getElementById('om-delivery-fee-row');
+  const delivFeeEl = document.getElementById('om-delivery-fee');
+  const hdRow = document.getElementById('om-highdemand-fee-row');
+  const hdFeeEl = document.getElementById('om-highdemand-fee');
+  const feeNote = document.getElementById('om-fee-note');
+  const orderTotalEl = document.getElementById('om-order-total');
+  const itemsTotalEl = document.getElementById('om-total');
+  if (!delivRow || !orderTotalEl || !itemsTotalEl) return;
+
+  const itemsTotal = parseFloat((itemsTotalEl.textContent || '').replace('₹','')) || 0;
+  const dFee  = _deliverySettings.feeEnabled       ? (_deliverySettings.feeAmount       || 0) : 0;
+  const hdFee = _deliverySettings.highDemandEnabled ? (_deliverySettings.highDemandAmount|| 0) : 0;
+  const orderTotal = itemsTotal + dFee + hdFee;
+
+  // Delivery fee row
+  if (dFee > 0) {
+    delivRow.style.display = '';
+    if (delivFeeEl) delivFeeEl.textContent = '₹' + dFee;
+  } else { delivRow.style.display = 'none'; }
+
+  // High demand fee row
+  if (hdFee > 0) {
+    hdRow.style.display = '';
+    if (hdFeeEl) hdFeeEl.textContent = '₹' + hdFee;
+  } else { hdRow.style.display = 'none'; }
+
+  // High demand message note (Zomato/Swiggy style)
+  if (hdFee > 0 && _deliverySettings.highDemandMsg) {
+    if (feeNote) {
+      feeNote.style.display = '';
+      feeNote.innerHTML = '<span style="font-size:1rem">⚡</span> <span style="font-weight:700;color:#e65100">' +
+        _deliverySettings.highDemandMsg.replace(/</g,'&lt;') + '</span>';
+    }
+  } else { if (feeNote) feeNote.style.display = 'none'; }
+
+  // Final order total
+  orderTotalEl.textContent = '₹' + orderTotal;
+}
+
+/* ---- Monkey-patch openOrderModal to refresh fees on open ---- */
+(function() {
+  const _orig = window.openOrderModal;
+  window.openOrderModal = function() {
+    _orig && _orig.apply(this, arguments);
+    setTimeout(updateOrderModalFees, 80);
+  };
+})();
+
+/* ---- Monkey-patch finalizeOrder to save fee fields to Firestore ---- */
+(function() {
+  const _orig = window.finalizeOrder;
+  window.finalizeOrder = function(payMethod, payDone, payId) {
+    _orig && _orig.apply(this, arguments);
+    const dFee  = _deliverySettings.feeEnabled       ? (_deliverySettings.feeAmount       || 0) : 0;
+    const hdFee = _deliverySettings.highDemandEnabled ? (_deliverySettings.highDemandAmount|| 0) : 0;
+    if (typeof db === 'undefined' || !db || (!dFee && !hdFee)) return;
+    // currentOrderId is set synchronously inside the original finalizeOrder
+    const oid = typeof currentOrderId !== 'undefined' ? currentOrderId : null;
+    if (!oid) return;
+    setTimeout(() => {
+      db.collection('orders').where('orderId', '==', oid).get()
+        .then(snap => snap.forEach(doc => {
+          const base = doc.data().total || 0;
+          doc.ref.update({
+            deliveryFee:   dFee,
+            highDemandFee: hdFee,
+            orderTotal:    base + dFee + hdFee,
+            highDemandMsg: _deliverySettings.highDemandMsg || ''
+          }).catch(() => {});
+        })).catch(() => {});
+    }, 700);
+  };
+})();
+
+/* ---- Auto-start listener when Firebase is ready ---- */
+(function waitForDbAndLoad() {
+  if (typeof db !== 'undefined' && db) { loadDeliverySettings(); }
+  else { setTimeout(waitForDbAndLoad, 600); }
+})();
+</script>
 </html>

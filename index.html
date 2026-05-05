@@ -1531,13 +1531,17 @@
     <div class="revenue-section">
       <div class="section-title" style="margin-bottom:14px">🚚 Delivery Settings</div>
       <div class="form-grid">
-        <div class="form-group"><label>Service Radius (km)</label><input type="number" id="svc-radius" value="4" min="1" max="20" onchange="saveDeliverySettings(true)"/></div>
-        <div class="form-group"><label>Delivery Charge (₹)</label><input type="number" id="svc-charge" value="20" min="0" onchange="saveDeliverySettings(true)"/></div>
-        <div class="form-group"><label>Free Above (₹)</label><input type="number" id="svc-free-above" value="200" min="0" onchange="saveDeliverySettings(true)"/></div>
-        <div class="form-group"><label>Est. Time (mins)</label><input type="number" id="svc-est-time" value="30" min="5" onchange="saveDeliverySettings(true)"/></div>
-        <div class="form-group" style="grid-column: span 2;"><label>Delivery Fee Toggle</label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="svc-fee-enabled" onchange="saveDeliverySettings(true)"/> Enabled</label></div>
-        <div class="form-group"><label>Delivery Fee Amount (₹)</label><input type="number" id="svc-fee-amount" value="20" min="0" onchange="saveDeliverySettings(true)"/></div>
+        <div class="form-group"><label>Service Radius (km)</label><input type="number" id="svc-radius" value="4" min="1" max="20"/></div>
+        <div class="form-group"><label>Delivery Charge (₹)</label><input type="number" id="svc-charge" value="20" min="0"/></div>
+        <div class="form-group"><label>Free Above (₹)</label><input type="number" id="svc-free-above" value="200" min="0"/></div>
+        <div class="form-group"><label>Est. Time (mins)</label><input type="number" id="svc-est-time" value="30" min="5"/></div>
+        <div class="form-group" style="grid-column: span 2;"><label>Delivery Fee Toggle</label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="svc-fee-enabled"/> Enabled</label></div>
+        <div class="form-group"><label>Delivery Fee Amount (₹)</label><input type="number" id="svc-fee-amount" value="20" min="0"/></div>
+        <div class="form-group" style="grid-column: span 2;"><label>High Demand Fee Toggle</label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="svc-highdemand-enabled"/> Enabled</label></div>
+        <div class="form-group"><label>High Demand Fee Amount (₹)</label><input type="number" id="svc-highdemand-amount" value="0" min="0"/></div>
+        <div class="form-group full"><label>High Demand Message</label><textarea id="svc-highdemand-msg" rows="3" placeholder="Delivery partner demand is high due to heavy rain or hot weather. Extra fee applies."></textarea></div>
       </div>
+      <button class="aip-save" style="margin-top:14px;max-width:220px" onclick="saveDeliverySettings()">💾 Save Settings</button>
     </div>
     <div class="revenue-section">
       <div class="section-title" style="margin-bottom:14px">📢 Send Promo</div>
@@ -1633,25 +1637,73 @@
           <div class="pay-toggle-sublabel">Toggle delivery fee on/off for all orders</div>
         </div>
         <label class="toggle-switch">
-          <input type="checkbox" id="delivery-fee-enabled" onchange="updateDeliveryFeeBadge(); updateDeliveryFeeControls()"/>
+          <input type="checkbox" id="delivery-fee-enabled" onchange="updateDeliveryFeeBadge(); saveDeliverySettings(true)"/>
           <span class="toggle-slider"></span>
         </label>
       </div>
 
-      <div class="form-grid" id="delivery-fee-controls" style="margin-top:12px;">
-        <div class="form-group full"><label>Delivery Fee Amount (₹)</label><input type="number" id="delivery-fee-amount" value="50" min="0" step="5" placeholder="Enter delivery fee in rupees" style="font-size:1rem;padding:10px;border:2px solid var(--border);border-radius:8px;width:100%;"/></div>
+      <div class="form-grid" id="delivery-fee-controls" style="display:none;margin-top:12px;opacity:0.6;pointer-events:none">
+        <div class="form-group full"><label>Delivery Fee Amount (₹)</label><input type="number" id="delivery-fee-amount" value="50" min="0" step="5" placeholder="Enter delivery fee in rupees" onchange="saveDeliverySettings(true)"/></div>
         <div class="form-group full" style="background:#f0faf4;border:1px solid var(--border);border-radius:10px;padding:10px;font-size:.85rem;color:var(--brown);">
-          ℹ️ This fee will be added to all customer orders. It will appear in the order checkout after you save.
+          ℹ️ This fee will be added to all customer orders. It will appear instantly in the order checkout.
         </div>
       </div>
-      <button class="aip-save" style="margin-top:14px;max-width:220px" onclick="saveDeliverySettings()">💾 Save Delivery Fee</button>
+    </div>
+
+    <!-- HIGH DEMAND FEE SECTION -->
+    <div class="order-section" style="margin-top:18px;">
+      <h3 style="font-family:var(--site-font,'Yeseva One',serif);color:var(--brown);font-size:1.05rem;margin-bottom:12px;">📈 High Demand Fee Settings</h3>
+      
+      <div class="pay-toggle-row">
+        <div class="pay-toggle-label">
+          <span>Enable High Demand Fee</span>
+          <div class="pay-toggle-sublabel">Add extra fee during peak times or special conditions</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="high-demand-fee-enabled" onchange="updateHighDemandControls(); saveDeliverySettings(true)"/>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-grid" id="high-demand-fee-controls" style="display:none;opacity:0.6;pointer-events:none;margin-top:12px">
+        <div class="form-group full"><label>High Demand Fee Amount (₹)</label><input type="number" id="high-demand-fee-amount" value="30" min="0" step="5" placeholder="Enter additional fee in rupees" onchange="saveDeliverySettings(true)"/></div>
+        
+        <div class="form-group full"><label>High Demand Conditions (Select applicable)</label>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px">
+            <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--cream);border-radius:10px;border:1px solid var(--border);cursor:pointer">
+              <input type="checkbox" class="hd-condition" value="high-demand" onchange="updateHighDemandMessage(); saveDeliverySettings(true)"/> 🔥 High Demand
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--cream);border-radius:10px;border:1px solid var(--border);cursor:pointer">
+              <input type="checkbox" class="hd-condition" value="heavy-rain" onchange="updateHighDemandMessage(); saveDeliverySettings(true)"/> 🌧️ Heavy Rain
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--cream);border-radius:10px;border:1px solid var(--border);cursor:pointer">
+              <input type="checkbox" class="hd-condition" value="hot-weather" onchange="updateHighDemandMessage(); saveDeliverySettings(true)"/> ☀️ Hot Weather
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group full"><label>Dynamic High Demand Message</label>
+          <textarea id="high-demand-message" rows="3" placeholder="e.g., 'Delivery partner is on high demand right now. Additional fees apply.' or 'Heavy rain detected - extra charges for safe delivery.'" style="font-size:.85rem;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-family:'Lato',sans-serif;background:#fff;outline:none;transition:border-color .2s" onchange="saveDeliverySettings(true)"></textarea>
+          <div style="font-size:.78rem;color:#888;margin-top:5px;font-style:italic">💡 Tip: Use dynamic keywords like {condition} to auto-populate messages based on selected conditions</div>
+        </div>
+
+        <div class="form-group full" style="background:#fff8e1;border:1px solid #ffd700;border-radius:10px;padding:10px;font-size:.85rem;color:var(--brown);">
+          ℹ️ <strong>How it works:</strong> When high demand fee is enabled, customers will see the fee + message in their cart. Message changes dynamically based on conditions.
+        </div>
+      </div>
+    </div>
+
+    <!-- SAVE BUTTON -->
+    <div style="margin-top:20px;display:flex;gap:10px">
+      <button class="aip-save" onclick="saveDeliverySettings()" style="flex:2;font-size:.85rem">💾 Manual Save</button>
+      <button class="aip-reset" onclick="resetDeliverySettings()" style="flex:1">🔄 Reset</button>
     </div>
 
     <!-- INFO BANNER -->
     <div style="background:#e8f5e9;border:2px solid var(--green);border-radius:12px;padding:12px 14px;margin-top:18px;font-size:.85rem;color:var(--brown);display:flex;gap:10px;align-items:flex-start">
       <span style="font-size:1.2rem;flex-shrink:0">⚡</span>
       <div>
-        <strong>Save Your Changes:</strong> Make your changes to the delivery fee, then click the Save button. Changes take effect immediately for new orders.
+        <strong>Auto-Save Enabled:</strong> All changes are saved instantly and reflected immediately in the customer's order view. No need to click save - just change the values and they're live!
       </div>
     </div>
   </div>
@@ -1721,6 +1773,7 @@
         <div id="om-items-list"></div>
         <div class="om-total-row"><span>Items Total</span><span id="om-total">₹0</span></div>
         <div class="om-total-row" id="om-delivery-fee-row" style="display:none"><span>Delivery Fee</span><span id="om-delivery-fee">₹0</span></div>
+        <div class="om-total-row" id="om-highdemand-fee-row" style="display:none"><span>High Demand Fee</span><span id="om-highdemand-fee">₹0</span></div>
         <div class="om-total-row" style="font-weight:800"><span>Order Total</span><span id="om-order-total">₹0</span></div>
         <div id="om-fee-note" style="display:none;color:#555;font-size:.88rem;line-height:1.5;margin-top:8px;border:1px dashed #d7ccc8;border-radius:10px;padding:10px;background:#fff8e1;"></div>
       </div>
@@ -2569,106 +2622,41 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
   const DEFAULT_DELIVERY_SETTINGS = {
     deliveryFeeEnabled: true,
     deliveryFeeAmount: 50,
+    highDemandFeeEnabled: false,
+    highDemandFeeAmount: 30,
+    highDemandConditions: [],
+    highDemandMessage: 'Delivery partner is on high demand right now. Additional fees apply.',
     businessHoursEnabled: true,
     openHour: 9,
     closeHour: 22,
     outOfServiceMessage: 'Orders are only accepted during business hours. Please try again later.'
-  };
-
-  // Real-time listener for delivery settings
-  let _deliverySettingsUnsub = null;
-  let _firestoreDeliverySettings = null;
+  }; 
 
   function getDeliverySettings() {
     try {
       const saved = localStorage.getItem(DELIVERY_SETTINGS_KEY);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-      // Only apply defaults if nothing exists in localStorage
-      return { ...DEFAULT_DELIVERY_SETTINGS };
+      return saved ? { ...DEFAULT_DELIVERY_SETTINGS, ...JSON.parse(saved) } : { ...DEFAULT_DELIVERY_SETTINGS };
     } catch (_err) {
       return { ...DEFAULT_DELIVERY_SETTINGS };
     }
-  }
-
-  function cacheDeliverySettingsFromFirestore(firestoreData) {
-    // Cache the Firestore data and update localStorage
-    _firestoreDeliverySettings = firestoreData;
-    if (firestoreData) {
-      localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(firestoreData));
-    }
-  }
-
-  function setupDeliverySettingsRealTimeListener(db) {
-    if (_deliverySettingsUnsub) return; // Already set up
-    if (typeof db === 'undefined' || !db) return;
-
-    try {
-      _deliverySettingsUnsub = db
-        .collection('app_settings')
-        .doc('delivery_settings')
-        .onSnapshot(
-          (doc) => {
-            if (doc.exists) {
-              const data = doc.data();
-              cacheDeliverySettingsFromFirestore(data);
-              
-              // Update admin panel if delivery settings page is open
-              const settingsPage = document.getElementById('page-delivery-settings');
-              if (settingsPage && settingsPage.classList.contains('active')) {
-                renderDeliverySettings();
-              }
-              
-              // Update customer order modal if open
-              const orderModal = document.getElementById('order-modal-overlay');
-              if (orderModal && orderModal.classList.contains('active')) {
-                updateDeliveryInfoDisplay();
-              }
-            } else {
-              // Document doesn't exist, use defaults
-              cacheDeliverySettingsFromFirestore({ ...DEFAULT_DELIVERY_SETTINGS });
-            }
-          },
-          (err) => {
-            console.warn('Delivery settings real-time listener error:', err);
-          }
-        );
-    } catch (err) {
-      console.warn('Could not set up delivery settings listener:', err);
-    }
-  }
-
-  function unsubscribeDeliverySettingsListener() {
-    if (_deliverySettingsUnsub) {
-      _deliverySettingsUnsub();
-      _deliverySettingsUnsub = null;
-    }
-  }
-
-  async function loadDeliverySettingsFromFirestore() {
-    if (typeof db === 'undefined' || !db) return getDeliverySettings();
-    
-    try {
-      const doc = await db.collection('app_settings').doc('delivery_settings').get();
-      if (doc.exists) {
-        const firestoreSettings = doc.data();
-        cacheDeliverySettingsFromFirestore(firestoreSettings);
-        return firestoreSettings;
-      } else {
-        cacheDeliverySettingsFromFirestore({ ...DEFAULT_DELIVERY_SETTINGS });
-        return { ...DEFAULT_DELIVERY_SETTINGS };
-      }
-    } catch (err) {
-      console.warn('Could not load delivery settings from Firestore:', err);
-    }
-    return getDeliverySettings();
   }
 
   function saveDeliverySettings(autoSave = false) {
     // Delivery Fee Settings
     const deliveryFeeEnabled = !!document.getElementById('delivery-fee-enabled')?.checked;
     const deliveryFeeAmount = Math.max(0, parseInt(document.getElementById('delivery-fee-amount')?.value || '50', 10) || 50);
+    
+    // High Demand Fee Settings
+    const highDemandFeeEnabled = !!document.getElementById('high-demand-fee-enabled')?.checked;
+    const highDemandFeeAmount = Math.max(0, parseInt(document.getElementById('high-demand-fee-amount')?.value || '30', 10) || 30);
+    
+    // Collect selected high demand conditions
+    const highDemandConditions = [];
+    document.querySelectorAll('.hd-condition:checked').forEach(cb => {
+      highDemandConditions.push(cb.value);
+    });
+    
+    const highDemandMessage = document.getElementById('high-demand-message')?.value.trim() || DEFAULT_DELIVERY_SETTINGS.highDemandMessage;
     
     // Business Hours Settings
     const businessHoursEnabled = !!document.getElementById('svc-business-hours-enabled')?.checked;
@@ -2679,49 +2667,40 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     const settings = {
       deliveryFeeEnabled,
       deliveryFeeAmount,
+      highDemandFeeEnabled,
+      highDemandFeeAmount,
+      highDemandConditions,
+      highDemandMessage,
       businessHoursEnabled,
       openHour,
       closeHour,
-      outOfServiceMessage,
-      lastModified: new Date().toISOString()
+      outOfServiceMessage
     };
 
-    // Update local cache immediately
-    cacheDeliverySettingsFromFirestore(settings);
+    localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
 
-    // Save to Firestore (async, don't block)
-    if (typeof db !== 'undefined' && db) {
+    if (typeof db !== 'undefined' && db && currentRole === 'admin') {
       db.collection('app_settings').doc('delivery_settings').set(settings, { merge: true })
-        .then(() => {
-          if (!autoSave) {
-            showToast('✅ Delivery settings saved', 2500);
-          }
-        })
-        .catch(err => {
-          console.warn('Delivery settings save failed:', err);
-          showToast('❌ Failed to save delivery settings', 2500);
-        });
-    } else {
-      if (!autoSave) {
-        showToast('✅ Delivery settings saved locally', 2500);
-      }
+        .catch(err => console.warn('Delivery settings save failed:', err));
     }
 
+    if (!autoSave) {
+      showToast('✅ Delivery settings saved', 2500);
+    } else {
+      showToast('💾 Settings auto-saved', 1500);
+    }
     renderDeliverySettings();
     updateDeliveryInfoDisplay();
   }
 
   async function renderDeliverySettings() {
-    // Get settings from cache (which is synced with Firestore in real-time)
     let settings = getDeliverySettings();
-    
-    // If no cache yet but Firestore is available, load fresh from Firestore
-    if (!_firestoreDeliverySettings && typeof db !== 'undefined' && db) {
+    if (typeof db !== 'undefined' && db) {
       try {
         const doc = await db.collection('app_settings').doc('delivery_settings').get();
         if (doc.exists) {
-          settings = doc.data();
-          cacheDeliverySettingsFromFirestore(settings);
+          settings = { ...settings, ...doc.data() };
+          localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
         }
       } catch (err) {
         console.warn('Could not load delivery settings from Firestore:', err);
@@ -2733,6 +2712,19 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     const deliveryFeeAmountEl = document.getElementById('delivery-fee-amount');
     if (deliveryFeeEnabledEl) deliveryFeeEnabledEl.checked = settings.deliveryFeeEnabled;
     if (deliveryFeeAmountEl) deliveryFeeAmountEl.value = settings.deliveryFeeAmount;
+
+    // Update High Demand Fee fields
+    const highDemandFeeEnabledEl = document.getElementById('high-demand-fee-enabled');
+    const highDemandFeeAmountEl = document.getElementById('high-demand-fee-amount');
+    const highDemandMsgEl = document.getElementById('high-demand-message');
+    if (highDemandFeeEnabledEl) highDemandFeeEnabledEl.checked = settings.highDemandFeeEnabled;
+    if (highDemandFeeAmountEl) highDemandFeeAmountEl.value = settings.highDemandFeeAmount;
+    if (highDemandMsgEl) highDemandMsgEl.value = settings.highDemandMessage;
+
+    // Update High Demand Conditions checkboxes
+    document.querySelectorAll('.hd-condition').forEach(cb => {
+      cb.checked = settings.highDemandConditions && settings.highDemandConditions.includes(cb.value);
+    });
 
     // Update Business Hours fields
     const businessHoursEnabledEl = document.getElementById('svc-business-hours-enabled');
@@ -2746,6 +2738,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     
     // Update visibility states
     updateDeliveryFeeControls();
+    updateHighDemandControls();
   }
 
   function updateDeliveryFeeControls() {
@@ -2758,8 +2751,44 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     }
   }
 
+  function updateHighDemandControls() {
+    const enabled = document.getElementById('high-demand-fee-enabled')?.checked || false;
+    const controls = document.getElementById('high-demand-fee-controls');
+    if (controls) {
+      controls.style.display = enabled ? 'grid' : 'none';
+      controls.style.opacity = enabled ? '1' : '0.6';
+      controls.style.pointerEvents = enabled ? 'auto' : 'none';
+    }
+  }
+
   function updateDeliveryFeeBadge() {
     updateDeliveryFeeControls();
+  }
+
+  function updateHighDemandMessage() {
+    const conditions = [];
+    document.querySelectorAll('.hd-condition:checked').forEach(cb => {
+      conditions.push(cb.value);
+    });
+
+    if (conditions.length === 0) {
+      document.getElementById('high-demand-message').value = DEFAULT_DELIVERY_SETTINGS.highDemandMessage;
+      return;
+    }
+
+    // Generate dynamic message based on selected conditions
+    const conditionMessages = {
+      'high-demand': 'Delivery partners are on high demand',
+      'heavy-rain': 'Heavy rain detected in your area',
+      'hot-weather': 'Extreme heat detected in your area'
+    };
+
+    const messages = conditions.map(c => conditionMessages[c]).filter(m => m);
+    const baseMsg = messages.length > 0 
+      ? messages.join(', ') + '. Additional delivery fee applies.'
+      : 'Additional delivery fee applies.';
+    
+    document.getElementById('high-demand-message').value = baseMsg;
   }
 
   function resetDeliverySettings() {
@@ -2768,12 +2797,19 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     // Reset to defaults
     document.getElementById('delivery-fee-enabled').checked = DEFAULT_DELIVERY_SETTINGS.deliveryFeeEnabled;
     document.getElementById('delivery-fee-amount').value = DEFAULT_DELIVERY_SETTINGS.deliveryFeeAmount;
+    document.getElementById('high-demand-fee-enabled').checked = DEFAULT_DELIVERY_SETTINGS.highDemandFeeEnabled;
+    document.getElementById('high-demand-fee-amount').value = DEFAULT_DELIVERY_SETTINGS.highDemandFeeAmount;
+    document.getElementById('high-demand-message').value = DEFAULT_DELIVERY_SETTINGS.highDemandMessage;
     document.getElementById('svc-business-hours-enabled').checked = DEFAULT_DELIVERY_SETTINGS.businessHoursEnabled;
     document.getElementById('svc-open-hour').value = DEFAULT_DELIVERY_SETTINGS.openHour;
     document.getElementById('svc-close-hour').value = DEFAULT_DELIVERY_SETTINGS.closeHour;
     document.getElementById('svc-outofservice-msg').value = DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage;
     
+    // Uncheck all high demand conditions
+    document.querySelectorAll('.hd-condition').forEach(cb => cb.checked = false);
+    
     updateDeliveryFeeControls();
+    updateHighDemandControls();
     showToast('✅ Settings reset to defaults', 2000);
   }
 
@@ -2789,26 +2825,32 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     };
   }
 
-  async function updateDeliveryInfoDisplay() {
+  function updateDeliveryInfoDisplay() {
     const omTotalEl = document.getElementById('om-total');
     const omDeliveryFeeRow = document.getElementById('om-delivery-fee-row');
+    const omHighDemandFeeRow = document.getElementById('om-highdemand-fee-row');
     const omOrderTotalEl = document.getElementById('om-order-total');
     const omDeliveryFeeEl = document.getElementById('om-delivery-fee');
+    const omHighDemandFeeEl = document.getElementById('om-highdemand-fee');
     const omFeeNoteEl = document.getElementById('om-fee-note');
 
     if (!omTotalEl || !omOrderTotalEl) return;
 
     const subtotal = parseInt((omTotalEl.innerText || '0').replace(/\D/g, ''), 10) || 0;
-    const settings = await loadDeliverySettingsFromFirestore();
-    const deliveryFee = (settings.deliveryFeeEnabled && subtotal > 0) ? settings.deliveryFeeAmount : 0;
-    const total = subtotal + deliveryFee;
+    const { deliveryFee, highDemandFee, highDemandMessage } = computeDeliveryFees(subtotal);
+    const total = subtotal + deliveryFee + highDemandFee;
 
     if (omDeliveryFeeEl) omDeliveryFeeEl.innerText = `₹${deliveryFee}`;
+    if (omHighDemandFeeEl) omHighDemandFeeEl.innerText = `₹${highDemandFee}`;
     if (omDeliveryFeeRow) omDeliveryFeeRow.style.display = deliveryFee > 0 ? '' : 'none';
+    if (omHighDemandFeeRow) omHighDemandFeeRow.style.display = highDemandFee > 0 ? '' : 'none';
     if (omOrderTotalEl) omOrderTotalEl.innerText = `₹${total}`;
 
     if (omFeeNoteEl) {
-      if (deliveryFee > 0) {
+      if (highDemandFee > 0 && highDemandMessage) {
+        omFeeNoteEl.style.display = '';
+        omFeeNoteEl.innerHTML = `<strong>📈 High Demand Alert:</strong> ${highDemandMessage}`;
+      } else if (deliveryFee > 0) {
         omFeeNoteEl.style.display = '';
         omFeeNoteEl.innerHTML = `<strong>🚚 Delivery Fee:</strong> Delivery charges of ₹${deliveryFee} apply to your order.`;
       } else {
@@ -2845,10 +2887,8 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       return;
     }
 
-    window.openOrderModal = async function(...args) {
-      // Load fresh delivery settings from Firestore
-      const settings = await loadDeliverySettingsFromFirestore();
-      
+    window.openOrderModal = function(...args) {
+      const settings = getDeliverySettings();
       if (!isWithinBusinessHours(settings)) {
         const range = getBusinessHoursText(settings);
         const message = settings.outOfServiceMessage || `Orders are only accepted between ${range}. Please try again later.`;
@@ -2856,9 +2896,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         return;
       }
       original.apply(this, args);
-      setTimeout(async () => {
-        await updateDeliveryInfoDisplay();
-      }, 120);
+      setTimeout(updateDeliveryInfoDisplay, 120);
     };
   }
 
@@ -3404,10 +3442,6 @@ waitFor(
   ()=>typeof firebase!=='undefined'&&firebase.apps&&firebase.apps.length>0,
   ()=>{
     const db=firebase.firestore();
-    
-    // Start real-time delivery settings listener (works for both admin and customers)
-    setupDeliverySettingsRealTimeListener(db);
-    
     firebase.auth().onAuthStateChanged(async user=>{
       if(!user){
         if(_custUnsub){_custUnsub();_custUnsub=null;}

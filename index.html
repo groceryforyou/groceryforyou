@@ -1531,14 +1531,13 @@
     <div class="revenue-section">
       <div class="section-title" style="margin-bottom:14px">🚚 Delivery Settings</div>
       <div class="form-grid">
-        <div class="form-group"><label>Service Radius (km)</label><input type="number" id="svc-radius" value="4" min="1" max="20"/></div>
-        <div class="form-group"><label>Delivery Charge (₹)</label><input type="number" id="svc-charge" value="20" min="0"/></div>
-        <div class="form-group"><label>Free Above (₹)</label><input type="number" id="svc-free-above" value="200" min="0"/></div>
-        <div class="form-group"><label>Est. Time (mins)</label><input type="number" id="svc-est-time" value="30" min="5"/></div>
-        <div class="form-group" style="grid-column: span 2;"><label>Delivery Fee Toggle</label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="svc-fee-enabled"/> Enabled</label></div>
-        <div class="form-group"><label>Delivery Fee Amount (₹)</label><input type="number" id="svc-fee-amount" value="20" min="0"/></div>
+        <div class="form-group"><label>Service Radius (km)</label><input type="number" id="svc-radius" value="4" min="1" max="20" onchange="saveDeliverySettings(true)"/></div>
+        <div class="form-group"><label>Delivery Charge (₹)</label><input type="number" id="svc-charge" value="20" min="0" onchange="saveDeliverySettings(true)"/></div>
+        <div class="form-group"><label>Free Above (₹)</label><input type="number" id="svc-free-above" value="200" min="0" onchange="saveDeliverySettings(true)"/></div>
+        <div class="form-group"><label>Est. Time (mins)</label><input type="number" id="svc-est-time" value="30" min="5" onchange="saveDeliverySettings(true)"/></div>
+        <div class="form-group" style="grid-column: span 2;"><label>Delivery Fee Toggle</label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="svc-fee-enabled" onchange="saveDeliverySettings(true)"/> Enabled</label></div>
+        <div class="form-group"><label>Delivery Fee Amount (₹)</label><input type="number" id="svc-fee-amount" value="20" min="0" onchange="saveDeliverySettings(true)"/></div>
       </div>
-      <button class="aip-save" style="margin-top:14px;max-width:220px" onclick="saveDeliverySettings()">💾 Save Settings</button>
     </div>
     <div class="revenue-section">
       <div class="section-title" style="margin-bottom:14px">📢 Send Promo</div>
@@ -1634,33 +1633,25 @@
           <div class="pay-toggle-sublabel">Toggle delivery fee on/off for all orders</div>
         </div>
         <label class="toggle-switch">
-          <input type="checkbox" id="delivery-fee-enabled" onchange="updateDeliveryFeeBadge(); saveDeliverySettings(true)"/>
+          <input type="checkbox" id="delivery-fee-enabled" onchange="updateDeliveryFeeBadge(); updateDeliveryFeeControls()"/>
           <span class="toggle-slider"></span>
         </label>
       </div>
 
-      <div class="form-grid" id="delivery-fee-controls" style="display:none;margin-top:12px;opacity:0.6;pointer-events:none">
-        <div class="form-group full"><label>Delivery Fee Amount (₹)</label><input type="number" id="delivery-fee-amount" value="50" min="0" step="5" placeholder="Enter delivery fee in rupees" onchange="saveDeliverySettings(true)"/></div>
-        <div class="form-group full" style="display:flex;gap:10px;">
-          <button class="aip-save" onclick="saveDeliverySettings()" style="flex:1;font-size:.85rem">💾 Save Delivery Fee</button>
-        </div>
+      <div class="form-grid" id="delivery-fee-controls" style="display:none;margin-top:12px;">
+        <div class="form-group full"><label>Delivery Fee Amount (₹)</label><input type="number" id="delivery-fee-amount" value="50" min="0" step="5" placeholder="Enter delivery fee in rupees"/></div>
         <div class="form-group full" style="background:#f0faf4;border:1px solid var(--border);border-radius:10px;padding:10px;font-size:.85rem;color:var(--brown);">
-          ℹ️ This fee will be added to all customer orders. It will appear instantly in the order checkout.
+          ℹ️ This fee will be added to all customer orders. It will appear in the order checkout after you save.
         </div>
       </div>
-    </div>
-
-    <!-- SAVE BUTTON -->
-    <div style="margin-top:20px;display:flex;gap:10px">
-      <button class="aip-save" onclick="saveDeliverySettings()" style="flex:2;font-size:.85rem">💾 Manual Save</button>
-      <button class="aip-reset" onclick="resetDeliverySettings()" style="flex:1">🔄 Reset</button>
+      <button class="aip-save" style="margin-top:14px;max-width:220px" onclick="saveDeliverySettings()">💾 Save Delivery Fee</button>
     </div>
 
     <!-- INFO BANNER -->
     <div style="background:#e8f5e9;border:2px solid var(--green);border-radius:12px;padding:12px 14px;margin-top:18px;font-size:.85rem;color:var(--brown);display:flex;gap:10px;align-items:flex-start">
       <span style="font-size:1.2rem;flex-shrink:0">⚡</span>
       <div>
-        <strong>Auto-Save Enabled:</strong> All changes are saved instantly and reflected immediately in the customer's order view. No need to click save - just change the values and they're live!
+        <strong>Save Your Changes:</strong> Make your changes to the delivery fee, then click the Save button. Changes take effect immediately for new orders.
       </div>
     </div>
   </div>

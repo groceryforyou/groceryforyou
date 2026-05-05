@@ -1644,6 +1644,9 @@
 
       <div class="form-grid" id="delivery-fee-controls" style="display:none;margin-top:12px;opacity:0.6;pointer-events:none">
         <div class="form-group full"><label>Delivery Fee Amount (₹)</label><input type="number" id="delivery-fee-amount" value="50" min="0" step="5" placeholder="Enter delivery fee in rupees" onchange="saveDeliverySettings(true)"/></div>
+        <div class="form-group full" style="display:flex;gap:10px;">
+          <button class="aip-save" onclick="saveDeliverySettings()" style="flex:1;font-size:.85rem">💾 Save Delivery Fee</button>
+        </div>
         <div class="form-group full" style="background:#f0faf4;border:1px solid var(--border);border-radius:10px;padding:10px;font-size:.85rem;color:var(--brown);">
           ℹ️ This fee will be added to all customer orders. It will appear instantly in the order checkout.
         </div>
@@ -2641,6 +2644,23 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     }
   }
 
+  async function loadDeliverySettingsFromFirestore() {
+    if (typeof db === 'undefined' || !db) return getDeliverySettings();
+    
+    try {
+      const doc = await db.collection('app_settings').doc('delivery_settings').get();
+      if (doc.exists) {
+        const firestoreSettings = doc.data();
+        const mergedSettings = { ...DEFAULT_DELIVERY_SETTINGS, ...firestoreSettings };
+        localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(mergedSettings));
+        return mergedSettings;
+      }
+    } catch (err) {
+      console.warn('Could not load delivery settings from Firestore:', err);
+    }
+    return getDeliverySettings();
+  }
+
   function saveDeliverySettings(autoSave = false) {
     // Delivery Fee Settings
     const deliveryFeeEnabled = !!document.getElementById('delivery-fee-enabled')?.checked;
@@ -2825,7 +2845,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     };
   }
 
-  function updateDeliveryInfoDisplay() {
+  async function updateDeliveryInfoDisplay() {
     const omTotalEl = document.getElementById('om-total');
     const omDeliveryFeeRow = document.getElementById('om-delivery-fee-row');
     const omHighDemandFeeRow = document.getElementById('om-highdemand-fee-row');
@@ -2837,7 +2857,9 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     if (!omTotalEl || !omOrderTotalEl) return;
 
     const subtotal = parseInt((omTotalEl.innerText || '0').replace(/\D/g, ''), 10) || 0;
-    const { deliveryFee, highDemandFee, highDemandMessage } = computeDeliveryFees(subtotal);
+    const settings = await loadDeliverySettingsFromFirestore();
+    const deliveryFee = (settings.deliveryFeeEnabled && subtotal > 0) ? settings.deliveryFeeAmount : 0;
+    const highDemandFee = settings.highDemandFeeEnabled ? settings.highDemandFeeAmount : 0;
     const total = subtotal + deliveryFee + highDemandFee;
 
     if (omDeliveryFeeEl) omDeliveryFeeEl.innerText = `₹${deliveryFee}`;
@@ -2847,9 +2869,9 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     if (omOrderTotalEl) omOrderTotalEl.innerText = `₹${total}`;
 
     if (omFeeNoteEl) {
-      if (highDemandFee > 0 && highDemandMessage) {
+      if (highDemandFee > 0 && settings.highDemandMessage) {
         omFeeNoteEl.style.display = '';
-        omFeeNoteEl.innerHTML = `<strong>📈 High Demand Alert:</strong> ${highDemandMessage}`;
+        omFeeNoteEl.innerHTML = `<strong>📈 High Demand Alert:</strong> ${settings.highDemandMessage}`;
       } else if (deliveryFee > 0) {
         omFeeNoteEl.style.display = '';
         omFeeNoteEl.innerHTML = `<strong>🚚 Delivery Fee:</strong> Delivery charges of ₹${deliveryFee} apply to your order.`;
@@ -2887,8 +2909,10 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       return;
     }
 
-    window.openOrderModal = function(...args) {
-      const settings = getDeliverySettings();
+    window.openOrderModal = async function(...args) {
+      // Load fresh delivery settings from Firestore
+      const settings = await loadDeliverySettingsFromFirestore();
+      
       if (!isWithinBusinessHours(settings)) {
         const range = getBusinessHoursText(settings);
         const message = settings.outOfServiceMessage || `Orders are only accepted between ${range}. Please try again later.`;
@@ -2896,7 +2920,9 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         return;
       }
       original.apply(this, args);
-      setTimeout(updateDeliveryInfoDisplay, 120);
+      setTimeout(async () => {
+        await updateDeliveryInfoDisplay();
+      }, 120);
     };
   }
 

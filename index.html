@@ -2573,14 +2573,76 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     openHour: 9,
     closeHour: 22,
     outOfServiceMessage: 'Orders are only accepted during business hours. Please try again later.'
-  }; 
+  };
+
+  // Real-time listener for delivery settings
+  let _deliverySettingsUnsub = null;
+  let _firestoreDeliverySettings = null;
 
   function getDeliverySettings() {
     try {
       const saved = localStorage.getItem(DELIVERY_SETTINGS_KEY);
-      return saved ? { ...DEFAULT_DELIVERY_SETTINGS, ...JSON.parse(saved) } : { ...DEFAULT_DELIVERY_SETTINGS };
+      if (saved) {
+        return JSON.parse(saved);
+      }
+      // Only apply defaults if nothing exists in localStorage
+      return { ...DEFAULT_DELIVERY_SETTINGS };
     } catch (_err) {
       return { ...DEFAULT_DELIVERY_SETTINGS };
+    }
+  }
+
+  function cacheDeliverySettingsFromFirestore(firestoreData) {
+    // Cache the Firestore data and update localStorage
+    _firestoreDeliverySettings = firestoreData;
+    if (firestoreData) {
+      localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(firestoreData));
+    }
+  }
+
+  function setupDeliverySettingsRealTimeListener(db) {
+    if (_deliverySettingsUnsub) return; // Already set up
+    if (typeof db === 'undefined' || !db) return;
+
+    try {
+      _deliverySettingsUnsub = db
+        .collection('app_settings')
+        .doc('delivery_settings')
+        .onSnapshot(
+          (doc) => {
+            if (doc.exists) {
+              const data = doc.data();
+              cacheDeliverySettingsFromFirestore(data);
+              
+              // Update admin panel if delivery settings page is open
+              const settingsPage = document.getElementById('page-delivery-settings');
+              if (settingsPage && settingsPage.classList.contains('active')) {
+                renderDeliverySettings();
+              }
+              
+              // Update customer order modal if open
+              const orderModal = document.getElementById('order-modal-overlay');
+              if (orderModal && orderModal.classList.contains('active')) {
+                updateDeliveryInfoDisplay();
+              }
+            } else {
+              // Document doesn't exist, use defaults
+              cacheDeliverySettingsFromFirestore({ ...DEFAULT_DELIVERY_SETTINGS });
+            }
+          },
+          (err) => {
+            console.warn('Delivery settings real-time listener error:', err);
+          }
+        );
+    } catch (err) {
+      console.warn('Could not set up delivery settings listener:', err);
+    }
+  }
+
+  function unsubscribeDeliverySettingsListener() {
+    if (_deliverySettingsUnsub) {
+      _deliverySettingsUnsub();
+      _deliverySettingsUnsub = null;
     }
   }
 
@@ -2591,9 +2653,11 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       const doc = await db.collection('app_settings').doc('delivery_settings').get();
       if (doc.exists) {
         const firestoreSettings = doc.data();
-        const mergedSettings = { ...DEFAULT_DELIVERY_SETTINGS, ...firestoreSettings };
-        localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(mergedSettings));
-        return mergedSettings;
+        cacheDeliverySettingsFromFirestore(firestoreSettings);
+        return firestoreSettings;
+      } else {
+        cacheDeliverySettingsFromFirestore({ ...DEFAULT_DELIVERY_SETTINGS });
+        return { ...DEFAULT_DELIVERY_SETTINGS };
       }
     } catch (err) {
       console.warn('Could not load delivery settings from Firestore:', err);
@@ -2618,33 +2682,46 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       businessHoursEnabled,
       openHour,
       closeHour,
-      outOfServiceMessage
+      outOfServiceMessage,
+      lastModified: new Date().toISOString()
     };
 
-    localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
+    // Update local cache immediately
+    cacheDeliverySettingsFromFirestore(settings);
 
+    // Save to Firestore (async, don't block)
     if (typeof db !== 'undefined' && db) {
       db.collection('app_settings').doc('delivery_settings').set(settings, { merge: true })
-        .catch(err => console.warn('Delivery settings save failed:', err));
+        .then(() => {
+          if (!autoSave) {
+            showToast('✅ Delivery settings saved', 2500);
+          }
+        })
+        .catch(err => {
+          console.warn('Delivery settings save failed:', err);
+          showToast('❌ Failed to save delivery settings', 2500);
+        });
+    } else {
+      if (!autoSave) {
+        showToast('✅ Delivery settings saved locally', 2500);
+      }
     }
 
-    if (!autoSave) {
-      showToast('✅ Delivery settings saved', 2500);
-    } else {
-      showToast('💾 Settings auto-saved', 1500);
-    }
     renderDeliverySettings();
     updateDeliveryInfoDisplay();
   }
 
   async function renderDeliverySettings() {
+    // Get settings from cache (which is synced with Firestore in real-time)
     let settings = getDeliverySettings();
-    if (typeof db !== 'undefined' && db) {
+    
+    // If no cache yet but Firestore is available, load fresh from Firestore
+    if (!_firestoreDeliverySettings && typeof db !== 'undefined' && db) {
       try {
         const doc = await db.collection('app_settings').doc('delivery_settings').get();
         if (doc.exists) {
-          settings = { ...settings, ...doc.data() };
-          localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
+          settings = doc.data();
+          cacheDeliverySettingsFromFirestore(settings);
         }
       } catch (err) {
         console.warn('Could not load delivery settings from Firestore:', err);
@@ -3327,6 +3404,10 @@ waitFor(
   ()=>typeof firebase!=='undefined'&&firebase.apps&&firebase.apps.length>0,
   ()=>{
     const db=firebase.firestore();
+    
+    // Start real-time delivery settings listener (works for both admin and customers)
+    setupDeliverySettingsRealTimeListener(db);
+    
     firebase.auth().onAuthStateChanged(async user=>{
       if(!user){
         if(_custUnsub){_custUnsub();_custUnsub=null;}

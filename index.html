@@ -114,9 +114,193 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script type="module">
+    // Firebase v9 Modular Imports
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+    import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyD49HpAoFl49HpAoFl49HpAoFl49HpAoFl",
+      authDomain: "groceryforyou-sircilla.firebaseapp.com",
+      projectId: "groceryforyou-sircilla",
+      storageBucket: "groceryforyou-sircilla.appspot.com",
+      messagingSenderId: "227899287972",
+      appId: "1:227899287972:web:8994dbb7d6c813845ab931"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Global variables for settings
+    let currentDeliveryFee = 0;
+    let deliveryEnabled = false;
+    let businessOpen = "08:00";
+    let businessClose = "22:00";
+
+    // Settings reference
+    const settingsRef = doc(db, "settings", "store");
+
+    // Load settings on page load
+    async function loadSettings() {
+      try {
+        const snap = await getDoc(settingsRef);
+        if (snap.exists()) {
+          const data = snap.data();
+          deliveryEnabled = data.deliveryEnabled || false;
+          currentDeliveryFee = data.deliveryFee || 0;
+          businessOpen = data.businessOpen || "08:00";
+          businessClose = data.businessClose || "22:00";
+
+          // Update admin panel if elements exist
+          updateAdminPanel(data);
+          console.log("Settings loaded:", data);
+        } else {
+          // Set defaults if no document exists
+          const defaultData = {
+            deliveryEnabled: false,
+            deliveryFee: 0,
+            businessOpen: "08:00",
+            businessClose: "22:00",
+            updatedAt: serverTimestamp()
+          };
+          await setDoc(settingsRef, defaultData);
+          deliveryEnabled = false;
+          currentDeliveryFee = 0;
+          businessOpen = "08:00";
+          businessClose = "22:00";
+          updateAdminPanel(defaultData);
+          console.log("Default settings created");
+        }
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+      }
+    }
+
+    // Update admin panel with loaded data
+    function updateAdminPanel(data) {
+      const deliveryToggle = document.getElementById('svc-fee-enabled');
+      const deliveryFeeInput = document.getElementById('svc-fee-amount');
+      const openTimeInput = document.getElementById('svc-open-hour');
+      const closeTimeInput = document.getElementById('svc-close-hour');
+
+      if (deliveryToggle) deliveryToggle.checked = data.deliveryEnabled || false;
+      if (deliveryFeeInput) deliveryFeeInput.value = data.deliveryFee || 0;
+      if (openTimeInput) openTimeInput.value = data.businessOpen || "08:00";
+      if (closeTimeInput) closeTimeInput.value = data.businessClose || "22:00";
+    }
+
+    // Save settings
+    async function saveSettings() {
+      const saveBtn = document.getElementById('svc-save-btn') || document.querySelector('button[onclick*="saveDeliverySettings"]');
+      const deliveryToggle = document.getElementById('svc-fee-enabled');
+      const deliveryFeeInput = document.getElementById('svc-fee-amount');
+      const openTimeInput = document.getElementById('svc-open-hour');
+      const closeTimeInput = document.getElementById('svc-close-hour');
+
+      if (!saveBtn || !deliveryToggle || !deliveryFeeInput || !openTimeInput || !closeTimeInput) {
+        console.error("Required elements not found");
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving...";
+
+      try {
+        const settingsData = {
+          deliveryEnabled: deliveryToggle.checked,
+          deliveryFee: Number(deliveryFeeInput.value) || 0,
+          businessOpen: openTimeInput.value,
+          businessClose: closeTimeInput.value,
+          updatedAt: serverTimestamp()
+        };
+
+        await setDoc(settingsRef, settingsData, { merge: true });
+
+        // Update global variables
+        deliveryEnabled = settingsData.deliveryEnabled;
+        currentDeliveryFee = settingsData.deliveryFee;
+        businessOpen = settingsData.businessOpen;
+        businessClose = settingsData.businessClose;
+
+        saveBtn.textContent = "✅ Saved!";
+        console.log("Settings saved successfully");
+
+        setTimeout(() => {
+          saveBtn.textContent = "💾 Save Settings";
+          saveBtn.disabled = false;
+        }, 2000);
+
+      } catch (error) {
+        console.error("Save failed:", error);
+        saveBtn.textContent = "❌ Save Failed";
+        setTimeout(() => {
+          saveBtn.textContent = "💾 Save Settings";
+          saveBtn.disabled = false;
+        }, 2000);
+      }
+    }
+
+    // Real-time listener for customer side updates
+    function setupRealtimeListener() {
+      onSnapshot(settingsRef, (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          deliveryEnabled = data.deliveryEnabled || false;
+          currentDeliveryFee = data.deliveryFee || 0;
+          businessOpen = data.businessOpen || "08:00";
+          businessClose = data.businessClose || "22:00";
+
+          updateDeliveryUI();
+          updateBusinessHoursUI();
+          console.log("Realtime settings updated");
+        }
+      }, (error) => {
+        console.error("Realtime listener error:", error);
+      });
+    }
+
+    // Update delivery UI
+    function updateDeliveryUI() {
+      // Update cart total and delivery fee display
+      if (typeof updateCartTotal === 'function') {
+        updateCartTotal();
+      }
+      if (typeof updateDeliveryInfoDisplay === 'function') {
+        updateDeliveryInfoDisplay();
+      }
+    }
+
+    // Update business hours UI
+    function updateBusinessHoursUI() {
+      if (typeof updateBusinessHoursStatus === 'function') {
+        updateBusinessHoursStatus();
+      }
+    }
+
+    // Initialize on DOM load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadSettings();
+      setupRealtimeListener();
+
+      // Attach save button handler
+      const saveBtn = document.getElementById('svc-save-btn') || document.querySelector('button[onclick*="saveDeliverySettings"]');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', saveSettings);
+      }
+    });
+
+    // Export functions for global access
+    window.saveSettings = saveSettings;
+    window.loadSettings = loadSettings;
+    window.currentDeliveryFee = currentDeliveryFee;
+    window.deliveryEnabled = deliveryEnabled;
+    window.businessOpen = businessOpen;
+    window.businessClose = businessClose;
+  </script>
   <style>
     :root {
       --saffron:#00b04e;--turmeric:#ffcc00;--deep:#0a1a0e;
@@ -2887,18 +3071,15 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
   window.updateDeliveryFeeUI = updateDeliveryFeeUI;
 
   function computeDeliveryFees(subtotal) {
-    const settings = getDeliverySettings();
-    // Free offer overrides everything — no delivery fee
-    if (settings.freeOffer) {
+    // Use the new simple settings system
+    if (!window.deliveryEnabled) {
       return { deliveryFee: 0, highDemandFee: 0, highDemandMessage: '' };
     }
-    const hasFee = settings.feeEnabled && subtotal > 0 && (settings.freeAbove <= 0 || subtotal < settings.freeAbove);
-    const deliveryFee = hasFee ? settings.feeAmount : 0;
-    const highDemandFee = settings.highDemandEnabled ? settings.highDemandAmount : 0;
+    const deliveryFee = subtotal > 0 ? (window.currentDeliveryFee || 0) : 0;
     return {
       deliveryFee,
-      highDemandFee,
-      highDemandMessage: settings.highDemandMessage
+      highDemandFee: 0, // Simplified - no high demand fee in new system
+      highDemandMessage: ''
     };
   }
 
@@ -2937,24 +3118,24 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     }
   }
 
-  function isWithinBusinessHours(settings) {
-    if (!settings?.businessHoursEnabled) return true;
+  function isWithinBusinessHours() {
+    // Always enabled in new system - check time against businessOpen/businessClose
     const now = new Date();
-    const currentHour = now.getHours();
-    const openHour = Number(settings.openHour ?? 0);
-    const closeHour = Number(settings.closeHour ?? 24);
-    if (openHour === closeHour) return true;
-    if (openHour < closeHour) {
-      return currentHour >= openHour && currentHour < closeHour;
+    const currentTime = now.getHours() * 100 + now.getMinutes();
+    const [openHour, openMin] = (window.businessOpen || "08:00").split(':').map(Number);
+    const [closeHour, closeMin] = (window.businessClose || "22:00").split(':').map(Number);
+    const openTime = openHour * 100 + openMin;
+    const closeTime = closeHour * 100 + closeMin;
+
+    if (openTime === closeTime) return true;
+    if (openTime < closeTime) {
+      return currentTime >= openTime && currentTime < closeTime;
     }
-    return currentHour >= openHour || currentHour < closeHour;
+    return currentTime >= openTime || currentTime < closeTime;
   }
 
-  function getBusinessHoursText(settings) {
-    const formatHour = h => String(h).padStart(2, '0') + ':00';
-    const openHour = Number(settings.openHour ?? 0);
-    const closeHour = Number(settings.closeHour ?? 24);
-    return `${formatHour(openHour)} - ${formatHour(closeHour)}`;
+  function getBusinessHoursText() {
+    return `${window.businessOpen || "08:00"} - ${window.businessClose || "22:00"}`;
   }
 
   function updateBusinessHoursStatus() {
@@ -2998,15 +3179,13 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     }
 
     window.openOrderModal = function(...args) {
-      // Fetch fresh delivery settings from Firestore before opening modal
-      const showModal = () => {
-        const settings = getDeliverySettings();
-        if (!isWithinBusinessHours(settings)) {
-          const range = getBusinessHoursText(settings);
-          const message = settings.outOfServiceMessage || `Orders are only accepted between ${range}. Please try again later.`;
-          showToast(`⚠️ ${message}`, 5000);
-          return;
-        }
+      // Check business hours using new system
+      if (!isWithinBusinessHours()) {
+        const range = getBusinessHoursText();
+        const message = `Orders are only accepted between ${range}. Please try again later.`;
+        showToast(`⚠️ ${message}`, 5000);
+        return;
+      }
         original.apply(this, args);
         // Fire multiple times to ensure we override obfuscated code's delivery fee
         [150, 450, 900, 1600, 2800].forEach(ms =>

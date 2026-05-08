@@ -1528,21 +1528,7 @@
       </div>
       <div class="transaction-list" id="dash-txn-list"></div>
     </div>
-    <div class="revenue-section">
-      <div class="section-title" style="margin-bottom:14px">🚚 Delivery Settings</div>
-      <div class="form-grid">
-        <div class="form-group"><label>Service Radius (km)</label><input type="number" id="svc-radius" value="4" min="1" max="20"/></div>
-        <div class="form-group"><label>Delivery Charge (₹)</label><input type="number" id="svc-charge" value="20" min="0"/></div>
-        <div class="form-group"><label>Free Above (₹)</label><input type="number" id="svc-free-above" value="200" min="0"/></div>
-        <div class="form-group"><label>Est. Time (mins)</label><input type="number" id="svc-est-time" value="30" min="5"/></div>
-        <div class="form-group" style="grid-column: span 2;"><label>Delivery Fee Toggle</label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="svc-fee-enabled"/> Enabled</label></div>
-        <div class="form-group"><label>Delivery Fee Amount (₹)</label><input type="number" id="svc-fee-amount" value="20" min="0"/></div>
-        <div class="form-group" style="grid-column: span 2;"><label>High Demand Fee Toggle</label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="svc-highdemand-enabled"/> Enabled</label></div>
-        <div class="form-group"><label>High Demand Fee Amount (₹)</label><input type="number" id="svc-highdemand-amount" value="0" min="0"/></div>
-        <div class="form-group full"><label>High Demand Message</label><textarea id="svc-highdemand-msg" rows="3" placeholder="Delivery partner demand is high due to heavy rain or hot weather. Extra fee applies."></textarea></div>
-      </div>
-      <button class="aip-save" style="margin-top:14px;max-width:220px" onclick="saveDeliverySettings()">💾 Save Settings</button>
-    </div>
+
     <div class="revenue-section">
       <div class="section-title" style="margin-bottom:14px">📢 Send Promo</div>
       <div class="form-grid">
@@ -1625,100 +1611,142 @@
   <!-- BUSINESS HOURS PAGE -->
   <div class="page" id="page-business-hours">
     <button class="back-btn-light" onclick="adminSidebarGo('dashboard')">← Back to Dashboard</button>
-    <div class="section-title">⚙️ Delivery Settings</div>
+    <div class="section-title">🕐 Business Hours</div>
+    <div class="form-grid" style="margin-top:12px;">
+      <div class="form-group" style="grid-column: span 2;"><label>Enable Business Hours</label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="svc-business-hours-enabled"/> Enabled</label></div>
+      <div class="form-group"><label>Open Hour</label><input type="number" id="svc-open-hour" value="9" min="0" max="23"/></div>
+      <div class="form-group"><label>Close Hour</label><input type="number" id="svc-close-hour" value="22" min="0" max="23"/></div>
+      <div class="form-group full"><label>Out-of-service Message</label><textarea id="svc-outofservice-msg" rows="3" placeholder="Orders can only be placed during business hours. Please try again between the configured hours."></textarea></div>
+    </div>
+    <button class="aip-save" style="margin-top:14px;max-width:220px" onclick="saveDeliverySettings()">💾 Save Business Hours</button>
+  </div>
 
-    <!-- DELIVERY FEE TOGGLE CARD -->
+  <!-- DELIVERY SETTINGS PAGE -->
+  <div class="page" id="page-delivery-settings">
+    <button class="back-btn-light" onclick="adminSidebarGo('dashboard')">← Back to Dashboard</button>
+    <div class="section-title">🚚 Delivery Settings</div>
+
+    <!-- DELIVERY FEE CARD -->
     <div style="background:#fff;border:2px solid var(--border);border-radius:18px;padding:18px 20px;margin-bottom:18px;box-shadow:var(--shadow)">
-      <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px">
-        <span style="font-size:1.4rem">🚴</span>
-        <span style="font-family:'Yeseva One',serif;color:var(--brown);font-size:1rem">Delivery Fee</span>
-        <span id="svc-fee-status-label" style="margin-left:auto;font-size:.75rem;font-weight:700;color:#888"></span>
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:16px">
+        <span style="font-size:1.4rem">💰</span>
+        <div>
+          <div style="font-family:'Yeseva One',serif;color:var(--brown);font-size:1rem">Delivery Fee</div>
+          <div style="font-size:.72rem;color:#888">Charge customers for delivery below a set order value</div>
+        </div>
+        <span id="ds-fee-badge" style="margin-left:auto;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:800;background:#fee;color:#c62828">OFF</span>
       </div>
 
-      <!-- Fee Enable Toggle Row -->
-      <div class="pay-toggle-row" style="margin-bottom:12px">
+      <div class="pay-toggle-row" style="margin-bottom:0">
         <div class="pay-toggle-label">
-          <span>💰</span>
-          <span>Enable Delivery Fee<br><span class="pay-toggle-sublabel">Charge customers a delivery fee below free-threshold</span></span>
+          <span>🔛</span>
+          <span>Enable Delivery Fee<br><span class="pay-toggle-sublabel">Toggle fee on / off instantly for all customers</span></span>
         </div>
         <label class="toggle-switch">
-          <input type="checkbox" id="svc-fee-enabled" onchange="updateDeliveryFeeUI()"/>
+          <input type="checkbox" id="svc-fee-enabled" onchange="dsUpdateUI()"/>
           <span class="toggle-slider"></span>
         </label>
       </div>
 
-      <!-- Fee Amount & Free-above threshold -->
-      <div id="svc-fee-fields" style="display:none;margin-top:4px">
+      <div id="ds-fee-fields" style="display:none;margin-top:14px">
         <div class="form-grid" style="margin-top:0">
           <div class="form-group">
-            <label>Delivery Fee Amount (₹)</label>
-            <input type="number" id="svc-fee-amount" value="20" min="0" placeholder="e.g. 20" oninput="updateDeliveryFeeUI()"/>
+            <label>Fee Amount (₹)</label>
+            <input type="number" id="svc-fee-amount" value="20" min="0" placeholder="e.g. 20" oninput="dsPreview()"/>
           </div>
           <div class="form-group">
-            <label>Free Above (₹) <span style="font-size:.72rem;font-weight:400;color:#888">— 0 = always charge</span></label>
-            <input type="number" id="svc-free-above" value="200" min="0" placeholder="e.g. 200" oninput="updateDeliveryFeeUI()"/>
+            <label>Free Delivery Above (₹)</label>
+            <input type="number" id="svc-free-above" value="200" min="0" placeholder="e.g. 200" oninput="dsPreview()"/>
           </div>
         </div>
-        <div style="margin-top:6px;padding:10px 13px;background:#f0faf4;border:1px solid #c8e6c9;border-radius:10px;font-size:.8rem;color:#1e7a3a">
-          💡 Delivery fee of <strong>₹<span id="svc-fee-preview">20</span></strong> applies when order is below <strong>₹<span id="svc-free-preview">200</span></strong>
+        <div id="ds-fee-preview" style="margin-top:8px;padding:10px 14px;background:#f0faf4;border:1px solid #c8e6c9;border-radius:10px;font-size:.82rem;color:#1e7a3a">
+          💡 ₹<span id="ds-fp-amt">20</span> fee on orders below ₹<span id="ds-fp-free">200</span>. Free above that.
         </div>
       </div>
+    </div>
 
-      <!-- High Demand Fee Toggle -->
-      <div class="pay-toggle-row" style="margin-top:12px;margin-bottom:0">
+    <!-- HIGH DEMAND FEE CARD -->
+    <div style="background:#fff;border:2px solid var(--border);border-radius:18px;padding:18px 20px;margin-bottom:18px;box-shadow:var(--shadow)">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:16px">
+        <span style="font-size:1.4rem">⚡</span>
+        <div>
+          <div style="font-family:'Yeseva One',serif;color:var(--brown);font-size:1rem">High Demand Fee</div>
+          <div style="font-size:.72rem;color:#888">Extra charge during heavy rain, hot weather, peak hours</div>
+        </div>
+        <span id="ds-hd-badge" style="margin-left:auto;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:800;background:#fee;color:#c62828">OFF</span>
+      </div>
+
+      <div class="pay-toggle-row" style="margin-bottom:0">
         <div class="pay-toggle-label">
-          <span>⚡</span>
-          <span>High Demand Surcharge<br><span class="pay-toggle-sublabel">Extra fee during peak hours / bad weather</span></span>
+          <span>🔛</span>
+          <span>Enable High Demand Surcharge<br><span class="pay-toggle-sublabel">Customers see reason + extra fee instantly</span></span>
         </div>
         <label class="toggle-switch">
-          <input type="checkbox" id="svc-highdemand-enabled" onchange="updateDeliveryFeeUI()"/>
+          <input type="checkbox" id="svc-highdemand-enabled" onchange="dsUpdateUI()"/>
           <span class="toggle-slider"></span>
         </label>
       </div>
 
-      <div id="svc-highdemand-fields" style="display:none;margin-top:12px">
+      <div id="ds-hd-fields" style="display:none;margin-top:14px">
         <div class="form-grid" style="margin-top:0">
           <div class="form-group">
             <label>Surcharge Amount (₹)</label>
-            <input type="number" id="svc-highdemand-amount" value="10" min="0" placeholder="e.g. 10"/>
+            <input type="number" id="svc-highdemand-amount" value="0" min="0" placeholder="e.g. 15"/>
           </div>
-          <div class="form-group">
-            <label>Surcharge Message</label>
-            <input type="text" id="svc-highdemand-msg" placeholder="e.g. Heavy Rain Surcharge"/>
+          <div class="form-group full">
+            <label>Reason shown to customer</label>
+            <textarea id="svc-highdemand-msg" rows="2" placeholder="Delivery partner demand is high due to heavy rain or hot weather. Extra fee applies."></textarea>
           </div>
+        </div>
+        <div style="margin-top:8px;padding:10px 14px;background:#fff8e1;border:1px solid #ffe082;border-radius:10px;font-size:.8rem;color:#e65100">
+          ⚡ This message + surcharge will appear in the customer's cart immediately after saving.
         </div>
       </div>
     </div>
 
-    <!-- BUSINESS HOURS CARD -->
-    <div style="background:#fff;border:2px solid var(--border);border-radius:18px;padding:18px 20px;margin-bottom:18px;box-shadow:var(--shadow)">
+    <!-- OTHER DELIVERY SETTINGS -->
+    <div style="background:#fff;border:2px solid var(--border);border-radius:18px;padding:18px 20px;margin-bottom:20px;box-shadow:var(--shadow)">
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px">
-        <span style="font-size:1.4rem">🕐</span>
-        <span style="font-family:'Yeseva One',serif;color:var(--brown);font-size:1rem">Business Hours</span>
+        <span style="font-size:1.4rem">🗺️</span>
+        <div style="font-family:'Yeseva One',serif;color:var(--brown);font-size:1rem">General Delivery</div>
       </div>
-
-      <div class="pay-toggle-row" style="margin-bottom:12px">
-        <div class="pay-toggle-label">
-          <span>🔓</span>
-          <span>Enable Business Hours<br><span class="pay-toggle-sublabel">Block orders outside operating hours</span></span>
-        </div>
-        <label class="toggle-switch">
-          <input type="checkbox" id="svc-business-hours-enabled"/>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-
       <div class="form-grid" style="margin-top:0">
-        <div class="form-group"><label>Open Hour (0–23)</label><input type="number" id="svc-open-hour" value="9" min="0" max="23"/></div>
-        <div class="form-group"><label>Close Hour (0–23)</label><input type="number" id="svc-close-hour" value="22" min="0" max="23"/></div>
-        <div class="form-group full"><label>Out-of-service Message</label><textarea id="svc-outofservice-msg" rows="2" placeholder="Orders can only be placed during business hours. Please try again between the configured hours."></textarea></div>
+        <div class="form-group"><label>Service Radius (km)</label><input type="number" id="svc-radius" value="4" min="1" max="20"/></div>
+        <div class="form-group"><label>Delivery Charge (₹)</label><input type="number" id="svc-charge" value="20" min="0"/></div>
+        <div class="form-group"><label>Est. Time (mins)</label><input type="number" id="svc-est-time" value="30" min="5"/></div>
       </div>
     </div>
 
-    <button class="aip-save" style="max-width:240px" onclick="saveDeliverySettings()">💾 Save Delivery Settings</button>
+    <button class="aip-save" style="max-width:240px" onclick="saveDeliverySettings();dsUpdateUI()">💾 Save & Apply Now</button>
   </div>
 
 </div><!-- end .main -->
+
+<script>
+function dsUpdateUI(){
+  var feeOn=document.getElementById('svc-fee-enabled')?.checked;
+  var hdOn=document.getElementById('svc-highdemand-enabled')?.checked;
+  var feeFields=document.getElementById('ds-fee-fields');
+  var hdFields=document.getElementById('ds-hd-fields');
+  var feeBadge=document.getElementById('ds-fee-badge');
+  var hdBadge=document.getElementById('ds-hd-badge');
+  if(feeFields) feeFields.style.display=feeOn?'':'none';
+  if(hdFields) hdFields.style.display=hdOn?'':'none';
+  if(feeBadge){feeBadge.textContent=feeOn?'ON':'OFF';feeBadge.style.background=feeOn?'#e8f5e9':'#fee';feeBadge.style.color=feeOn?'#1b5e20':'#c62828';}
+  if(hdBadge){hdBadge.textContent=hdOn?'ON':'OFF';hdBadge.style.background=hdOn?'#fff8e1':'#fee';hdBadge.style.color=hdOn?'#e65100':'#c62828';}
+  dsPreview();
+}
+function dsPreview(){
+  var a=document.getElementById('svc-fee-amount')?.value||'20';
+  var f=document.getElementById('svc-free-above')?.value||'200';
+  var pa=document.getElementById('ds-fp-amt');
+  var pf=document.getElementById('ds-fp-free');
+  if(pa) pa.textContent=a;
+  if(pf) pf.textContent=f;
+}
+// Run on page load to sync state
+document.addEventListener('DOMContentLoaded',function(){dsUpdateUI();});
+</script>
 
 <footer style="background:var(--brown);color:#c8e6c9;text-align:center;padding:22px 16px 80px;font-size:.82rem">
   <strong>Grocery For You</strong> · 📍 Town Center, Sirsilla · 🕐 9 AM – 10 PM<br/>

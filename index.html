@@ -1625,14 +1625,97 @@
   <!-- BUSINESS HOURS PAGE -->
   <div class="page" id="page-business-hours">
     <button class="back-btn-light" onclick="adminSidebarGo('dashboard')">← Back to Dashboard</button>
-    <div class="section-title">🕐 Business Hours</div>
-    <div class="form-grid" style="margin-top:12px;">
-      <div class="form-group" style="grid-column: span 2;"><label>Enable Business Hours</label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="svc-business-hours-enabled"/> Enabled</label></div>
-      <div class="form-group"><label>Open Hour</label><input type="number" id="svc-open-hour" value="9" min="0" max="23"/></div>
-      <div class="form-group"><label>Close Hour</label><input type="number" id="svc-close-hour" value="22" min="0" max="23"/></div>
-      <div class="form-group full"><label>Out-of-service Message</label><textarea id="svc-outofservice-msg" rows="3" placeholder="Orders can only be placed during business hours. Please try again between the configured hours."></textarea></div>
+    <div class="section-title">⚙️ Delivery Settings</div>
+
+    <!-- DELIVERY FEE TOGGLE CARD -->
+    <div style="background:#fff;border:2px solid var(--border);border-radius:18px;padding:18px 20px;margin-bottom:18px;box-shadow:var(--shadow)">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px">
+        <span style="font-size:1.4rem">🚴</span>
+        <span style="font-family:'Yeseva One',serif;color:var(--brown);font-size:1rem">Delivery Fee</span>
+        <span id="svc-fee-status-label" style="margin-left:auto;font-size:.75rem;font-weight:700;color:#888"></span>
+      </div>
+
+      <!-- Fee Enable Toggle Row -->
+      <div class="pay-toggle-row" style="margin-bottom:12px">
+        <div class="pay-toggle-label">
+          <span>💰</span>
+          <span>Enable Delivery Fee<br><span class="pay-toggle-sublabel">Charge customers a delivery fee below free-threshold</span></span>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="svc-fee-enabled" onchange="updateDeliveryFeeUI()"/>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <!-- Fee Amount & Free-above threshold -->
+      <div id="svc-fee-fields" style="display:none;margin-top:4px">
+        <div class="form-grid" style="margin-top:0">
+          <div class="form-group">
+            <label>Delivery Fee Amount (₹)</label>
+            <input type="number" id="svc-fee-amount" value="20" min="0" placeholder="e.g. 20" oninput="updateDeliveryFeeUI()"/>
+          </div>
+          <div class="form-group">
+            <label>Free Above (₹) <span style="font-size:.72rem;font-weight:400;color:#888">— 0 = always charge</span></label>
+            <input type="number" id="svc-free-above" value="200" min="0" placeholder="e.g. 200" oninput="updateDeliveryFeeUI()"/>
+          </div>
+        </div>
+        <div style="margin-top:6px;padding:10px 13px;background:#f0faf4;border:1px solid #c8e6c9;border-radius:10px;font-size:.8rem;color:#1e7a3a">
+          💡 Delivery fee of <strong>₹<span id="svc-fee-preview">20</span></strong> applies when order is below <strong>₹<span id="svc-free-preview">200</span></strong>
+        </div>
+      </div>
+
+      <!-- High Demand Fee Toggle -->
+      <div class="pay-toggle-row" style="margin-top:12px;margin-bottom:0">
+        <div class="pay-toggle-label">
+          <span>⚡</span>
+          <span>High Demand Surcharge<br><span class="pay-toggle-sublabel">Extra fee during peak hours / bad weather</span></span>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="svc-highdemand-enabled" onchange="updateDeliveryFeeUI()"/>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div id="svc-highdemand-fields" style="display:none;margin-top:12px">
+        <div class="form-grid" style="margin-top:0">
+          <div class="form-group">
+            <label>Surcharge Amount (₹)</label>
+            <input type="number" id="svc-highdemand-amount" value="10" min="0" placeholder="e.g. 10"/>
+          </div>
+          <div class="form-group">
+            <label>Surcharge Message</label>
+            <input type="text" id="svc-highdemand-msg" placeholder="e.g. Heavy Rain Surcharge"/>
+          </div>
+        </div>
+      </div>
     </div>
-    <button class="aip-save" style="margin-top:14px;max-width:220px" onclick="saveDeliverySettings()">💾 Save Business Hours</button>
+
+    <!-- BUSINESS HOURS CARD -->
+    <div style="background:#fff;border:2px solid var(--border);border-radius:18px;padding:18px 20px;margin-bottom:18px;box-shadow:var(--shadow)">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px">
+        <span style="font-size:1.4rem">🕐</span>
+        <span style="font-family:'Yeseva One',serif;color:var(--brown);font-size:1rem">Business Hours</span>
+      </div>
+
+      <div class="pay-toggle-row" style="margin-bottom:12px">
+        <div class="pay-toggle-label">
+          <span>🔓</span>
+          <span>Enable Business Hours<br><span class="pay-toggle-sublabel">Block orders outside operating hours</span></span>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="svc-business-hours-enabled"/>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-grid" style="margin-top:0">
+        <div class="form-group"><label>Open Hour (0–23)</label><input type="number" id="svc-open-hour" value="9" min="0" max="23"/></div>
+        <div class="form-group"><label>Close Hour (0–23)</label><input type="number" id="svc-close-hour" value="22" min="0" max="23"/></div>
+        <div class="form-group full"><label>Out-of-service Message</label><textarea id="svc-outofservice-msg" rows="2" placeholder="Orders can only be placed during business hours. Please try again between the configured hours."></textarea></div>
+      </div>
+    </div>
+
+    <button class="aip-save" style="max-width:240px" onclick="saveDeliverySettings()">💾 Save Delivery Settings</button>
   </div>
 
 </div><!-- end .main -->
@@ -2627,7 +2710,46 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     if (openHourEl) openHourEl.value = settings.openHour;
     if (closeHourEl) closeHourEl.value = settings.closeHour;
     if (outOfServiceMsgEl) outOfServiceMsgEl.value = settings.outOfServiceMessage;
+    updateDeliveryFeeUI();
   }
+
+  function updateDeliveryFeeUI() {
+    const feeEnabled = !!document.getElementById('svc-fee-enabled')?.checked;
+    const highDemandEnabled = !!document.getElementById('svc-highdemand-enabled')?.checked;
+    const feeFields = document.getElementById('svc-fee-fields');
+    const highDemandFields = document.getElementById('svc-highdemand-fields');
+    const statusLabel = document.getElementById('svc-fee-status-label');
+
+    if (feeFields) feeFields.style.display = feeEnabled ? '' : 'none';
+    if (highDemandFields) highDemandFields.style.display = highDemandEnabled ? '' : 'none';
+
+    // Live preview updates
+    const feeAmountEl = document.getElementById('svc-fee-amount');
+    const freeAboveEl = document.getElementById('svc-free-above');
+    const feePreview = document.getElementById('svc-fee-preview');
+    const freePreview = document.getElementById('svc-free-preview');
+    if (feePreview && feeAmountEl) feePreview.textContent = feeAmountEl.value || '0';
+    if (freePreview && freeAboveEl) freePreview.textContent = freeAboveEl.value || '0';
+
+    // Status badge
+    if (statusLabel) {
+      if (feeEnabled && highDemandEnabled) {
+        statusLabel.textContent = '💰 Fee + ⚡ Surcharge ON';
+        statusLabel.style.color = '#1e7a3a';
+      } else if (feeEnabled) {
+        statusLabel.textContent = '💰 Fee ON';
+        statusLabel.style.color = '#1e7a3a';
+      } else if (highDemandEnabled) {
+        statusLabel.textContent = '⚡ Surcharge ON';
+        statusLabel.style.color = '#e8820c';
+      } else {
+        statusLabel.textContent = '🚫 All fees OFF';
+        statusLabel.style.color = '#888';
+      }
+    }
+  }
+  // Expose globally so inline onchange can reach it
+  window.updateDeliveryFeeUI = updateDeliveryFeeUI;
 
   function computeDeliveryFees(subtotal) {
     const settings = getDeliverySettings();

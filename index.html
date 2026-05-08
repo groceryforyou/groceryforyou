@@ -1652,15 +1652,27 @@
         <div class="form-grid" style="margin-top:0">
           <div class="form-group">
             <label>Fee Amount (₹)</label>
-            <input type="number" id="svc-fee-amount" value="20" min="0" placeholder="e.g. 20" oninput="dsPreview()"/>
+            <input type="number" id="svc-fee-amount" value="20" min="0" placeholder="e.g. 20"/>
           </div>
           <div class="form-group">
             <label>Free Delivery Above (₹)</label>
-            <input type="number" id="svc-free-above" value="200" min="0" placeholder="e.g. 200" oninput="dsPreview()"/>
+            <input type="number" id="svc-free-above" value="200" min="0" placeholder="e.g. 200"/>
           </div>
         </div>
-        <div id="ds-fee-preview" style="margin-top:8px;padding:10px 14px;background:#f0faf4;border:1px solid #c8e6c9;border-radius:10px;font-size:.82rem;color:#1e7a3a">
-          💡 ₹<span id="ds-fp-amt">20</span> fee on orders below ₹<span id="ds-fp-free">200</span>. Free above that.
+
+        <!-- FREE DELIVERY OFFER TOGGLE -->
+        <div class="pay-toggle-row" style="margin-top:12px;margin-bottom:0;background:#f0faf4;border-color:#a5d6a7">
+          <div class="pay-toggle-label">
+            <span>🎁</span>
+            <span>Free Delivery Offer<br><span class="pay-toggle-sublabel">Turn ON to give all customers free delivery instantly</span></span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="svc-free-offer" onchange="dsUpdateUI()"/>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div id="ds-free-offer-note" style="display:none;margin-top:8px;padding:10px 14px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;font-size:.82rem;color:#1b5e20;font-weight:700">
+          🎉 FREE DELIVERY is active! Customers pay ₹0 delivery right now.
         </div>
       </div>
     </div>
@@ -1726,25 +1738,26 @@
 function dsUpdateUI(){
   var feeOn=document.getElementById('svc-fee-enabled')?.checked;
   var hdOn=document.getElementById('svc-highdemand-enabled')?.checked;
+  var freeOffer=document.getElementById('svc-free-offer')?.checked;
   var feeFields=document.getElementById('ds-fee-fields');
   var hdFields=document.getElementById('ds-hd-fields');
   var feeBadge=document.getElementById('ds-fee-badge');
   var hdBadge=document.getElementById('ds-hd-badge');
+  var freeOfferNote=document.getElementById('ds-free-offer-note');
+  // Show/hide fee fields
   if(feeFields) feeFields.style.display=feeOn?'':'none';
   if(hdFields) hdFields.style.display=hdOn?'':'none';
-  if(feeBadge){feeBadge.textContent=feeOn?'ON':'OFF';feeBadge.style.background=feeOn?'#e8f5e9':'#fee';feeBadge.style.color=feeOn?'#1b5e20':'#c62828';}
+  // Fee badge — show "FREE OFFER" when offer is on
+  if(feeBadge){
+    if(freeOffer){feeBadge.textContent='FREE OFFER 🎁';feeBadge.style.background='#e8f5e9';feeBadge.style.color='#1b5e20';}
+    else if(feeOn){feeBadge.textContent='ON';feeBadge.style.background='#e8f5e9';feeBadge.style.color='#1b5e20';}
+    else{feeBadge.textContent='OFF';feeBadge.style.background='#fee';feeBadge.style.color='#c62828';}
+  }
+  // Free offer banner
+  if(freeOfferNote) freeOfferNote.style.display=freeOffer?'':'none';
+  // HD badge
   if(hdBadge){hdBadge.textContent=hdOn?'ON':'OFF';hdBadge.style.background=hdOn?'#fff8e1':'#fee';hdBadge.style.color=hdOn?'#e65100':'#c62828';}
-  dsPreview();
 }
-function dsPreview(){
-  var a=document.getElementById('svc-fee-amount')?.value||'20';
-  var f=document.getElementById('svc-free-above')?.value||'200';
-  var pa=document.getElementById('ds-fp-amt');
-  var pf=document.getElementById('ds-fp-free');
-  if(pa) pa.textContent=a;
-  if(pf) pf.textContent=f;
-}
-// Run on page load to sync state
 document.addEventListener('DOMContentLoaded',function(){dsUpdateUI();});
 </script>
 

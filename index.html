@@ -1890,25 +1890,53 @@ document.addEventListener('DOMContentLoaded',function(){dsUpdateUI();});
   </div>
 </div>
 <div class="upi-redirect-overlay" id="upi-redirect-overlay">
-  <div class="upi-redirect-modal">
-    <h3>💳 Complete Payment</h3>
-    <p style="color:#666;font-size:.88rem;margin-bottom:14px">Scan QR or open your UPI app</p>
-    <div class="upi-amount-badge" id="upi-amount-display">₹0</div>
-    <div class="upi-qr-placeholder">
-      <div class="qr-icon">📱</div>
-      <div class="qr-label">UPI ID: groceryforyou@ybl<br/>Scan with any UPI app</div>
+  <div class="upi-redirect-modal" style="padding:0;border-radius:20px;overflow:hidden;max-width:360px;width:94%;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,0.25)">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#0052cc,#2979ff);padding:18px 20px 14px;text-align:center">
+      <div style="color:#fff;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;opacity:.85;margin-bottom:4px">Powered by</div>
+      <div style="color:#fff;font-size:1.35rem;font-weight:800;letter-spacing:-.02em">⚡ Razorpay</div>
     </div>
-    <div class="upi-redirect-btns">
-      <button class="upi-app-btn" onclick="openRazorpayRedirect()"> Google Pay</button>
-      <button class="upi-app-btn" onclick="openRazorpayRedirect()"> PhonePe</button>
-      <button class="upi-app-btn" onclick="openRazorpayRedirect()"> Paytm</button>
-      <button class="upi-app-btn" onclick="openRazorpayRedirect()">🇮🇳 BHIM</button>
+    <!-- Amount badge -->
+    <div style="background:#f0f7ff;padding:10px 20px;text-align:center;border-bottom:1px solid #e3ecff">
+      <div style="font-size:.75rem;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Order Amount</div>
+      <div class="upi-amount-badge" id="upi-amount-display" style="font-size:1.7rem;font-weight:800;color:#0052cc;margin:2px 0">₹0</div>
     </div>
-    <div style="margin-top:12px;padding:10px;background:#f0faf4;border-radius:10px;border:1px solid #c8e6c9;font-size:.8rem;color:#1e7a3a;text-align:center">
-      After paying on Razorpay, you'll be redirected back and your order will be placed automatically.
+    <!-- QR Code card -->
+    <div style="padding:18px 20px;text-align:center">
+      <div style="background:#fff;border:1.5px solid #d0d9e8;border-radius:16px;padding:16px;display:inline-block;box-shadow:0 4px 20px rgba(0,82,204,.1)">
+        <!-- BHIM UPI logos -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:10px">
+          <span style="font-size:.8rem;font-weight:800;color:#00529b;letter-spacing:.04em">BHIM</span>
+          <span style="font-size:.7rem;color:#888;font-weight:600">|</span>
+          <span style="font-size:.8rem;font-weight:800;color:#7b0099;letter-spacing:.04em">UPI</span>
+        </div>
+        <!-- QR image — save your image as razorpay-qr.png in Downloads folder -->
+        <img src="qr.png" alt="Razorpay UPI QR - Scan &amp; Pay - GroceryForYou Sirsilla"
+             id="razorpay-qr-img"
+             style="width:200px;height:200px;object-fit:contain;display:block;margin:0 auto;border-radius:8px"
+             onerror="this.style.display='none';document.getElementById('razorpay-qr-fallback').style.display='flex'"/>
+        <!-- Fallback if image not found -->
+        <div id="razorpay-qr-fallback" style="display:none;width:200px;height:200px;border:2px dashed #ccc;border-radius:8px;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:#999;font-size:.8rem;text-align:center;margin:0 auto">
+          <span style="font-size:2.5rem">📷</span>
+          <span>Save <strong>razorpay-qr.png</strong><br/>in Downloads folder</span>
+        </div>
+        <div style="margin-top:10px;font-size:.72rem;font-weight:700;color:#333;letter-spacing:.06em;text-transform:uppercase">SCAN &amp; PAY WITH ANY UPI APP</div>
+      </div>
+      <!-- App logos row -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:14px;flex-wrap:wrap">
+        <span style="font-size:.78rem;color:#555;font-weight:600">🅖 GPay</span>
+        <span style="font-size:.78rem;color:#555;font-weight:600">🅟 PhonePe</span>
+        <span style="font-size:.78rem;color:#555;font-weight:600">Paytm</span>
+        <span style="font-size:.78rem;color:#555;font-weight:600">🇮🇳 BHIM</span>
+      </div>
+      <!-- Store name -->
+      <div style="margin-top:8px;font-size:.88rem;font-weight:800;color:#0052cc;letter-spacing:.04em">GROCERY FOR YOU</div>
     </div>
-    <button class="upi-paid-btn" onclick="confirmUPIPaid()" style="margin-top:10px">✅ I've Already Paid — Place My Order</button>
-    <button class="om-cancel" style="width:100%;margin-top:8px" onclick="closeUPIRedirect()">✕ Cancel</button>
+    <!-- Actions -->
+    <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:10px">
+      <button class="upi-paid-btn" onclick="confirmUPIPaid()" style="margin-top:0;background:linear-gradient(135deg,#1e7a3a,#43a047);color:#fff;border:none;border-radius:12px;padding:14px;font-size:.95rem;font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(30,122,58,.3)">✅ I've Paid — Place My Order</button>
+      <button class="om-cancel" style="width:100%;margin-top:0;border-radius:12px;padding:11px;background:#f5f5f5;color:#666;border:1px solid #ddd;font-weight:600;cursor:pointer" onclick="closeUPIRedirect()">✕ Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -2932,12 +2960,37 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     };
   }
 
+  function hookSubmitOrder() {
+    const original = window.submitOrder;
+    if (typeof original !== 'function') {
+      setTimeout(hookSubmitOrder, 400);
+      return;
+    }
+    window.submitOrder = function(...args) {
+      // Read subtotal from om-total, add delivery fees, patch om-total so
+      // the obfuscated submitOrder saves the correct grand total.
+      const omTotalEl = document.getElementById('om-total');
+      const omOrderTotalEl = document.getElementById('om-order-total');
+      if (omTotalEl) {
+        const subtotal = parseInt((omTotalEl.innerText || '0').replace(/\D/g, ''), 10) || 0;
+        const { deliveryFee, highDemandFee } = computeDeliveryFees(subtotal);
+        const grandTotal = subtotal + deliveryFee + highDemandFee;
+        // Temporarily patch om-total so obfuscated code reads the grand total
+        if (grandTotal !== subtotal) {
+          omTotalEl.innerText = `₹${grandTotal}`;
+        }
+      }
+      original.apply(this, args);
+    };
+  }
+
   /* ── bootstrap: run after DOM + Firebase ready ── */
   function bootstrap() {
     hookShowPage();
     restoreLastActivePage();
     hookOpenSupportForm();
     hookSubmitTicket();
+    hookSubmitOrder();
     renderDeliverySettings();
     hookOpenOrderModal();
     hookUpdateCartForDelivery();

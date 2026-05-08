@@ -3810,7 +3810,7 @@ waitFor(
 </footer>
 
 <!-- ===================================================
-     GFY REAL-TIME DELIVERY FEE SYSTEM
+     GFY REAL-TIME DELIVERY FEE SYSTEM v2 — FIXED
      Firestore: settings/delivery { fee: 50 }
      =================================================== -->
 <script>
@@ -3818,70 +3818,83 @@ waitFor(
   'use strict';
 
   /* ── State ── */
-  var _fee         = 50;   // current delivery fee
-  var _unsub       = null; // onSnapshot unsubscriber
-  var _db          = null; // Firestore instance
+  var _fee      = 50;    // delivery fee from Firestore
+  var _subtotal = 0;     // item subtotal tracked separately (NEVER read from patched om-total)
+  var _unsub    = null;  // Firestore unsubscriber
+  var _db       = null;  // Firestore instance
+  var _patching = false; // guard: true while WE are writing om-total
 
-  /* ── Helpers ── */
   function fmt(n) { return '\u20B9' + Math.max(0, Number(n) || 0); }
 
-  function numFrom(el) {
+  function numFromEl(el) {
     if (!el) return 0;
-    return parseInt((el.innerText || el.textContent || '0').replace(/\D/g, ''), 10) || 0;
+    return parseInt((el.innerText || el.textContent || '0').replace(/\D/g,''), 10) || 0;
   }
 
-  /* ── Apply fee to all UI elements ── */
-  function applyFee(fee) {
-    fee = Number(fee) || 0;
-    _fee = fee;
+  /* ── Update delivery fee UI row + grand total display ── */
+  function updateUI() {
+    var fee   = _fee;
+    var grand = _subtotal + fee;
+
     window._gfyDeliveryFee = fee;
-    console.log('[DeliveryFee] applyFee:', fee);
+    window._gfySubtotal    = _subtotal;
+    window._gfyGrandTotal  = grand;
 
-    /* Order modal fee row */
-    var feeEl    = document.getElementById('om-delivery-fee');
-    var feeRow   = document.getElementById('om-delivery-fee-row');
-    var totalEl  = document.getElementById('om-order-total');
-    var subtotEl = document.getElementById('om-total');
-
+    /* Delivery fee row */
+    var feeEl  = document.getElementById('om-delivery-fee');
+    var feeRow = document.getElementById('om-delivery-fee-row');
     if (feeEl)  feeEl.innerText = fmt(fee);
     if (feeRow) feeRow.style.display = fee > 0 ? '' : 'none';
 
-    if (subtotEl && totalEl) {
-      var sub   = numFrom(subtotEl);
-      var grand = sub + fee;
-      totalEl.innerText = fmt(grand);
-      window._gfySubtotal   = sub;
-      window._gfyGrandTotal = grand;
-      console.log('[DeliveryFee] Total recalculated:', sub, '+', fee, '=', grand);
-    }
+    /* Grand total display (separate element from om-total) */
+    var grandEl = document.getElementById('om-order-total');
+    if (grandEl) grandEl.innerText = fmt(grand);
 
     /* Sync admin input without stealing focus */
-    var adminInput = document.getElementById('gfy-delivery-fee-input')
-                  || document.getElementById('svc-fee-amount');
-    if (adminInput && document.activeElement !== adminInput) {
-      adminInput.value = fee;
-    }
+    var adminInp = document.getElementById('gfy-delivery-fee-input')
+                || document.getElementById('svc-fee-amount');
+    if (adminInp && document.activeElement !== adminInp) adminInp.value = fee;
+
+    console.log('[DeliveryFee] UI updated — subtotal:', _subtotal, '+ fee:', fee, '= grand:', grand);
   }
 
-  /* ── Start Firestore real-time listener (singleton) ── */
+  /* ── MutationObserver on om-total: capture subtotal (set by obfuscated code) ── */
+  function watchOmTotal() {
+    var el = document.getElementById('om-total');
+    if (!el) { setTimeout(watchOmTotal, 600); return; }
+
+    new MutationObserver(function() {
+      if (_patching) return; // ignore changes WE make
+      var v = numFromEl(el);
+      if (v > 0) {
+        _subtotal = v;
+        console.log('[DeliveryFee] om-total changed by app → subtotal:', v);
+      }
+      setTimeout(updateUI, 50);
+    }).observe(el, { childList: true, subtree: true, characterData: true });
+
+    /* Read initial value immediately */
+    var init = numFromEl(el);
+    if (init > 0) _subtotal = init;
+    console.log('[DeliveryFee] MutationObserver started. Initial subtotal:', _subtotal);
+    updateUI();
+  }
+
+  /* ── Firestore real-time listener (singleton) ── */
   function startListener(db) {
-    if (_unsub) { console.log('[DeliveryFee] listener already active'); return; }
-    console.log('[DeliveryFee] Starting onSnapshot on settings/delivery');
+    if (_unsub) return;
+    console.log('[DeliveryFee] onSnapshot → settings/delivery');
 
     _unsub = db.collection('settings').doc('delivery').onSnapshot(
       function(snap) {
         var fee = 50;
-        if (snap.exists) {
-          var data = snap.data() || {};
-          fee = Number(data.fee);
-          if (isNaN(fee)) fee = 50;
-        }
-        console.log('[DeliveryFee] Snapshot → fee:', fee);
-        applyFee(fee);
+        if (snap.exists) { fee = Number(snap.data().fee); if (isNaN(fee)) fee = 50; }
+        console.log('[DeliveryFee] Firestore fee:', fee);
+        _fee = fee;
+        updateUI();
       },
       function(err) {
-        console.error('[DeliveryFee] onSnapshot error:', err.code, err.message);
-        /* Retry after 5s on permission/network error */
+        console.error('[DeliveryFee] Listener error:', err.code);
         _unsub = null;
         setTimeout(function() { if (_db) startListener(_db); }, 5000);
       }
@@ -3890,148 +3903,130 @@ waitFor(
 
   /* ── Admin: save fee to Firestore ── */
   async function saveFee() {
-    if (!_db) { console.warn('[DeliveryFee] DB not ready'); return; }
-
-    var input = document.getElementById('gfy-delivery-fee-input')
-             || document.getElementById('svc-fee-amount');
-    var fee   = input ? Number(input.value) : _fee;
+    if (!_db) { alert('Database not ready. Try again.'); return; }
+    var inp = document.getElementById('gfy-delivery-fee-input')
+           || document.getElementById('svc-fee-amount');
+    var fee = inp ? Number(inp.value) : _fee;
     if (isNaN(fee) || fee < 0) fee = 0;
-
-    console.log('[DeliveryFee] Saving fee:', fee);
+    console.log('[DeliveryFee] Saving:', fee);
     try {
-      /* Primary path (new) */
       await _db.collection('settings').doc('delivery').set({ fee: fee }, { merge: true });
-
-      /* Secondary path (backward-compat with old system) */
       await _db.collection('app_settings').doc('delivery_settings').set(
-        { feeEnabled: fee > 0, feeAmount: fee, freeAbove: 0 },
+        { feeEnabled: fee > 0, feeAmount: fee, freeAbove: 0, highDemandEnabled: false, highDemandAmount: 0 },
         { merge: true }
       );
-
-      console.log('[DeliveryFee] Saved successfully:', fee);
-      if (typeof showToast === 'function') {
-        showToast('\u2705 Delivery fee saved: \u20B9' + fee, 2500);
-      }
-    } catch (e) {
+      if (typeof showToast === 'function') showToast('\u2705 Delivery fee saved: \u20B9' + fee, 2500);
+    } catch(e) {
       console.error('[DeliveryFee] Save error:', e);
-      if (typeof showToast === 'function') {
-        showToast('\u274C Save failed: ' + (e.message || e.code), 3000);
-      }
+      if (typeof showToast === 'function') showToast('\u274C Save failed: ' + e.message, 3000);
     }
   }
 
-  /* ── Patch submitOrder: inject grand total before obfuscated code reads it ── */
+  /* ── Patch submitOrder: temporarily overwrite om-total with grand total ── */
   function patchSubmitOrder() {
     var orig = window.submitOrder;
     if (typeof orig !== 'function') { setTimeout(patchSubmitOrder, 400); return; }
 
     window.submitOrder = function() {
       var omTotal = document.getElementById('om-total');
-      if (omTotal) {
-        var sub   = numFrom(omTotal);
-        var fee   = window._gfyDeliveryFee !== undefined ? window._gfyDeliveryFee : _fee;
-        var grand = sub + fee;
-        if (grand !== sub) {
-          omTotal.innerText = fmt(grand);
-          console.log('[DeliveryFee] submitOrder patch: subtotal=' + sub + ' fee=' + fee + ' grand=' + grand);
-        }
-        window._gfySubtotal   = sub;
-        window._gfyGrandTotal = grand;
+      var fee     = window._gfyDeliveryFee !== undefined ? Number(window._gfyDeliveryFee) : _fee;
+      var sub     = _subtotal || numFromEl(omTotal);
+      var grand   = sub + fee;
+
+      console.log('[DeliveryFee] submitOrder — subtotal:', sub, 'fee:', fee, 'grand:', grand);
+
+      /* Temporarily set om-total to grand so obfuscated code saves correct amount */
+      if (omTotal && fee > 0) {
+        _patching = true;
+        omTotal.innerText = fmt(grand);
       }
+
       orig.apply(this, arguments);
+
+      /* Restore om-total to subtotal after order is saved */
+      setTimeout(function() {
+        _patching = false;
+        if (omTotal) omTotal.innerText = fmt(sub);
+        _subtotal = sub;
+        updateUI();
+      }, 2500);
     };
 
     console.log('[DeliveryFee] submitOrder patched');
   }
 
-  /* ── Patch openOrderModal: reapply fee after modal opens ── */
+  /* ── Patch openOrderModal: reapply fee after modal renders ── */
   function patchOpenOrderModal() {
     var orig = window.openOrderModal;
     if (typeof orig !== 'function') { setTimeout(patchOpenOrderModal, 400); return; }
 
     window.openOrderModal = function() {
       orig.apply(this, arguments);
+      /* Multiple retries because obfuscated code may re-render modal content */
       [100, 350, 700, 1200, 2000].forEach(function(ms) {
-        setTimeout(function() { applyFee(_fee); }, ms);
+        setTimeout(function() {
+          if (!_patching) {
+            var v = numFromEl(document.getElementById('om-total'));
+            if (v > 0) _subtotal = v;
+            updateUI();
+          }
+        }, ms);
       });
     };
 
     console.log('[DeliveryFee] openOrderModal patched');
   }
 
-  /* ── MutationObserver: reapply whenever obfuscated code rewrites om-total ── */
-  function watchOmTotal() {
-    var el = document.getElementById('om-total');
-    if (!el) { setTimeout(watchOmTotal, 600); return; }
-
-    new MutationObserver(function() {
-      setTimeout(function() { applyFee(_fee); }, 40);
-    }).observe(el, { childList: true, subtree: true, characterData: true });
-
-    console.log('[DeliveryFee] MutationObserver on om-total active');
-  }
-
-  /* ── Wire admin save buttons ── */
+  /* ── Wire admin buttons ── */
   function wireAdminUI() {
-    /* Override global function used by existing save buttons */
     window.saveDeliverySettings = saveFee;
     window.gfySaveDeliveryFee   = saveFee;
 
-    /* Wire any existing or new save button */
-    ['svc-save-btn', 'gfy-save-delivery-fee'].forEach(function(id) {
+    ['svc-save-btn','gfy-save-delivery-fee'].forEach(function(id) {
       var btn = document.getElementById(id);
       if (btn) btn.addEventListener('click', function(e) { e.preventDefault(); saveFee(); });
     });
 
-    /* Wire existing fee amount input for live preview */
-    ['svc-fee-amount', 'gfy-delivery-fee-input'].forEach(function(id) {
+    /* Live preview while typing (no save yet) */
+    ['svc-fee-amount','gfy-delivery-fee-input'].forEach(function(id) {
       var inp = document.getElementById(id);
       if (inp) {
         inp.addEventListener('input', function() {
-          var v = Number(inp.value) || 0;
-          /* Live preview only — does not save */
-          var feeEl = document.getElementById('om-delivery-fee');
-          if (feeEl) feeEl.innerText = fmt(v);
+          _fee = Number(inp.value) || 0;
+          updateUI();
         });
       }
     });
-
-    console.log('[DeliveryFee] Admin UI wired');
   }
 
-  /* ── Wait for Firestore to be ready ── */
+  /* ── Wait for Firebase ── */
   function waitForDB(cb) {
-    var t = 0;
+    var elapsed = 0;
     var iv = setInterval(function() {
-      t += 300;
-      if (typeof firebase !== 'undefined'
-          && firebase.apps && firebase.apps.length
-          && typeof firebase.firestore === 'function') {
+      elapsed += 300;
+      if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && firebase.firestore) {
         clearInterval(iv);
-        var db = firebase.firestore();
-        _db = db;
-        cb(db);
-      } else if (t > 15000) {
+        _db = firebase.firestore();
+        cb(_db);
+      } else if (elapsed > 15000) {
         clearInterval(iv);
-        console.error('[DeliveryFee] Timed out waiting for Firebase');
+        console.error('[DeliveryFee] Firebase timeout');
       }
     }, 300);
   }
 
   /* ── Bootstrap ── */
   function bootstrap() {
-    console.log('[DeliveryFee] Bootstrap start');
-    watchOmTotal();
+    console.log('[DeliveryFee] v2 Bootstrap');
     wireAdminUI();
     patchSubmitOrder();
     patchOpenOrderModal();
+    watchOmTotal();
 
     waitForDB(function(db) {
       startListener(db);
-
-      /* Restart listener if tab regains focus after sleep */
       window.addEventListener('focus', function() {
-        if (!_unsub) { console.log('[DeliveryFee] Tab focused, restarting listener'); startListener(db); }
+        if (!_unsub) startListener(db);
       });
     });
   }
@@ -4042,9 +4037,10 @@ waitFor(
     setTimeout(bootstrap, 100);
   }
 
-  console.log('[DeliveryFee] \ud83d\ude9a System loaded');
+  console.log('[DeliveryFee] v2 loaded \ud83d\ude9a');
 })();
 </script>
+
 
 </html>
 

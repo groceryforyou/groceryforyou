@@ -2661,6 +2661,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     feeEnabled: true,
     feeAmount: 20,
     freeAbove: 200,
+    freeOffer: false,
     highDemandEnabled: false,
     highDemandAmount: 0,
     highDemandMessage: 'Delivery partner demand is high due to heavy rain or hot weather. Extra fee applies.',
@@ -2683,6 +2684,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     const feeEnabled = !!document.getElementById('svc-fee-enabled')?.checked;
     const feeAmount = Math.max(0, parseInt(document.getElementById('svc-fee-amount')?.value || '0', 10) || 0);
     const freeAbove = Math.max(0, parseInt(document.getElementById('svc-free-above')?.value || '0', 10) || 0);
+    const freeOffer = !!document.getElementById('svc-free-offer')?.checked;
     const highDemandEnabled = !!document.getElementById('svc-highdemand-enabled')?.checked;
     const highDemandAmount = Math.max(0, parseInt(document.getElementById('svc-highdemand-amount')?.value || '0', 10) || 0);
     const highDemandMessage = document.getElementById('svc-highdemand-msg')?.value.trim() || DEFAULT_DELIVERY_SETTINGS.highDemandMessage;
@@ -2695,6 +2697,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       feeEnabled,
       feeAmount,
       freeAbove,
+      freeOffer,
       highDemandEnabled,
       highDemandAmount,
       highDemandMessage,
@@ -2702,7 +2705,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       openHour,
       closeHour,
       outOfServiceMessage
-    }; 
+    };
 
     localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
 
@@ -2711,9 +2714,9 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         .catch(err => console.warn('Delivery settings save failed:', err));
     }
 
-    showToast('✅ Delivery settings saved', 2500);
-    renderDeliverySettings();
+    showToast('✅ Delivery settings saved & applied', 2500);
     updateDeliveryInfoDisplay();
+    if (typeof dsUpdateUI === 'function') dsUpdateUI();
   }
 
   async function renderDeliverySettings() {
@@ -2733,6 +2736,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     const feeEnabledEl = document.getElementById('svc-fee-enabled');
     const feeAmountEl = document.getElementById('svc-fee-amount');
     const freeAboveEl = document.getElementById('svc-free-above');
+    const freeOfferEl = document.getElementById('svc-free-offer');
     const highDemandEnabledEl = document.getElementById('svc-highdemand-enabled');
     const highDemandAmountEl = document.getElementById('svc-highdemand-amount');
     const highDemandMsgEl = document.getElementById('svc-highdemand-msg');
@@ -2744,6 +2748,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     if (feeEnabledEl) feeEnabledEl.checked = settings.feeEnabled;
     if (feeAmountEl) feeAmountEl.value = settings.feeAmount;
     if (freeAboveEl) freeAboveEl.value = settings.freeAbove;
+    if (freeOfferEl) freeOfferEl.checked = !!settings.freeOffer;
     if (highDemandEnabledEl) highDemandEnabledEl.checked = settings.highDemandEnabled;
     if (highDemandAmountEl) highDemandAmountEl.value = settings.highDemandAmount;
     if (highDemandMsgEl) highDemandMsgEl.value = settings.highDemandMessage;
@@ -2751,7 +2756,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     if (openHourEl) openHourEl.value = settings.openHour;
     if (closeHourEl) closeHourEl.value = settings.closeHour;
     if (outOfServiceMsgEl) outOfServiceMsgEl.value = settings.outOfServiceMessage;
-    updateDeliveryFeeUI();
+    if (typeof dsUpdateUI === 'function') dsUpdateUI();
   }
 
   function updateDeliveryFeeUI() {
@@ -2794,7 +2799,11 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 
   function computeDeliveryFees(subtotal) {
     const settings = getDeliverySettings();
-    const hasFee = settings.feeEnabled && subtotal > 0 && subtotal < settings.freeAbove;
+    // Free offer overrides everything — no delivery fee
+    if (settings.freeOffer) {
+      return { deliveryFee: 0, highDemandFee: 0, highDemandMessage: '' };
+    }
+    const hasFee = settings.feeEnabled && subtotal > 0 && (settings.freeAbove <= 0 || subtotal < settings.freeAbove);
     const deliveryFee = hasFee ? settings.feeAmount : 0;
     const highDemandFee = settings.highDemandEnabled ? settings.highDemandAmount : 0;
     return {
@@ -2901,6 +2910,20 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     renderDeliverySettings();
     hookOpenOrderModal();
     hookUpdateCartForDelivery();
+
+    // Real-time Firestore listener: instantly push delivery setting changes to all clients
+    const waitForDb = setInterval(() => {
+      if (typeof db !== 'undefined' && db) {
+        clearInterval(waitForDb);
+        db.collection('app_settings').doc('delivery_settings').onSnapshot(docSnap => {
+          if (docSnap.exists) {
+            const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
+            localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
+            updateDeliveryInfoDisplay();
+          }
+        }, err => console.warn('Delivery settings listener error:', err));
+      }
+    }, 500);
 
     // If page loads directly on the support tab, trigger loading
     const activePage = document.querySelector('.page.active');

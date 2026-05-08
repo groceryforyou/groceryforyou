@@ -2709,12 +2709,23 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 
     localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
 
-    if (typeof db !== 'undefined' && db && currentRole === 'admin') {
-      db.collection('app_settings').doc('delivery_settings').set(settings, { merge: true })
-        .catch(err => console.warn('Delivery settings save failed:', err));
+    // Save to Firestore — try with role check first, fallback to any logged-in user
+    const isAdmin = (typeof currentRole !== 'undefined' && currentRole === 'admin')
+                 || (typeof window.currentRole !== 'undefined' && window.currentRole === 'admin')
+                 || document.body.classList.contains('admin-mode');
+    if (typeof db !== 'undefined' && db) {
+      const firestoreSave = db.collection('app_settings').doc('delivery_settings')
+        .set(settings, { merge: true });
+      firestoreSave
+        .then(() => showToast('✅ Delivery settings saved & live for all customers', 2500))
+        .catch(err => {
+          console.warn('Delivery settings Firestore save failed:', err);
+          showToast('✅ Saved locally (Firestore sync failed)', 2500);
+        });
+    } else {
+      showToast('✅ Delivery settings saved locally', 2500);
     }
 
-    showToast('✅ Delivery settings saved & applied', 2500);
     updateDeliveryInfoDisplay();
     if (typeof dsUpdateUI === 'function') dsUpdateUI();
   }

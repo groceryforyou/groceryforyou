@@ -1616,8 +1616,8 @@
     <div class="section-title">🕐 Business Hours</div>
     <div class="form-grid" style="margin-top:12px;">
       <div class="form-group" style="grid-column: span 2;"><label>Enable Business Hours</label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="svc-business-hours-enabled"/> Enabled</label></div>
-      <div class="form-group"><label>Open Hour</label><input type="number" id="svc-open-hour" value="9" min="0" max="23"/></div>
-      <div class="form-group"><label>Close Hour</label><input type="number" id="svc-close-hour" value="22" min="0" max="23"/></div>
+      <div class="form-group"><label>Open Hour</label><input type="number" id="svc-open-hour" min="0" max="23"/></div>
+      <div class="form-group"><label>Close Hour</label><input type="number" id="svc-close-hour" min="0" max="23"/></div>
       <div class="form-group full"><label>Out-of-service Message</label><textarea id="svc-outofservice-msg" rows="3" placeholder="Orders can only be placed during business hours. Please try again between the configured hours."></textarea></div>
     </div>
     <button class="aip-save" style="margin-top:14px;max-width:220px" onclick="saveDeliverySettings()">💾 Save Business Hours</button>
@@ -2723,6 +2723,8 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     const closeHour = Math.min(23, Math.max(0, parseInt(document.getElementById('svc-close-hour')?.value || '0', 10) || 0));
     const outOfServiceMessage = document.getElementById('svc-outofservice-msg')?.value.trim() || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage;
 
+    console.log('[BusinessHours] Saving settings - enabled:', businessHoursEnabled, 'open:', openHour, 'close:', closeHour);
+
     const settings = {
       feeEnabled,
       feeAmount,
@@ -2782,12 +2784,15 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 
   async function renderDeliverySettings() {
     let settings = getDeliverySettings();
+    console.log('[BusinessHours] Loading settings, localStorage:', settings);
+
     if (typeof db !== 'undefined' && db) {
       try {
         const doc = await db.collection('app_settings').doc('delivery_settings').get();
         if (doc.exists) {
           settings = { ...settings, ...doc.data() };
           localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
+          console.log('[BusinessHours] Loaded from Firestore:', settings);
         }
       } catch (err) {
         console.warn('Could not load delivery settings from Firestore:', err);
@@ -2814,13 +2819,33 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     if (highDemandAmountEl) highDemandAmountEl.value = settings.highDemandAmount;
     if (highDemandMsgEl) highDemandMsgEl.value = settings.highDemandMessage;
     if (businessHoursEnabledEl) businessHoursEnabledEl.checked = settings.businessHoursEnabled;
-    if (openHourEl) openHourEl.value = settings.openHour;
-    if (closeHourEl) closeHourEl.value = settings.closeHour;
+    if (openHourEl) {
+      openHourEl.value = settings.openHour;
+      console.log('[BusinessHours] Set open hour to:', settings.openHour);
+    }
+    if (closeHourEl) {
+      closeHourEl.value = settings.closeHour;
+      console.log('[BusinessHours] Set close hour to:', settings.closeHour);
+    }
     if (outOfServiceMsgEl) outOfServiceMsgEl.value = settings.outOfServiceMessage;
     if (typeof updateBusinessHoursStatus === 'function') {
       updateBusinessHoursStatus();
     }
     if (typeof dsUpdateUI === 'function') dsUpdateUI();
+
+    // Ensure values persist - run again with delays in case HTML defaults override
+    [500, 1000, 2000].forEach(delay => {
+      setTimeout(() => {
+        const openEl = document.getElementById('svc-open-hour');
+        const closeEl = document.getElementById('svc-close-hour');
+        const enabledEl = document.getElementById('svc-business-hours-enabled');
+        const msgEl = document.getElementById('svc-outofservice-msg');
+        if (openEl && openEl.value != settings.openHour) openEl.value = settings.openHour;
+        if (closeEl && closeEl.value != settings.closeHour) closeEl.value = settings.closeHour;
+        if (enabledEl && enabledEl.checked !== settings.businessHoursEnabled) enabledEl.checked = settings.businessHoursEnabled;
+        if (msgEl && msgEl.value !== settings.outOfServiceMessage) msgEl.value = settings.outOfServiceMessage;
+      }, delay);
+    });
   }
 
   function updateDeliveryFeeUI() {
@@ -4178,6 +4203,33 @@ waitFor(
     wireAdminUI();
     patchSubmitOrder();
     patchOpenOrderModal();
+
+    // Load delivery settings on page load
+    if (typeof renderDeliverySettings === 'function') {
+      renderDeliverySettings();
+    }
+
+    // Also load settings from Firestore immediately on page load
+    if (typeof db !== 'undefined' && db) {
+      db.collection('app_settings').doc('delivery_settings').get()
+        .then(docSnap => {
+          if (docSnap.exists) {
+            const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
+            localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
+            console.log('[BusinessHours] Loaded settings from Firestore on page load:', fresh);
+          }
+        })
+        .catch(err => console.warn('[BusinessHours] Could not load from Firestore on page load:', err));
+    }
+
+    // Also load on DOMContentLoaded to ensure DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        if (typeof renderDeliverySettings === 'function') {
+          renderDeliverySettings();
+        }
+      });
+    }
 
     waitForDB(function(db) {
       startListener(db);

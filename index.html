@@ -3956,9 +3956,9 @@ waitFor(
 
     console.log('[DeliveryFee] Saving fee:', fee);
     try {
-      await setDoc(doc(_db,"settings","delivery"),{
+      await _db.collection('settings').doc('delivery').set({
          fee: fee,
-         updatedAt: serverTimestamp()
+         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       },{merge: true});
 
       // Immediately update local state

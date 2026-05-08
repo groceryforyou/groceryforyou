@@ -2753,18 +2753,29 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           if (typeof updateBusinessHoursStatus === 'function') {
             updateBusinessHoursStatus();
           }
+          // Update admin panel fields immediately
+          if (typeof renderDeliverySettings === 'function') {
+            renderDeliverySettings();
+          }
         })
         .catch(err => {
           console.warn('Delivery settings Firestore save failed:', err);
           showToast('✅ Saved locally (Firestore sync failed)', 2500);
+          // Still update UI even if Firestore failed
+          if (typeof updateBusinessHoursStatus === 'function') {
+            updateBusinessHoursStatus();
+          }
+          if (typeof renderDeliverySettings === 'function') {
+            renderDeliverySettings();
+          }
         });
     } else {
       showToast('✅ Delivery settings saved locally', 2500);
     }
 
-    updateDeliveryInfoDisplay();
-    if (typeof updateBusinessHoursStatus === 'function') {
-      updateBusinessHoursStatus();
+    // Update admin panel immediately after saving
+    if (typeof renderDeliverySettings === 'function') {
+      renderDeliverySettings();
     }
     if (typeof dsUpdateUI === 'function') dsUpdateUI();
   }
@@ -3057,7 +3068,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
             );
             // Update admin panel UI if admin is viewing settings
             if (typeof renderDeliverySettings === 'function') {
-              setTimeout(() => renderDeliverySettings(), 100);
+              renderDeliverySettings().catch(err => console.warn('Failed to render delivery settings:', err));
             }
             // Update business hours status display
             if (typeof updateBusinessHoursStatus === 'function') {
@@ -3106,6 +3117,22 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         updateBusinessHoursStatus();
       }
     }, 60000);
+
+    // Watch for page changes and load settings for admin pages
+    const adminPages = ['page-business-hours', 'page-delivery-settings'];
+    adminPages.forEach(pageId => {
+      const page = document.getElementById(pageId);
+      if (page && typeof MutationObserver !== 'undefined') {
+        new MutationObserver(() => {
+          if (page.style.display !== 'none' && page.offsetParent !== null) {
+            // Page is visible, load current settings
+            if (typeof renderDeliverySettings === 'function') {
+              renderDeliverySettings();
+            }
+          }
+        }).observe(page, { attributes: true, attributeFilter: ['style'] });
+      }
+    });
 
     // Initial update
     setTimeout(() => {

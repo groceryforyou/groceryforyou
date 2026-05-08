@@ -2876,15 +2876,32 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     }
 
     window.openOrderModal = function(...args) {
-      const settings = getDeliverySettings();
-      if (!isWithinBusinessHours(settings)) {
-        const range = getBusinessHoursText(settings);
-        const message = settings.outOfServiceMessage || `Orders are only accepted between ${range}. Please try again later.`;
-        showToast(`⚠️ ${message}`, 5000);
-        return;
+      // Fetch fresh delivery settings from Firestore before opening modal
+      const showModal = () => {
+        const settings = getDeliverySettings();
+        if (!isWithinBusinessHours(settings)) {
+          const range = getBusinessHoursText(settings);
+          const message = settings.outOfServiceMessage || `Orders are only accepted between ${range}. Please try again later.`;
+          showToast(`⚠️ ${message}`, 5000);
+          return;
+        }
+        original.apply(this, args);
+        setTimeout(updateDeliveryInfoDisplay, 120);
+      };
+      // Try to get fresh settings from Firestore first
+      if (typeof db !== 'undefined' && db) {
+        db.collection('app_settings').doc('delivery_settings').get()
+          .then(docSnap => {
+            if (docSnap.exists) {
+              const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
+              localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
+            }
+          })
+          .catch(() => {})
+          .finally(() => showModal());
+      } else {
+        showModal();
       }
-      original.apply(this, args);
-      setTimeout(updateDeliveryInfoDisplay, 120);
     };
   }
 
@@ -2915,6 +2932,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     const waitForDb = setInterval(() => {
       if (typeof db !== 'undefined' && db) {
         clearInterval(waitForDb);
+        // onSnapshot for instant updates
         db.collection('app_settings').doc('delivery_settings').onSnapshot(docSnap => {
           if (docSnap.exists) {
             const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
@@ -2922,6 +2940,16 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
             updateDeliveryInfoDisplay();
           }
         }, err => console.warn('Delivery settings listener error:', err));
+        // Fallback polling every 20s in case onSnapshot lags
+        setInterval(() => {
+          db.collection('app_settings').doc('delivery_settings').get()
+            .then(docSnap => {
+              if (docSnap.exists) {
+                const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
+                localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
+              }
+            }).catch(() => {});
+        }, 20000);
       }
     }, 500);
 

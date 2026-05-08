@@ -2747,7 +2747,13 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       const firestoreSave = db.collection('app_settings').doc('delivery_settings')
         .set(settings, { merge: true });
       firestoreSave
-        .then(() => showToast('✅ Delivery settings saved & live for all customers', 2500))
+        .then(() => {
+          showToast('✅ Delivery settings saved & live for all customers', 2500);
+          // Update UI immediately
+          if (typeof updateBusinessHoursStatus === 'function') {
+            updateBusinessHoursStatus();
+          }
+        })
         .catch(err => {
           console.warn('Delivery settings Firestore save failed:', err);
           showToast('✅ Saved locally (Firestore sync failed)', 2500);
@@ -2757,6 +2763,9 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     }
 
     updateDeliveryInfoDisplay();
+    if (typeof updateBusinessHoursStatus === 'function') {
+      updateBusinessHoursStatus();
+    }
     if (typeof dsUpdateUI === 'function') dsUpdateUI();
   }
 
@@ -2797,6 +2806,9 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     if (openHourEl) openHourEl.value = settings.openHour;
     if (closeHourEl) closeHourEl.value = settings.closeHour;
     if (outOfServiceMsgEl) outOfServiceMsgEl.value = settings.outOfServiceMessage;
+    if (typeof updateBusinessHoursStatus === 'function') {
+      updateBusinessHoursStatus();
+    }
     if (typeof dsUpdateUI === 'function') dsUpdateUI();
   }
 
@@ -2909,6 +2921,39 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     return `${formatHour(openHour)} - ${formatHour(closeHour)}`;
   }
 
+  function updateBusinessHoursStatus() {
+    const settings = getDeliverySettings();
+    let statusIndicator = document.getElementById('business-hours-status');
+    
+    if (!statusIndicator) {
+      statusIndicator = document.createElement('div');
+      statusIndicator.id = 'business-hours-status';
+      statusIndicator.style.cssText = 'padding:10px;margin:10px 0;border-radius:6px;text-align:center;font-weight:bold;font-size:0.9rem;';
+      const header = document.querySelector('header');
+      if (header) header.appendChild(statusIndicator);
+    }
+
+    if (!settings.businessHoursEnabled) {
+      statusIndicator.style.display = 'none';
+      return;
+    }
+
+    const isOpen = isWithinBusinessHours(settings);
+    const hoursText = getBusinessHoursText(settings);
+    
+    if (isOpen) {
+      statusIndicator.style.display = '';
+      statusIndicator.style.background = '#c8e6c9';
+      statusIndicator.style.color = '#1e7a3a';
+      statusIndicator.innerHTML = `✅ Store is OPEN (${hoursText})`;
+    } else {
+      statusIndicator.style.display = '';
+      statusIndicator.style.background = '#ffcdd2';
+      statusIndicator.style.color = '#c62828';
+      statusIndicator.innerHTML = `🔴 Store is CLOSED (Opens at ${hoursText})`;
+    }
+  }
+
   function hookOpenOrderModal() {
     const original = window.openOrderModal;
     if (typeof original !== 'function') {
@@ -3010,6 +3055,14 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
             [0, 300, 700, 1400].forEach(ms =>
               setTimeout(updateDeliveryInfoDisplay, ms)
             );
+            // Update admin panel UI if admin is viewing settings
+            if (typeof renderDeliverySettings === 'function') {
+              setTimeout(() => renderDeliverySettings(), 100);
+            }
+            // Update business hours status display
+            if (typeof updateBusinessHoursStatus === 'function') {
+              updateBusinessHoursStatus();
+            }
           }
         }, err => console.warn('Delivery settings listener error:', err));
         // Fallback polling every 20s
@@ -3046,6 +3099,20 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           }).catch(() => {});
       }
     });
+
+    // Update business hours status every minute (as time passes, status may change)
+    setInterval(() => {
+      if (typeof updateBusinessHoursStatus === 'function') {
+        updateBusinessHoursStatus();
+      }
+    }, 60000);
+
+    // Initial update
+    setTimeout(() => {
+      if (typeof updateBusinessHoursStatus === 'function') {
+        updateBusinessHoursStatus();
+      }
+    }, 1000);
 
     // If page loads directly on the support tab, trigger loading
     const activePage = document.querySelector('.page.active');

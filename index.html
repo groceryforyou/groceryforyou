@@ -2886,9 +2886,12 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           return;
         }
         original.apply(this, args);
-        setTimeout(updateDeliveryInfoDisplay, 120);
+        // Fire multiple times to ensure we override obfuscated code's delivery fee
+        [150, 450, 900, 1600, 2800].forEach(ms =>
+          setTimeout(updateDeliveryInfoDisplay, ms)
+        );
       };
-      // Try to get fresh settings from Firestore first
+      // Fetch fresh settings from Firestore first
       if (typeof db !== 'undefined' && db) {
         db.collection('app_settings').doc('delivery_settings').get()
           .then(docSnap => {
@@ -2937,10 +2940,13 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           if (docSnap.exists) {
             const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
             localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
-            updateDeliveryInfoDisplay();
+            // Overwrite with multiple retries in case obfuscated code re-renders after us
+            [0, 300, 700, 1400].forEach(ms =>
+              setTimeout(updateDeliveryInfoDisplay, ms)
+            );
           }
         }, err => console.warn('Delivery settings listener error:', err));
-        // Fallback polling every 20s in case onSnapshot lags
+        // Fallback polling every 20s
         setInterval(() => {
           db.collection('app_settings').doc('delivery_settings').get()
             .then(docSnap => {
@@ -2952,6 +2958,28 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         }, 20000);
       }
     }, 500);
+
+    // MutationObserver: whenever obfuscated code updates om-total, recalculate our fees
+    const omTotalEl = document.getElementById('om-total');
+    if (omTotalEl && typeof MutationObserver !== 'undefined') {
+      new MutationObserver(() => {
+        setTimeout(updateDeliveryInfoDisplay, 50);
+      }).observe(omTotalEl, { childList: true, subtree: true, characterData: true });
+    }
+
+    // Re-fetch from Firestore when customer returns to the tab
+    window.addEventListener('focus', () => {
+      if (typeof db !== 'undefined' && db) {
+        db.collection('app_settings').doc('delivery_settings').get()
+          .then(docSnap => {
+            if (docSnap.exists) {
+              const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
+              localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
+              updateDeliveryInfoDisplay();
+            }
+          }).catch(() => {});
+      }
+    });
 
     // If page loads directly on the support tab, trigger loading
     const activePage = document.querySelector('.page.active');

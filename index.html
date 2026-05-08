@@ -3320,112 +3320,154 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
   console.log('[SupportNotify] 💡 Try: window._supportNotifyDebug.listAllTickets()');
 })();
 </script>
-<!-- ===== RAZORPAY UPI QR PAYMENT INTEGRATION ===== -->
+<!-- ===== RAZORPAY LIVE PAYMENT INTEGRATION ===== -->
 <script>
 (function patchRazorpayUPI() {
   'use strict';
 
-  const RZP_KEY = 'rzp_live_SmqNRvEpkEJ49k';
+  var RZP_KEY = 'rzp_live_SmqNRvEpkEJ49k';
 
-  /* Helper — shows the QR modal and patches the amount display */
+  /* ── QR fallback: shows static QR modal ── */
   function showQRModal(amount) {
     var amtEl = document.getElementById('upi-amount-display');
     if (amtEl) amtEl.textContent = '\u20B9' + amount;
     var overlay = document.getElementById('upi-redirect-overlay');
     if (overlay) overlay.classList.add('open');
-    // Store amount globally so confirmUPIPaid can use it
     window._pendingUPIAmount = amount;
   }
 
-  /* Override openRazorpayCheckout — called by obfuscated code when UPI selected.
-     Instead of the Razorpay popup, we show the QR code so the customer scans & pays. */
+  /* ── Save payment + finalize order ── */
+  function onPaymentSuccess(paymentId, amount, name, phone, email) {
+    if (typeof showToast === 'function') {
+      showToast('\u2705 Payment successful! Placing your order...', 2500);
+    }
+
+    if (typeof db !== 'undefined' && db) {
+      var uid = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.uid : null;
+      var userEmail = email || (typeof currentUser !== 'undefined' && currentUser ? currentUser.email : null);
+
+      db.collection('razorpay_payments').add({
+        razorpayPaymentId: paymentId,
+        amount: amount,
+        customerName: name || '',
+        customerPhone: phone || '',
+        customerEmail: userEmail,
+        customerUid: uid,
+        status: 'captured',
+        paidAt: firebase.firestore.FieldValue.serverTimestamp(),
+        source: 'razorpay_checkout'
+      }).catch(function() {});
+
+      db.collection('admin_notifications').add({
+        type: 'payment_received',
+        paymentId: paymentId,
+        amount: amount,
+        customerName: name || '',
+        customerPhone: phone || '',
+        customerEmail: userEmail,
+        customerUid: uid,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        read: false
+      }).catch(function() {});
+    }
+
+    setTimeout(function() {
+      if (typeof finalizeOrder === 'function') {
+        finalizeOrder('upi', true, paymentId);
+      }
+    }, 600);
+  }
+
+  /* ── Main: override openRazorpayCheckout with LIVE Razorpay popup ── */
   function patchRazorpayCheckout() {
     window.openRazorpayCheckout = function(amount, name, phone) {
-      // Show the QR modal with the correct amount
-      showQRModal(amount);
-    };
-    console.log('[RazorpayUPI] ✅ openRazorpayCheckout patched — QR modal will show for UPI payments');
-  }
+      /* Read customer info from order modal fields */
+      var nameEl  = document.getElementById('om-name');
+      var phoneEl = document.getElementById('om-phone');
+      var emailEl = document.getElementById('om-email');
+      name  = name  || (nameEl  ? nameEl.value.trim()  : '');
+      phone = phone || (phoneEl ? phoneEl.value.trim() : '');
+      var email = emailEl ? emailEl.value.trim().toLowerCase() : '';
 
-  /* Override confirmUPIPaid — called when customer clicks "I've Paid" button.
-     Automatically finalizes the order so it appears in admin's order list. */
-  function patchConfirmUPIPaid() {
-    window.confirmUPIPaid = function() {
-      // Close QR modal
-      var overlay = document.getElementById('upi-redirect-overlay');
-      if (overlay) overlay.classList.remove('open');
-
-      if (typeof showToast === 'function') {
-        showToast('✅ Payment confirmed! Placing your order...', 2500);
+      /* Fallback to QR if Razorpay SDK not loaded */
+      if (typeof Razorpay === 'undefined') {
+        console.warn('[RazorpayUPI] SDK not loaded, falling back to QR modal');
+        showQRModal(amount);
+        return;
       }
 
-      // Save payment record to Firestore razorpay_payments collection
-      setTimeout(function() {
-        try {
-          if (typeof db !== 'undefined' && db) {
-            var nameEl = document.getElementById('om-name');
-            var phoneEl = document.getElementById('om-phone');
-            var emailEl = document.getElementById('om-email');
-            var customerName  = nameEl  ? nameEl.value.trim()  : '';
-            var customerPhone = phoneEl ? phoneEl.value.trim() : '';
-            var customerEmail = emailEl ? emailEl.value.trim().toLowerCase() : '';
-            var amount = window._pendingUPIAmount || 0;
-
-            var paymentRef = db.collection('razorpay_payments').add({
-              razorpayPaymentId: 'UPI-QR-' + Date.now(),
-              amount: amount,
-              customerName: customerName,
-              customerPhone: customerPhone,
-              customerEmail: customerEmail || (typeof currentUser !== 'undefined' && currentUser ? currentUser.email : null),
-              customerUid: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.uid : null,
-              status: 'captured',
-              paidAt: firebase.firestore.FieldValue.serverTimestamp(),
-              source: 'upi_qr'
-            });
-
-            // Admin notification for payment received
-            db.collection('admin_notifications').add({
-              type: 'payment_received',
-              paymentId: 'UPI-QR-' + Date.now(),
-              amount: amount,
-              customerName: customerName,
-              customerPhone: customerPhone,
-              customerEmail: customerEmail || (typeof currentUser !== 'undefined' && currentUser ? currentUser.email : null),
-              customerUid: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.uid : null,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-              read: false
-            }).catch(function() {});
+      var options = {
+        key:         RZP_KEY,
+        amount:      Math.round(amount * 100),   /* paise */
+        currency:    'INR',
+        name:        'Grocery For You Sirsilla',
+        description: 'Grocery Order Payment',
+        prefill: {
+          name:    name,
+          contact: phone,
+          email:   email
+        },
+        notes: { city: 'Sirsilla, Telangana' },
+        theme: { color: '#00b04e' },
+        modal: {
+          ondismiss: function() {
+            if (typeof showToast === 'function') {
+              showToast('\u274C Payment cancelled. Try again or use QR code.', 2500);
+            }
           }
-        } catch (e) {
-          console.warn('[RazorpayUPI] Payment record save error:', e);
+        },
+        handler: function(response) {
+          onPaymentSuccess(
+            response.razorpay_payment_id || ('RZP-' + Date.now()),
+            amount, name, phone, email
+          );
         }
+      };
 
-        // Finalize order — paymentDone=true so admin sees it immediately
-        if (typeof finalizeOrder === 'function') {
-          finalizeOrder('upi', true, null);
-        }
-      }, 600);
+      try {
+        var rzp = new Razorpay(options);
+        rzp.on('payment.failed', function(resp) {
+          var msg = (resp.error && resp.error.description) ? resp.error.description : 'Payment failed';
+          if (typeof showToast === 'function') {
+            showToast('\u274C ' + msg + '. Try again.', 3000);
+          }
+          /* Offer QR as fallback */
+          setTimeout(function() { showQRModal(amount); }, 1500);
+        });
+        rzp.open();
+      } catch (e) {
+        console.error('[RazorpayUPI] Checkout error:', e);
+        showQRModal(amount);
+      }
     };
-    console.log('[RazorpayUPI] ✅ confirmUPIPaid patched — order auto-placed after QR payment');
+    console.log('[RazorpayUPI] \u2705 openRazorpayCheckout \u2192 Live Razorpay popup active');
   }
 
-  /* Also patch showUPIRedirect so amount is always synced when called from other paths */
+  /* ── confirmUPIPaid: for QR fallback "I've Paid" button ── */
+  function patchConfirmUPIPaid() {
+    window.confirmUPIPaid = function() {
+      var overlay = document.getElementById('upi-redirect-overlay');
+      if (overlay) overlay.classList.remove('open');
+      var amount = window._pendingUPIAmount || 0;
+      onPaymentSuccess('UPI-QR-' + Date.now(), amount, '', '', '');
+    };
+  }
+
+  /* ── showUPIRedirect: keep amount in sync ── */
   function patchShowUPIRedirect() {
     var orig = window.showUPIRedirect;
-    window.showUPIRedirect = function(amount, appName) {
+    window.showUPIRedirect = function(amount) {
       window._pendingUPIAmount = amount;
       if (orig) orig.apply(this, arguments);
     };
   }
 
-  /* Wait until the obfuscated code's functions are defined, then patch */
   function tryPatch() {
     patchRazorpayCheckout();
     patchConfirmUPIPaid();
     patchShowUPIRedirect();
   }
 
-  /* Run immediately and retry to ensure we always override obfuscated definitions */
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
       [0, 300, 800, 1500, 3000].forEach(function(ms) { setTimeout(tryPatch, ms); });
@@ -3434,7 +3476,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     [0, 300, 800, 1500, 3000].forEach(function(ms) { setTimeout(tryPatch, ms); });
   }
 
-  console.log('[RazorpayUPI] 🚀 UPI QR patch loaded (Key: rzp_live_SmqN...)');
+  console.log('[RazorpayUPI] \ud83d\ude80 Live Razorpay checkout loaded \u2014 Key: rzp_live_SmqN...');
 })();
 </script>
 

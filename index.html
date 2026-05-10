@@ -2711,18 +2711,6 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
   }
 
   function saveDeliverySettings() {
-    // Admin permission check
-    if (typeof currentRole !== 'undefined' && currentRole !== 'admin') {
-      console.warn('[DeliverySettings] Non-admin tried to save settings');
-      showToast('⚠️ Only admin can change these settings', 3000);
-      return;
-    }
-    if (!currentUser) {
-      console.warn('[DeliverySettings] Unauthenticated user tried to save');
-      showToast('⚠️ Please sign in as admin first', 3000);
-      return;
-    }
-
     const feeEnabled = !!document.getElementById('svc-fee-enabled')?.checked;
     const feeAmount = Math.max(0, parseInt(document.getElementById('svc-fee-amount')?.value || '0', 10) || 0);
     const freeAbove = Math.max(0, parseInt(document.getElementById('svc-free-above')?.value || '0', 10) || 0);
@@ -2755,6 +2743,18 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     // Save to localStorage FIRST
     localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
     console.log('[DeliverySettings] Saved to localStorage');
+
+    // Admin permission check
+    if (typeof currentRole !== 'undefined' && currentRole !== 'admin') {
+      console.warn('[DeliverySettings] Non-admin tried to save settings');
+      showToast('⚠️ Only admin can change these settings', 3000);
+      return;
+    }
+    if (!currentUser) {
+      console.warn('[DeliverySettings] Unauthenticated user tried to save');
+      showToast('⚠️ Please sign in as admin first', 3000);
+      return;
+    }
 
     // Save to Firestore immediately with admin user tracking
     if (typeof db !== 'undefined' && db) {
@@ -2797,9 +2797,15 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           const docSnap = await db.collection('app_settings').doc('delivery_settings').get();
           if (docSnap.exists) {
             const firestoreData = docSnap.data();
-            settings = { ...settings, ...firestoreData };
-            localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
-            console.log('[DeliverySettings] Loaded from Firestore:', settings);
+            const freshTime = new Date(firestoreData.updatedAt || 0);
+            const localTime = new Date(settings.updatedAt || 0);
+            if (freshTime > localTime) {
+              settings = { ...settings, ...firestoreData };
+              localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
+              console.log('[DeliverySettings] Loaded from Firestore:', settings);
+            } else {
+              console.log('[DeliverySettings] Local settings are newer, keeping localStorage');
+            }
           }
         } catch (err) {
           console.warn('Could not load delivery settings from Firestore:', err);
@@ -2836,9 +2842,15 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         const docSnap = await db.collection('app_settings').doc('delivery_settings').get();
         if (docSnap.exists) {
           const firestoreData = docSnap.data();
-          settings = { ...settings, ...firestoreData };
-          localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
-          console.log('[DeliverySettings] Loaded from Firestore:', settings);
+          const freshTime = new Date(firestoreData.updatedAt || 0);
+          const localTime = new Date(settings.updatedAt || 0);
+          if (freshTime > localTime) {
+            settings = { ...settings, ...firestoreData };
+            localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
+            console.log('[DeliverySettings] Loaded from Firestore:', settings);
+          } else {
+            console.log('[DeliverySettings] Local settings are newer, keeping localStorage');
+          }
         }
       } catch (err) {
         console.warn('Could not load delivery settings from Firestore:', err);
@@ -4262,11 +4274,18 @@ waitFor(
           .then(docSnap => {
             if (docSnap.exists) {
               const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
-              localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
-              console.log('[DeliverySettings] Loaded from Firestore at bootstrap:', fresh);
-              // Update UI with fresh data
-              if (typeof renderDeliverySettings === 'function') {
-                renderDeliverySettings();
+              const local = getDeliverySettings();
+              const freshTime = new Date(fresh.updatedAt || 0);
+              const localTime = new Date(local.updatedAt || 0);
+              if (freshTime > localTime) {
+                localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
+                console.log('[DeliverySettings] Loaded from Firestore at bootstrap:', fresh);
+                // Update UI with fresh data
+                if (typeof renderDeliverySettings === 'function') {
+                  renderDeliverySettings();
+                }
+              } else {
+                console.log('[DeliverySettings] Local settings are newer, keeping localStorage');
               }
             }
           })

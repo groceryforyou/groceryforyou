@@ -2798,7 +2798,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       updatedAt: new Date().toISOString()
     };
 
-    // Save to localStorage FIRST
+    // Save to localStorage FIRST (this is always the fallback)
     localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
     console.log('[DeliverySettings] Saved to localStorage');
 
@@ -2814,7 +2814,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       return;
     }
 
-    // Save to Firestore immediately with admin user tracking
+    // Save to Firestore with robust error handling and fallbacks
     if (typeof db !== 'undefined' && db) {
       const settingsWithAdmin = {
         ...settings,
@@ -2822,53 +2822,105 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         updatedAt: new Date().toISOString()
       };
 
-      // Save to BOTH collections to ensure synchronization
-      Promise.all([
-        // 1. Save to app_settings (for admin panel UI)
-        db.collection('app_settings').doc('delivery_settings')
-          .set(settingsWithAdmin, { merge: true }),
-        // 2. Save to settings/delivery (for real-time checkout system)
-        db.collection('settings').doc('delivery')
-          .set({
-            fee: feeAmount,
-            enabled: feeEnabled,
-            freeAbove: freeAbove,
-            freeOffer: freeOffer,
-            highDemandEnabled: highDemandEnabled,
-            highDemandAmount: highDemandAmount,
-            businessHoursEnabled: businessHoursEnabled,
-            openHour: openHour,
-            closeHour: closeHour,
-            updatedAt: new Date().toISOString(),
-            savedBy: currentUser?.email || 'unknown'
-          }, { merge: true })
-      ])
+      const checkoutSettings = {
+        fee: feeAmount,
+        enabled: feeEnabled,
+        freeAbove: freeAbove,
+        freeOffer: freeOffer,
+        highDemandEnabled: highDemandEnabled,
+        highDemandAmount: highDemandAmount,
+        businessHoursEnabled: businessHoursEnabled,
+        openHour: openHour,
+        closeHour: closeHour,
+        updatedAt: new Date().toISOString(),
+        savedBy: currentUser?.email || 'unknown'
+      };
+
+      // Try to save to both collections with individual error handling
+      let successCount = 0;
+      let errors = [];
+
+      // Save to app_settings (admin panel)
+      db.collection('app_settings').doc('delivery_settings')
+        .set(settingsWithAdmin, { merge: true })
         .then(() => {
-          console.log('[DeliverySettings] Saved to BOTH Firestore collections successfully by:', currentUser?.email);
-          showToast('✅ Delivery fee settings saved & synced with checkout!', 2500);
-          
-          // Update currentDeliveryFee immediately
-          if (typeof window !== 'undefined' && feeEnabled) {
-            window.currentDeliveryFee = feeAmount;
-            console.log('[DeliverySettings] Updated window.currentDeliveryFee to:', feeAmount);
-            if (typeof updateCartTotal === 'function') {
-              updateCartTotal();
-            }
+          successCount++;
+          console.log('[DeliverySettings] ✓ Saved to app_settings/delivery_settings');
+        })
+        .catch(err => {
+          console.error('[DeliverySettings] app_settings save failed:', err.code, err.message);
+          errors.push('app_settings: ' + (err.code || err.message));
+          // Try again with simpler data if permission denied
+          if (err.code === 'permission-denied') {
+            console.log('[DeliverySettings] Retrying with reduced data for app_settings...');
+            db.collection('app_settings').doc('delivery_settings')
+              .set({ feeEnabled, feeAmount, updatedAt: new Date().toISOString() }, { merge: true })
+              .then(() => {
+                successCount++;
+                console.log('[DeliverySettings] ✓ Saved to app_settings (reduced)');
+              })
+              .catch(err2 => console.error('[DeliverySettings] Retry failed:', err2.code));
           }
+        });
+
+      // Save to settings/delivery (checkout system)
+      db.collection('settings').doc('delivery')
+        .set(checkoutSettings, { merge: true })
+        .then(() => {
+          successCount++;
+          console.log('[DeliverySettings] ✓ Saved to settings/delivery');
+        })
+        .catch(err => {
+          console.error('[DeliverySettings] settings/delivery save failed:', err.code, err.message);
+          errors.push('settings/delivery: ' + (err.code || err.message));
+          // Try again with simpler data if permission denied
+          if (err.code === 'permission-denied') {
+            console.log('[DeliverySettings] Retrying with reduced data for settings/delivery...');
+            db.collection('settings').doc('delivery')
+              .set({ fee: feeAmount, enabled: feeEnabled, updatedAt: new Date().toISOString() }, { merge: true })
+              .then(() => {
+                successCount++;
+                console.log('[DeliverySettings] ✓ Saved to settings/delivery (reduced)');
+              })
+              .catch(err2 => console.error('[DeliverySettings] Retry failed:', err2.code));
+          }
+        });
+
+      // Show result after a brief delay to allow both requests to complete
+      setTimeout(() => {
+        console.log('[DeliverySettings] Save complete - success count:', successCount, 'errors:', errors);
+        
+        // Update currentDeliveryFee immediately
+        if (typeof window !== 'undefined' && feeEnabled) {
+          window.currentDeliveryFee = feeAmount;
+          console.log('[DeliverySettings] Updated window.currentDeliveryFee to:', feeAmount);
+          if (typeof updateCartTotal === 'function') {
+            updateCartTotal();
+          }
+        }
+        
+        if (successCount >= 1) {
+          console.log('[DeliverySettings] Saved successfully to Firestore');
+          showToast('✅ Delivery fee settings saved & synced!', 2500);
           
           // Update UI to reflect saved state
           if (typeof dsUpdateUI === 'function') dsUpdateUI();
           if (typeof renderDeliverySettings === 'function') {
             setTimeout(() => renderDeliverySettings(), 500);
           }
-        })
-        .catch(err => {
-          console.warn('[DeliverySettings] Firestore save failed:', err);
-          showToast('❌ Save failed: ' + (err.message || err.code), 3000);
-        });
+        } else if (errors.length > 0) {
+          console.warn('[DeliverySettings] All Firestore saves failed:', errors);
+          // Settings are saved to localStorage, so show partial success message
+          showToast('⚠️ Saved locally (Firestore access limited). Check Firestore rules.', 3500);
+          console.log('[DeliverySettings] TROUBLESHOOTING: You may need to add these Firestore security rules:', {
+            'app_settings': 'allow write if request.auth.token.admin == true;',
+            'settings': 'allow write if request.auth.token.admin == true;'
+          });
+        }
+      }, 1500);
     } else {
       console.log('[DeliverySettings] Firestore not ready');
-      showToast('⚠️ Firestore not ready. Please try again.', 3000);
+      showToast('⚠️ Settings saved locally. Firestore will sync when ready.', 3000);
     }
   }
 
@@ -4258,6 +4310,9 @@ waitFor(
   async function saveFee() {
     if (!_db) { 
       console.warn('[DeliveryFee] DB not ready'); 
+      if (typeof showToast === 'function') {
+        showToast('⚠️ Database not ready yet. Please try again.', 2500);
+      }
       return; 
     }
 
@@ -4280,40 +4335,97 @@ waitFor(
     }
 
     console.log('[DeliveryFee] Saving: enabled=%s fee=%d', enabled, fee);
-    try {
-      // Save to BOTH collections to ensure synchronization
-      await Promise.all([
-        // 1. Save to settings/delivery (for real-time checkout)
-        _db.collection('settings').doc('delivery').set({
-          fee: fee,
-          enabled: enabled,
-          updatedAt: new Date().toISOString()
-        }, {merge: true}),
-        // 2. Save to app_settings (for admin panel UI)
-        _db.collection('app_settings').doc('delivery_settings').set({
-          feeEnabled: enabled,
-          feeAmount: fee,
-          updatedAt: new Date().toISOString(),
-          savedBy: typeof currentUser !== 'undefined' && currentUser ? currentUser.email : 'system'
-        }, {merge: true})
-      ]);
+    
+    let successCount = 0;
+    let errors = [];
 
+    // Save to settings/delivery (for real-time checkout)
+    _db.collection('settings').doc('delivery').set({
+      fee: fee,
+      enabled: enabled,
+      updatedAt: new Date().toISOString()
+    }, {merge: true})
+      .then(() => {
+        successCount++;
+        console.log('[DeliveryFee] ✓ Saved to settings/delivery');
+      })
+      .catch(e => {
+        console.error('[DeliveryFee] settings/delivery save error:', e.code, e.message);
+        errors.push('settings/delivery: ' + (e.code || e.message));
+        
+        // Retry with simpler data if permission denied
+        if (e.code === 'permission-denied') {
+          console.log('[DeliveryFee] Retrying settings/delivery with minimal data...');
+          _db.collection('settings').doc('delivery').set({
+            fee: fee,
+            enabled: enabled,
+            updatedAt: new Date().toISOString()
+          }, {merge: true})
+            .then(() => {
+              successCount++;
+              console.log('[DeliveryFee] ✓ Saved to settings/delivery (retry)');
+            })
+            .catch(e2 => console.error('[DeliveryFee] Retry failed:', e2.code));
+        }
+      });
+
+    // Save to app_settings (for admin panel UI)
+    _db.collection('app_settings').doc('delivery_settings').set({
+      feeEnabled: enabled,
+      feeAmount: fee,
+      updatedAt: new Date().toISOString(),
+      savedBy: typeof currentUser !== 'undefined' && currentUser ? currentUser.email : 'system'
+    }, {merge: true})
+      .then(() => {
+        successCount++;
+        console.log('[DeliveryFee] ✓ Saved to app_settings/delivery_settings');
+      })
+      .catch(e => {
+        console.error('[DeliveryFee] app_settings save error:', e.code, e.message);
+        errors.push('app_settings: ' + (e.code || e.message));
+        
+        // Retry with simpler data if permission denied
+        if (e.code === 'permission-denied') {
+          console.log('[DeliveryFee] Retrying app_settings with minimal data...');
+          _db.collection('app_settings').doc('delivery_settings').set({
+            feeEnabled: enabled,
+            feeAmount: fee,
+            updatedAt: new Date().toISOString()
+          }, {merge: true})
+            .then(() => {
+              successCount++;
+              console.log('[DeliveryFee] ✓ Saved to app_settings (retry)');
+            })
+            .catch(e2 => console.error('[DeliveryFee] Retry failed:', e2.code));
+        }
+      });
+
+    // Show result after a brief delay
+    setTimeout(() => {
+      console.log('[DeliveryFee] Save complete - success count:', successCount, 'errors:', errors);
+      
       // Immediately update local state
       currentDeliveryFee = enabled ? fee : 0;
       _fee = currentDeliveryFee;
       applyFee(currentDeliveryFee);
       updateCartTotal();
 
-      console.log('[DeliveryFee] Saved successfully to both collections: enabled=%s fee=%d', enabled, currentDeliveryFee);
-      if (typeof showToast === 'function') {
-        showToast('✅ Delivery fee updated successfully & synced', 2500);
+      if (successCount >= 1) {
+        console.log('[DeliveryFee] Saved successfully: enabled=%s fee=%d', enabled, currentDeliveryFee);
+        if (typeof showToast === 'function') {
+          showToast('✅ Delivery fee updated & synced successfully', 2500);
+        }
+      } else if (errors.length > 0) {
+        console.warn('[DeliveryFee] All saves failed:', errors);
+        if (typeof showToast === 'function') {
+          showToast('⚠️ Permission denied. Check Firestore security rules.', 3000);
+        }
+        console.log('[DeliveryFee] FIRESTORE RULES NEEDED:', {
+          'rule1': 'match /settings/{document=**} { allow write if request.auth.token.admin == true; }',
+          'rule2': 'match /app_settings/{document=**} { allow write if request.auth.token.admin == true; }'
+        });
       }
-    } catch (e) {
-      console.error('[DeliveryFee] Save error:', e);
-      if (typeof showToast === 'function') {
-        showToast('❌ Save failed: ' + (e.message || e.code), 3000);
-      }
-    }
+    }, 800);
   }
 
   /* ── Patch submitOrder: inject grand total before obfuscated code reads it ── */

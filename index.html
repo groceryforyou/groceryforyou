@@ -2811,7 +2811,6 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     // Save local state immediately so UI persistence remains stable even if Firestore save is blocked.
     localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
     console.log('[DeliverySettings] Saved to localStorage');
-    }
 
     // Save to Firestore with robust error handling and fallbacks
     const firestore = (typeof db !== 'undefined' && db) ? db : (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
@@ -4573,11 +4572,6 @@ waitFor(
     patchSubmitOrder();
     patchOpenOrderModal();
 
-    // Load delivery settings on page load
-    if (typeof renderDeliverySettings === 'function') {
-      renderDeliverySettings();
-    }
-
     waitForDB(function(db) {
       // Sync and load delivery settings from Firestore at bootstrap
       setTimeout(async () => {
@@ -4633,7 +4627,7 @@ waitFor(
             localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(freshSettings));
             console.log('[DeliverySettings] Loaded from', source, 'at bootstrap:', freshSettings);
             if (typeof renderDeliverySettings === 'function') {
-              renderDeliverySettings();
+              await renderDeliverySettings();
             }
           } else if (source !== 'default') {
             console.log('[DeliverySettings] Local settings are newer than', source, 'keeping localStorage');
@@ -4691,14 +4685,14 @@ waitFor(
         } catch (err) {
           console.warn('[DeliverySettings] Sync error at bootstrap:', err);
         }
+
+        startListener(db);
+
+        /* Restart listener if tab regains focus after sleep */
+        window.addEventListener('focus', function() {
+          if (!_unsub) { console.log('[DeliveryFee] Tab focused, restarting listener'); startListener(db); }
+        });
       }, 500);
-
-      startListener(db);
-
-      /* Restart listener if tab regains focus after sleep */
-      window.addEventListener('focus', function() {
-        if (!_unsub) { console.log('[DeliveryFee] Tab focused, restarting listener'); startListener(db); }
-      });
     });
   }
 

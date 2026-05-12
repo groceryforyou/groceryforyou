@@ -2788,11 +2788,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       updatedAt: new Date().toISOString()
     };
 
-    // Save local state immediately so UI persistence remains stable even if Firestore save is blocked.
-    localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
-    console.log('[DeliverySettings] Saved to localStorage');
-
-    // Validate delivery fee amount
+    // Validate delivery fee amount before persisting
     if (feeEnabled && feeAmount <= 0) {
       console.warn('[DeliverySettings] Invalid fee amount when fee is enabled');
       showToast('⚠️ Please enter a valid delivery fee amount (must be ≥ 0)', 2500);
@@ -2812,8 +2808,14 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       return;
     }
 
+    // Save local state immediately so UI persistence remains stable even if Firestore save is blocked.
+    localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
+    console.log('[DeliverySettings] Saved to localStorage');
+    }
+
     // Save to Firestore with robust error handling and fallbacks
-    if (typeof db !== 'undefined' && db) {
+    const firestore = (typeof db !== 'undefined' && db) ? db : (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+    if (firestore) {
       const settingsWithAdmin = {
         ...settings,
         savedBy: currentUser?.email || 'unknown',
@@ -2837,7 +2839,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       let successCount = 0;
       let errors = [];
 
-      db.collection('app_settings').doc('delivery_settings')
+      firestore.collection('app_settings').doc('delivery_settings')
         .set(settingsWithAdmin, { merge: true })
         .then(() => {
           successCount++;
@@ -2848,7 +2850,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           errors.push('app_settings: ' + (err.code || err.message));
           if (err.code === 'permission-denied') {
             console.log('[DeliverySettings] Retrying with reduced data for app_settings...');
-            db.collection('app_settings').doc('delivery_settings')
+            firestore.collection('app_settings').doc('delivery_settings')
               .set({ feeEnabled, feeAmount, updatedAt: new Date().toISOString() }, { merge: true })
               .then(() => {
                 successCount++;
@@ -2858,7 +2860,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           }
         });
 
-      db.collection('settings').doc('delivery')
+      firestorerestore.collection('settings').doc('delivery')
         .set(checkoutSettings, { merge: true })
         .then(() => {
           successCount++;
@@ -2869,7 +2871,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           errors.push('settings/delivery: ' + (err.code || err.message));
           if (err.code === 'permission-denied') {
             console.log('[DeliverySettings] Retrying with reduced data for settings/delivery...');
-            db.collection('settings').doc('delivery')
+            firestore.collection('settings').doc('delivery')
               .set({ fee: feeAmount, enabled: feeEnabled, updatedAt: new Date().toISOString() }, { merge: true })
               .then(() => {
                 successCount++;
@@ -3096,8 +3098,9 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     if (settings.freeOffer) {
       return { deliveryFee: 0, highDemandFee: 0, highDemandMessage: '' };
     }
+    const effectiveFee = typeof window._gfyDeliveryFee === 'number' ? window._gfyDeliveryFee : settings.feeAmount;
     const hasFee = settings.feeEnabled && subtotal > 0 && (settings.freeAbove <= 0 || subtotal < settings.freeAbove);
-    const deliveryFee = hasFee ? settings.feeAmount : 0;
+    const deliveryFee = hasFee ? effectiveFee : 0;
     const highDemandFee = settings.highDemandEnabled ? settings.highDemandAmount : 0;
     return {
       deliveryFee,
@@ -4243,16 +4246,16 @@ waitFor(
        if(snap.exists){
           const data = snap.data();
           const fee = Number(data.fee) || 0;
-          const enabled = data.enabled !== false; // Default to true if not specified
+          const enabled = data.enabled === undefined ? true : data.enabled === true;
           
-          // Validate the fee value
+          // Validate the fee value and respect the enabled toggle
           if (enabled && (isNaN(fee) || fee < 0)) {
             console.warn('[DeliveryFee] Invalid fee value received:', fee, ', using 0');
             currentDeliveryFee = 0;
             _fee = 0;
           } else {
-            currentDeliveryFee = fee;
-            _fee = fee;
+            currentDeliveryFee = enabled ? fee : 0;
+            _fee = fee; // keep raw amount stored even when delivery is disabled
           }
           
           console.log('[DeliveryFee] Real-time update received: enabled=%s fee=%d', enabled, currentDeliveryFee);
@@ -4279,7 +4282,7 @@ waitFor(
                   } else {
                     currentDeliveryFee = enabled ? fee : 0;
                   }
-                  _fee = currentDeliveryFee;
+                  _fee = fee; // preserve stored amount even when disabled
                   
                   console.log('[DeliveryFee] Loaded from app_settings: enabled=%s fee=%d', enabled, currentDeliveryFee);
                   applyFee(currentDeliveryFee);

@@ -1656,78 +1656,7 @@
             <label>Fee Amount (₹)</label>
             <input type="number" id="svc-fee-amount" value="" min="0" placeholder="e.g. 20" onchange="saveDeliverySettings()"/>
           </div>
-          <div class="form-group">
-            <label>Free Delivery Above (₹)</label>
-            <input type="number" id="svc-free-above" value="" min="0" placeholder="e.g. 200"/>
-          </div>
         </div>
-
-        <!-- FREE DELIVERY OFFER TOGGLE -->
-        <div class="pay-toggle-row" style="margin-top:12px;margin-bottom:0;background:#f0faf4;border-color:#a5d6a7">
-          <div class="pay-toggle-label">
-            <span>🎁</span>
-            <span>Free Delivery Offer<br><span class="pay-toggle-sublabel">Turn ON to give all customers free delivery instantly</span></span>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="svc-free-offer" onchange="dsUpdateUI(); saveDeliverySettings();"/>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div id="ds-free-offer-note" style="display:none;margin-top:8px;padding:10px 14px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;font-size:.82rem;color:#1b5e20;font-weight:700">
-          🎉 FREE DELIVERY is active! Customers pay ₹0 delivery right now.
-        </div>
-      </div>
-    </div>
-
-    <!-- HIGH DEMAND FEE CARD -->
-    <div style="background:#fff;border:2px solid var(--border);border-radius:18px;padding:18px 20px;margin-bottom:18px;box-shadow:var(--shadow)">
-      <div style="display:flex;align-items:center;gap:9px;margin-bottom:16px">
-        <span style="font-size:1.4rem">⚡</span>
-        <div>
-          <div style="font-family:'Yeseva One',serif;color:var(--brown);font-size:1rem">High Demand Fee</div>
-          <div style="font-size:.72rem;color:#888">Extra charge during heavy rain, hot weather, peak hours</div>
-        </div>
-        <span id="ds-hd-badge" style="margin-left:auto;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:800;background:#fee;color:#c62828">OFF</span>
-      </div>
-
-      <div class="pay-toggle-row" style="margin-bottom:0">
-        <div class="pay-toggle-label">
-          <span>🔛</span>
-          <span>Enable High Demand Surcharge<br><span class="pay-toggle-sublabel">Customers see reason + extra fee instantly</span></span>
-        </div>
-        <label class="toggle-switch">
-          <input type="checkbox" id="svc-highdemand-enabled" onchange="dsUpdateUI(); saveDeliverySettings();"/>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-
-      <div id="ds-hd-fields" style="display:none;margin-top:14px">
-        <div class="form-grid" style="margin-top:0">
-          <div class="form-group">
-            <label>Surcharge Amount (₹)</label>
-            <input type="number" id="svc-highdemand-amount" value="" min="0" placeholder="e.g. 15"/>
-          </div>
-          <div class="form-group full">
-            <label>Reason shown to customer</label>
-            <textarea id="svc-highdemand-msg" rows="2" placeholder="Delivery partner demand is high due to heavy rain or hot weather. Extra fee applies."></textarea>
-          </div>
-        </div>
-        <div style="margin-top:8px;padding:10px 14px;background:#fff8e1;border:1px solid #ffe082;border-radius:10px;font-size:.8rem;color:#e65100">
-          ⚡ This message + surcharge will appear in the customer's cart immediately after saving.
-        </div>
-      </div>
-    </div>
-
-    <!-- OTHER DELIVERY SETTINGS -->
-    <div style="background:#fff;border:2px solid var(--border);border-radius:18px;padding:18px 20px;margin-bottom:20px;box-shadow:var(--shadow)">
-      <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px">
-        <span style="font-size:1.4rem">🗺️</span>
-        <div style="font-family:'Yeseva One',serif;color:var(--brown);font-size:1rem">General Delivery</div>
-      </div>
-      <div class="form-grid" style="margin-top:0">
-        <div class="form-group"><label>Service Radius (km)</label><input type="number" id="svc-radius" value="4" min="1" max="20"/></div>
-        <div class="form-group"><label>Delivery Charge (₹)</label><input type="number" id="svc-charge" value="20" min="0"/></div>
-        <div class="form-group"><label>Est. Time (mins)</label><input type="number" id="svc-est-time" value="30" min="5"/></div>
       </div>
     </div>
 
@@ -1739,26 +1668,15 @@
 <script>
 function dsUpdateUI(){
   var feeOn=document.getElementById('svc-fee-enabled')?.checked;
-  var hdOn=document.getElementById('svc-highdemand-enabled')?.checked;
-  var freeOffer=document.getElementById('svc-free-offer')?.checked;
   var feeFields=document.getElementById('ds-fee-fields');
-  var hdFields=document.getElementById('ds-hd-fields');
   var feeBadge=document.getElementById('ds-fee-badge');
-  var hdBadge=document.getElementById('ds-hd-badge');
-  var freeOfferNote=document.getElementById('ds-free-offer-note');
   // Show/hide fee fields
   if(feeFields) feeFields.style.display=feeOn?'':'none';
-  if(hdFields) hdFields.style.display=hdOn?'':'none';
-  // Fee badge — show "FREE OFFER" when offer is on
+  // Fee badge
   if(feeBadge){
-    if(freeOffer){feeBadge.textContent='FREE OFFER 🎁';feeBadge.style.background='#e8f5e9';feeBadge.style.color='#1b5e20';}
-    else if(feeOn){feeBadge.textContent='ON';feeBadge.style.background='#e8f5e9';feeBadge.style.color='#1b5e20';}
+    if(feeOn){feeBadge.textContent='ON';feeBadge.style.background='#e8f5e9';feeBadge.style.color='#1b5e20';}
     else{feeBadge.textContent='OFF';feeBadge.style.background='#fee';feeBadge.style.color='#c62828';}
   }
-  // Free offer banner
-  if(freeOfferNote) freeOfferNote.style.display=freeOffer?'':'none';
-  // HD badge
-  if(hdBadge){hdBadge.textContent=hdOn?'ON':'OFF';hdBadge.style.background=hdOn?'#fff8e1':'#fee';hdBadge.style.color=hdOn?'#e65100':'#c62828';}
 }
 document.addEventListener('DOMContentLoaded',function(){dsUpdateUI();});
 </script>
@@ -2762,29 +2680,10 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     const feeEnabled = !!feeEnabledEl.checked;
     const feeAmountRaw = (feeAmountEl.value || '').trim();
     const feeAmount = Math.max(0, parseInt(feeAmountRaw, 10) || 0);
-    const freeAbove = Math.max(0, parseInt(document.getElementById('svc-free-above')?.value || '0', 10) || 0);
-
-    const freeOffer = !!document.getElementById('svc-free-offer')?.checked;
-    const highDemandEnabled = !!document.getElementById('svc-highdemand-enabled')?.checked;
-    const highDemandAmount = Math.max(0, parseInt(document.getElementById('svc-highdemand-amount')?.value || '0', 10) || 0);
-    const highDemandMessage = document.getElementById('svc-highdemand-msg')?.value.trim() || DEFAULT_DELIVERY_SETTINGS.highDemandMessage;
-    const businessHoursEnabled = !!document.getElementById('svc-business-hours-enabled')?.checked;
-    const openHour = Math.min(23, Math.max(0, parseInt(document.getElementById('svc-open-hour')?.value || '9', 10) || 9));
-    const closeHour = Math.min(23, Math.max(0, parseInt(document.getElementById('svc-close-hour')?.value || '22', 10) || 22));
-    const outOfServiceMessage = document.getElementById('svc-outofservice-msg')?.value.trim() || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage;
 
     const settings = {
       feeEnabled,
       feeAmount,
-      freeAbove,
-      freeOffer,
-      highDemandEnabled,
-      highDemandAmount,
-      highDemandMessage,
-      businessHoursEnabled,
-      openHour,
-      closeHour,
-      outOfServiceMessage,
       updatedAt: new Date().toISOString()
     };
 
@@ -2824,13 +2723,6 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       const checkoutSettings = {
         fee: feeAmount,
         enabled: feeEnabled,
-        freeAbove: freeAbove,
-        freeOffer: freeOffer,
-        highDemandEnabled: highDemandEnabled,
-        highDemandAmount: highDemandAmount,
-        businessHoursEnabled: businessHoursEnabled,
-        openHour: openHour,
-        closeHour: closeHour,
         updatedAt: new Date().toISOString(),
         savedBy: currentUser?.email || 'unknown'
       };
@@ -2859,7 +2751,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           }
         });
 
-      firestorerestore.collection('settings').doc('delivery')
+      firestore.collection('settings').doc('delivery')
         .set(checkoutSettings, { merge: true })
         .then(() => {
           successCount++;
@@ -2943,19 +2835,9 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       // Only load delivery fee fields for non-admin users
       const feeEnabledEl = document.getElementById('svc-fee-enabled');
       const feeAmountEl = document.getElementById('svc-fee-amount');
-      const freeAboveEl = document.getElementById('svc-free-above');
-      const freeOfferEl = document.getElementById('svc-free-offer');
-      const highDemandEnabledEl = document.getElementById('svc-highdemand-enabled');
-      const highDemandAmountEl = document.getElementById('svc-highdemand-amount');
-      const highDemandMsgEl = document.getElementById('svc-highdemand-msg');
 
       if (feeEnabledEl) feeEnabledEl.checked = !!settings.feeEnabled;
       if (feeAmountEl) feeAmountEl.value = settings.feeAmount || 0;
-      if (freeAboveEl) freeAboveEl.value = settings.freeAbove || 0;
-      if (freeOfferEl) freeOfferEl.checked = !!settings.freeOffer;
-      if (highDemandEnabledEl) highDemandEnabledEl.checked = !!settings.highDemandEnabled;
-      if (highDemandAmountEl) highDemandAmountEl.value = settings.highDemandAmount || 0;
-      if (highDemandMsgEl) highDemandMsgEl.value = settings.highDemandMessage || DEFAULT_DELIVERY_SETTINGS.highDemandMessage;
 
       if (typeof dsUpdateUI === 'function') dsUpdateUI();
       return;
@@ -3017,73 +2899,29 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 
     const feeEnabledEl = document.getElementById('svc-fee-enabled');
     const feeAmountEl = document.getElementById('svc-fee-amount');
-    const freeAboveEl = document.getElementById('svc-free-above');
-    const freeOfferEl = document.getElementById('svc-free-offer');
-    const highDemandEnabledEl = document.getElementById('svc-highdemand-enabled');
-    const highDemandAmountEl = document.getElementById('svc-highdemand-amount');
-    const highDemandMsgEl = document.getElementById('svc-highdemand-msg');
-    const businessHoursEnabledEl = document.getElementById('svc-business-hours-enabled');
-    const openHourEl = document.getElementById('svc-open-hour');
-    const closeHourEl = document.getElementById('svc-close-hour');
-    const outOfServiceMsgEl = document.getElementById('svc-outofservice-msg');
 
     if (feeEnabledEl) feeEnabledEl.checked = !!settings.feeEnabled;
     if (feeAmountEl) feeAmountEl.value = settings.feeAmount || 0;
-    if (freeAboveEl) freeAboveEl.value = settings.freeAbove || 0;
-    if (freeOfferEl) freeOfferEl.checked = !!settings.freeOffer;
-    if (highDemandEnabledEl) highDemandEnabledEl.checked = !!settings.highDemandEnabled;
-    if (highDemandAmountEl) highDemandAmountEl.value = settings.highDemandAmount || 0;
-    if (highDemandMsgEl) highDemandMsgEl.value = settings.highDemandMessage || DEFAULT_DELIVERY_SETTINGS.highDemandMessage;
-    if (businessHoursEnabledEl) businessHoursEnabledEl.checked = !!settings.businessHoursEnabled;
-    if (openHourEl) {
-      openHourEl.value = settings.openHour || 9;
-      console.log('[BusinessHours] Loaded open hour:', settings.openHour);
-    }
-    if (closeHourEl) {
-      closeHourEl.value = settings.closeHour || 22;
-      console.log('[BusinessHours] Loaded close hour:', settings.closeHour);
-    }
-    if (outOfServiceMsgEl) outOfServiceMsgEl.value = settings.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage;
     
-    console.log('[BusinessHours] Settings loaded - enabled:', !!settings.businessHoursEnabled, 'open:', settings.openHour, 'close:', settings.closeHour);
+    console.log('[DeliverySettings] Settings loaded');
     
-    if (typeof updateBusinessHoursStatus === 'function') {
-      updateBusinessHoursStatus();
-    }
     if (typeof dsUpdateUI === 'function') dsUpdateUI();
   }
 
   function updateDeliveryFeeUI() {
     const feeEnabled = !!document.getElementById('svc-fee-enabled')?.checked;
-    const highDemandEnabled = !!document.getElementById('svc-highdemand-enabled')?.checked;
     const feeFields = document.getElementById('svc-fee-fields');
-    const highDemandFields = document.getElementById('svc-highdemand-fields');
     const statusLabel = document.getElementById('svc-fee-status-label');
 
     if (feeFields) feeFields.style.display = feeEnabled ? '' : 'none';
-    if (highDemandFields) highDemandFields.style.display = highDemandEnabled ? '' : 'none';
-
-    // Live preview updates
-    const feeAmountEl = document.getElementById('svc-fee-amount');
-    const freeAboveEl = document.getElementById('svc-free-above');
-    const feePreview = document.getElementById('svc-fee-preview');
-    const freePreview = document.getElementById('svc-free-preview');
-    if (feePreview && feeAmountEl) feePreview.textContent = feeAmountEl.value || '0';
-    if (freePreview && freeAboveEl) freePreview.textContent = freeAboveEl.value || '0';
 
     // Status badge
     if (statusLabel) {
-      if (feeEnabled && highDemandEnabled) {
-        statusLabel.textContent = '💰 Fee + ⚡ Surcharge ON';
+      if (feeEnabled) {
+        statusLabel.textContent = '💰 Delivery Fee ON';
         statusLabel.style.color = '#1e7a3a';
-      } else if (feeEnabled) {
-        statusLabel.textContent = '💰 Fee ON';
-        statusLabel.style.color = '#1e7a3a';
-      } else if (highDemandEnabled) {
-        statusLabel.textContent = '⚡ Surcharge ON';
-        statusLabel.style.color = '#e8820c';
       } else {
-        statusLabel.textContent = '🚫 All fees OFF';
+        statusLabel.textContent = '💰 Delivery Fee OFF';
         statusLabel.style.color = '#888';
       }
     }
@@ -3093,54 +2931,30 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 
   function computeDeliveryFees(subtotal) {
     const settings = getDeliverySettings();
-    // Free offer overrides everything — no delivery fee
-    if (settings.freeOffer) {
-      return { deliveryFee: 0, highDemandFee: 0, highDemandMessage: '' };
-    }
     const effectiveFee = typeof window._gfyDeliveryFee === 'number' ? window._gfyDeliveryFee : settings.feeAmount;
-    const hasFee = settings.feeEnabled && subtotal > 0 && (settings.freeAbove <= 0 || subtotal < settings.freeAbove);
-    const deliveryFee = hasFee ? effectiveFee : 0;
-    const highDemandFee = settings.highDemandEnabled ? settings.highDemandAmount : 0;
+    const deliveryFee = settings.feeEnabled && subtotal > 0 ? effectiveFee : 0;
     return {
       deliveryFee,
-      highDemandFee,
-      highDemandMessage: settings.highDemandMessage
+      highDemandFee: 0,
+      highDemandMessage: ''
     };
   }
 
   function updateDeliveryInfoDisplay() {
     const omTotalEl = document.getElementById('om-total');
     const omDeliveryFeeRow = document.getElementById('om-delivery-fee-row');
-    const omHighDemandFeeRow = document.getElementById('om-highdemand-fee-row');
     const omOrderTotalEl = document.getElementById('om-order-total');
     const omDeliveryFeeEl = document.getElementById('om-delivery-fee');
-    const omHighDemandFeeEl = document.getElementById('om-highdemand-fee');
-    const omFeeNoteEl = document.getElementById('om-fee-note');
 
     if (!omTotalEl || !omOrderTotalEl) return;
 
     const subtotal = parseInt((omTotalEl.innerText || '0').replace(/\D/g, ''), 10) || 0;
-    const { deliveryFee, highDemandFee, highDemandMessage } = computeDeliveryFees(subtotal);
-    const total = subtotal + deliveryFee + highDemandFee;
+    const { deliveryFee } = computeDeliveryFees(subtotal);
+    const total = subtotal + deliveryFee;
 
     if (omDeliveryFeeEl) omDeliveryFeeEl.innerText = `₹${deliveryFee}`;
-    if (omHighDemandFeeEl) omHighDemandFeeEl.innerText = `₹${highDemandFee}`;
     if (omDeliveryFeeRow) omDeliveryFeeRow.style.display = deliveryFee > 0 ? '' : 'none';
-    if (omHighDemandFeeRow) omHighDemandFeeRow.style.display = highDemandFee > 0 ? '' : 'none';
     if (omOrderTotalEl) omOrderTotalEl.innerText = `₹${total}`;
-
-    if (omFeeNoteEl) {
-      if (highDemandFee > 0 && highDemandMessage) {
-        omFeeNoteEl.style.display = '';
-        omFeeNoteEl.innerHTML = `<strong>High demand update:</strong> ${highDemandMessage}`;
-      } else if (deliveryFee > 0) {
-        omFeeNoteEl.style.display = '';
-        omFeeNoteEl.innerText = `Delivery fee applies because your order total is below ₹${getDeliverySettings().freeAbove}.`;
-      } else {
-        omFeeNoteEl.style.display = 'none';
-        omFeeNoteEl.innerText = '';
-      }
-    }
   }
 
   function isWithinBusinessHours(settings) {

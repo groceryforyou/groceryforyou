@@ -2833,9 +2833,9 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     highDemandEnabled: false,
     highDemandAmount: 0,
     highDemandMessage: 'Delivery partner demand is high due to heavy rain or hot weather. Extra fee applies.',
-    businessHoursEnabled: true,
-    openHour: 9,
-    closeHour: 22,
+    businessHoursEnabled: false,
+    openHour: 6,
+    closeHour: 20,
     outOfServiceMessage: 'Orders are only accepted during business hours. Please try again later.',
     updatedAt: ''
   };
@@ -2869,10 +2869,69 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
   }
 
   function saveDeliverySettings() {
-    // Validate inputs
+    // ── Business Hours branch ──────────────────────────────────────────────
+    // When called from the Business Hours page the delivery-fee fields don't
+    // exist.  Detect that and save only the business-hours settings.
+    const bhEnabledEl  = document.getElementById('svc-business-hours-enabled');
+    const openHourEl   = document.getElementById('svc-open-hour');
+    const closeHourEl  = document.getElementById('svc-close-hour');
+    const outMsgEl     = document.getElementById('svc-outofservice-msg');
+
+    if (bhEnabledEl && openHourEl && closeHourEl) {
+      // ── We're on the Business Hours page ──────────────────────────────
+      if (typeof currentRole !== 'undefined' && currentRole !== 'admin') {
+        showToast('⚠️ Only admin can change these settings', 3000);
+        return;
+      }
+      if (!currentUser) {
+        showToast('⚠️ Please sign in as admin first', 3000);
+        return;
+      }
+
+      const bhEnabled     = !!bhEnabledEl.checked;
+      const openHour      = Math.min(23, Math.max(0, parseInt(openHourEl.value, 10) || 6));
+      const closeHour     = Math.min(23, Math.max(0, parseInt(closeHourEl.value, 10) || 20));
+      const outOfSvcMsg   = outMsgEl ? outMsgEl.value.trim() : '';
+
+      // Merge into existing localStorage settings (don't wipe fee settings)
+      const existing = getDeliverySettings();
+      const merged = {
+        ...existing,
+        businessHoursEnabled: bhEnabled,
+        openHour,
+        closeHour,
+        outOfServiceMessage: outOfSvcMsg || existing.outOfServiceMessage,
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(merged));
+      console.log('[DeliverySettings] Business hours saved to localStorage:', merged);
+
+      // Persist to Firestore
+      const firestore = (typeof db !== 'undefined' && db) ? db
+        : (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+      if (firestore) {
+        const payload = {
+          businessHoursEnabled: bhEnabled,
+          openHour,
+          closeHour,
+          outOfServiceMessage: merged.outOfServiceMessage,
+          updatedAt: new Date().toISOString(),
+          savedBy: currentUser?.email || 'unknown'
+        };
+        firestore.collection('app_settings').doc('delivery_settings')
+          .set(payload, { merge: true })
+          .then(() => console.log('[DeliverySettings] ✓ Business hours saved to app_settings'))
+          .catch(err => console.error('[DeliverySettings] Business hours Firestore error:', err.code || err.message));
+      }
+
+      showToast('✅ Business hours saved!', 2500);
+      return;
+    }
+
+    // ── Delivery-fee branch (original path) ───────────────────────────────
     const feeEnabledEl = document.getElementById('svc-fee-enabled');
-    const feeAmountEl = document.getElementById('svc-fee-amount');
-    
+    const feeAmountEl  = document.getElementById('svc-fee-amount');
+
     if (!feeEnabledEl || !feeAmountEl) {
       console.warn('[DeliverySettings] Required form elements not found');
       showToast('⚠️ Form elements not found', 2000);
@@ -3052,11 +3111,15 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         const firestoreData = docSnap.data();
         console.log('[DeliverySettings] Loaded from Firestore (primary):', firestoreData);
         
-        // Update localStorage with Firestore data
+        // Update localStorage with Firestore data (fee + business hours)
         const settings = {
-          ...getDeliverySettings(), // Keep other properties
+          ...getDeliverySettings(), // Keep any properties not stored in Firestore
           feeEnabled: firestoreData.feeEnabled !== undefined ? firestoreData.feeEnabled : false,
           feeAmount: firestoreData.feeAmount !== undefined ? firestoreData.feeAmount : 0,
+          businessHoursEnabled: firestoreData.businessHoursEnabled !== undefined ? firestoreData.businessHoursEnabled : false,
+          openHour: firestoreData.openHour !== undefined ? firestoreData.openHour : 6,
+          closeHour: firestoreData.closeHour !== undefined ? firestoreData.closeHour : 20,
+          outOfServiceMessage: firestoreData.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage,
           updatedAt: firestoreData.updatedAt || new Date().toISOString()
         };
         
@@ -3105,20 +3168,47 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
   
   function loadDeliverySettingsToUI(settings) {
     console.log('[DeliverySettings] Updating UI with settings:', settings);
-    
+
+    // ── Delivery-fee fields ────────────────────────────────────────────────
     const feeEnabledEl = document.getElementById('svc-fee-enabled');
-    const feeAmountEl = document.getElementById('svc-fee-amount');
-    
+    const feeAmountEl  = document.getElementById('svc-fee-amount');
+
     if (feeEnabledEl) {
       feeEnabledEl.checked = !!settings.feeEnabled;
       console.log('[DeliverySettings] Set fee enabled toggle to:', feeEnabledEl.checked);
     }
-    
     if (feeAmountEl) {
       feeAmountEl.value = settings.feeAmount || 0;
       console.log('[DeliverySettings] Set fee amount to:', feeAmountEl.value);
     }
-    
+
+    // ── Business Hours fields ──────────────────────────────────────────────
+    const bhEnabledEl = document.getElementById('svc-business-hours-enabled');
+    const openHourEl  = document.getElementById('svc-open-hour');
+    const closeHourEl = document.getElementById('svc-close-hour');
+    const outMsgEl    = document.getElementById('svc-outofservice-msg');
+
+    if (bhEnabledEl) {
+      bhEnabledEl.checked = settings.businessHoursEnabled !== undefined
+        ? !!settings.businessHoursEnabled
+        : false; // default: disabled
+      console.log('[DeliverySettings] Set business hours enabled to:', bhEnabledEl.checked);
+    }
+    if (openHourEl) {
+      openHourEl.value = (settings.openHour !== undefined && settings.openHour !== null)
+        ? settings.openHour : 6;
+      console.log('[DeliverySettings] Set open hour to:', openHourEl.value);
+    }
+    if (closeHourEl) {
+      closeHourEl.value = (settings.closeHour !== undefined && settings.closeHour !== null)
+        ? settings.closeHour : 20;
+      console.log('[DeliverySettings] Set close hour to:', closeHourEl.value);
+    }
+    if (outMsgEl) {
+      outMsgEl.value = settings.outOfServiceMessage || '';
+      console.log('[DeliverySettings] Set out-of-service message');
+    }
+
     // Apply fee to the delivery fee system
     if (settings.feeEnabled && settings.feeAmount > 0) {
       console.log('[DeliverySettings] Applying fee:', settings.feeAmount);
@@ -3130,7 +3220,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         updateCartTotal();
       }
     }
-    
+
     // Update UI components
     if (typeof dsUpdateUI === 'function') {
       dsUpdateUI();
@@ -3153,11 +3243,15 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
             const firestoreData = docSnap.data();
             console.log('[DeliverySettings] Real-time update from Firestore:', firestoreData);
             
-            // Update localStorage
+            // Update localStorage (fee + business hours)
             const settings = {
               ...getDeliverySettings(),
               feeEnabled: firestoreData.feeEnabled !== undefined ? firestoreData.feeEnabled : false,
               feeAmount: firestoreData.feeAmount !== undefined ? firestoreData.feeAmount : 0,
+              businessHoursEnabled: firestoreData.businessHoursEnabled !== undefined ? firestoreData.businessHoursEnabled : false,
+              openHour: firestoreData.openHour !== undefined ? firestoreData.openHour : 6,
+              closeHour: firestoreData.closeHour !== undefined ? firestoreData.closeHour : 20,
+              outOfServiceMessage: firestoreData.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage,
               updatedAt: firestoreData.updatedAt || new Date().toISOString()
             };
             
@@ -3710,79 +3804,54 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       initialized: _supportTicketWatcherInit,
       seenCount: _seenTicketIds.size,
       timestamp: new Date().toLocaleString()
-    })
+    }),
+    forceNotify: (ticketData, ticketId) => {
+      console.log('[DebugNotify] 🧪 Manually triggering notification');
+      notifyAdminAboutTicket(ticketData || {
+        type: 'Test Ticket',
+        customerEmail: 'test@example.com',
+        orderId: 'ORD-12345',
+        desc: 'This is a test notification'
+      }, ticketId || 'manual-test-' + Date.now());
+    },
+    testNotificationFunctions: () => {
+      console.log('[TestNotif] 🧪 Testing individual notification functions...');
+      
+      if (typeof showToast === 'function') {
+        console.log('[TestNotif] ✅ showToast exists - calling it');
+        showToast('🎯 Test Toast Notification', 3000);
+      } else {
+        console.log('[TestNotif] ❌ showToast NOT FOUND');
+      }
+      
+      if (typeof playChimePattern === 'function') {
+        console.log('[TestNotif] ✅ playChimePattern exists - calling it');
+        playChimePattern();
+      } else {
+        console.log('[TestNotif] ❌ playChimePattern NOT FOUND');
+      }
+      
+      if (typeof showPromoNotification === 'function') {
+        console.log('[TestNotif] ✅ showPromoNotification exists - calling it');
+        showPromoNotification('🎯 Test Banner', 'This is a test banner notification', '🧪');
+      } else {
+        console.log('[TestNotif] ❌ showPromoNotification NOT FOUND');
+      }
+    }
   };
   
   console.log('[SupportNotify] 🎯 Debug API available at window._supportNotifyDebug');
+  console.log('[SupportNotify] 💡 Try: window._supportNotifyDebug.testNotificationFunctions()');
+  console.log('[SupportNotify] 💡 Try: window._supportNotifyDebug.status()');
+  console.log('[SupportNotify] 💡 Try: window._supportNotifyDebug.listAllTickets()');
 })();
 </script>
-
 <!-- ===== RAZORPAY LIVE PAYMENT INTEGRATION ===== -->
 <script>
 (function patchRazorpayUPI() {
   'use strict';
 
   var RZP_KEY = 'rzp_live_SmqNRvEpkEJ49k';
-
-  /* ─────────────────────────────────────────────────────────────
-   *  HELPER: Fetch fresh delivery fee from Firestore.
-   *  Checks primary (app_settings/delivery_settings) first,
-   *  then fallback (settings/delivery), then localStorage cache.
-   *  Returns 0 if fee is disabled or unavailable.
-   * ───────────────────────────────────────────────────────────── */
-  async function getDeliveryFee() {
-    // Read localStorage cache first as immediate fallback
-    var cachedFee = 0;
-    try {
-      var cached = localStorage.getItem('deliverySettings');
-      if (cached) {
-        var p = JSON.parse(cached);
-        if (p.feeEnabled && p.feeAmount > 0) cachedFee = Number(p.feeAmount);
-      }
-    } catch (_e) {}
-
-    if (typeof db === 'undefined' || !db) {
-      console.log('[RazorpayUPI] Firestore unavailable — using cached delivery fee: ₹' + cachedFee);
-      return cachedFee;
-    }
-
-    try {
-      // Primary Firestore path
-      var primaryDoc = await db.collection('app_settings').doc('delivery_settings').get();
-      if (primaryDoc.exists) {
-        var d = primaryDoc.data();
-        if (d.feeEnabled === true && d.feeAmount > 0) {
-          console.log('[RazorpayUPI] 📡 Delivery fee from Firestore (primary): ₹' + d.feeAmount);
-          return Number(d.feeAmount) || 0;
-        }
-        // feeEnabled is false
-        console.log('[RazorpayUPI] 📡 Delivery fee disabled (primary Firestore)');
-        return 0;
-      }
-    } catch (e) {
-      console.warn('[RazorpayUPI] Primary Firestore path error:', e && (e.code || e.message));
-    }
-
-    try {
-      // Fallback Firestore path
-      var fallbackDoc = await db.collection('settings').doc('delivery').get();
-      if (fallbackDoc.exists) {
-        var d2 = fallbackDoc.data();
-        if (d2.enabled === true && d2.fee > 0) {
-          console.log('[RazorpayUPI] 📡 Delivery fee from Firestore (fallback): ₹' + d2.fee);
-          return Number(d2.fee) || 0;
-        }
-        console.log('[RazorpayUPI] 📡 Delivery fee disabled (fallback Firestore)');
-        return 0;
-      }
-    } catch (e2) {
-      console.warn('[RazorpayUPI] Fallback Firestore path error:', e2 && (e2.code || e2.message));
-    }
-
-    // Last resort: use localStorage cache
-    console.log('[RazorpayUPI] Using localStorage cached delivery fee: ₹' + cachedFee);
-    return cachedFee;
-  }
 
   /* ── QR fallback: shows static QR modal ── */
   function showQRModal(amount) {
@@ -3835,45 +3904,9 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     }, 600);
   }
 
-  /* ── Main: override openRazorpayCheckout with dynamic calculation ── */
+  /* ── Main: override openRazorpayCheckout with LIVE Razorpay popup ── */
   function patchRazorpayCheckout() {
-    window.openRazorpayCheckout = async function(baseAmount, name, phone) {
-      /* ── Step 1: Fetch fresh delivery fee from Firestore ── */
-      var deliveryFee = await getDeliveryFee();
-
-      /* ── Step 2: Read latest cart subtotal from DOM ── */
-      var cartSubtotal = (function() {
-        var omTotal = document.getElementById('om-total');
-        if (omTotal) {
-          var v = parseFloat((omTotal.innerText || omTotal.textContent || '').replace(/[^\d.]/g, '')) || 0;
-          if (v > 0) return v;
-        }
-        return parseFloat(baseAmount) || 0;
-      })();
-
-      /* ── Step 3: Compute final payable amount ── */
-      var totalAmount = cartSubtotal + deliveryFee;
-
-      console.log('[RazorpayUPI] 💰 Amount Calculation:',
-        'Cart Total = \u20B9' + cartSubtotal,
-        '| Delivery Fee = \u20B9' + deliveryFee,
-        '| FINAL = \u20B9' + totalAmount);
-
-      /* Safety guard */
-      if (totalAmount <= 0) {
-        totalAmount = parseFloat(baseAmount) || cartSubtotal;
-        console.warn('[RazorpayUPI] \u26A0\uFE0F totalAmount was 0 — using baseAmount fallback: \u20B9' + totalAmount);
-      }
-
-      /* Store for QR fallback */
-      window._pendingUPIAmount = totalAmount;
-
-      /* Update UI displays with correct total */
-      var upiAmtEl = document.getElementById('upi-amount-display');
-      if (upiAmtEl) upiAmtEl.textContent = '\u20B9' + totalAmount;
-      var grandEl = document.getElementById('om-grand-total');
-      if (grandEl) grandEl.textContent = '\u20B9' + totalAmount;
-
+    window.openRazorpayCheckout = function(amount, name, phone) {
       /* Read customer info from order modal fields */
       var nameEl  = document.getElementById('om-name');
       var phoneEl = document.getElementById('om-phone');
@@ -3885,13 +3918,13 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       /* Fallback to QR if Razorpay SDK not loaded */
       if (typeof Razorpay === 'undefined') {
         console.warn('[RazorpayUPI] SDK not loaded, falling back to QR modal');
-        showQRModal(totalAmount);
+        showQRModal(amount);
         return;
       }
 
       var options = {
         key:         RZP_KEY,
-        amount:      Math.round(totalAmount * 100),   /* paise — uses final cart+delivery */
+        amount:      Math.round(amount * 100),   /* paise */
         currency:    'INR',
         name:        'Grocery For You Sirsilla',
         description: 'Grocery Order Payment',
@@ -3900,12 +3933,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           contact: phone,
           email:   email
         },
-        notes: {
-          city:        'Sirsilla, Telangana',
-          cartTotal:   '\u20B9' + cartSubtotal,
-          deliveryFee: '\u20B9' + deliveryFee,
-          finalAmount: '\u20B9' + totalAmount
-        },
+        notes: { city: 'Sirsilla, Telangana' },
         theme: { color: '#00b04e' },
         modal: {
           ondismiss: function() {
@@ -3915,10 +3943,9 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           }
         },
         handler: function(response) {
-          console.log('[RazorpayUPI] \u2705 Payment success. ID:', response.razorpay_payment_id, '| Amount: \u20B9' + totalAmount);
           onPaymentSuccess(
             response.razorpay_payment_id || ('RZP-' + Date.now()),
-            totalAmount, name, phone, email
+            amount, name, phone, email
           );
         }
       };
@@ -3930,16 +3957,16 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           if (typeof showToast === 'function') {
             showToast('\u274C ' + msg + '. Try again.', 3000);
           }
-          /* Offer QR as fallback with correct total */
-          setTimeout(function() { showQRModal(totalAmount); }, 1500);
+          /* Offer QR as fallback */
+          setTimeout(function() { showQRModal(amount); }, 1500);
         });
         rzp.open();
       } catch (e) {
         console.error('[RazorpayUPI] Checkout error:', e);
-        showQRModal(totalAmount);
+        showQRModal(amount);
       }
     };
-    console.log('[RazorpayUPI] \u2705 openRazorpayCheckout \u2192 Live Razorpay popup active (cart+delivery fix)');
+    console.log('[RazorpayUPI] \u2705 openRazorpayCheckout \u2192 Live Razorpay popup active');
   }
 
   /* ── confirmUPIPaid: for QR fallback "I've Paid" button ── */
@@ -3952,28 +3979,12 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     };
   }
 
-  /* ── showUPIRedirect: recompute cart+delivery before showing QR modal ── */
+  /* ── showUPIRedirect: keep amount in sync ── */
   function patchShowUPIRedirect() {
     var orig = window.showUPIRedirect;
-    window.showUPIRedirect = function(passedAmt) {
-      /* Recompute with fresh delivery fee before showing modal */
-      getDeliveryFee().then(function(deliveryFee) {
-        var omTotal = document.getElementById('om-total');
-        var cartSubtotal = 0;
-        if (omTotal) {
-          cartSubtotal = parseFloat((omTotal.innerText || omTotal.textContent || '').replace(/[^\d.]/g, '')) || 0;
-        }
-        if (cartSubtotal <= 0) cartSubtotal = parseFloat(passedAmt) || 0;
-
-        var finalAmt = cartSubtotal + deliveryFee;
-        console.log('[RazorpayUPI] showUPIRedirect — cart \u20B9' + cartSubtotal + ' + delivery \u20B9' + deliveryFee + ' = \u20B9' + finalAmt);
-
-        window._pendingUPIAmount = finalAmt;
-        var amtEl = document.getElementById('upi-amount-display');
-        if (amtEl) amtEl.textContent = '\u20B9' + finalAmt;
-
-        if (orig) orig.call(window, finalAmt);
-      });
+    window.showUPIRedirect = function(amount) {
+      window._pendingUPIAmount = amount;
+      if (orig) orig.apply(this, arguments);
     };
   }
 
@@ -3991,7 +4002,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     [0, 300, 800, 1500, 3000].forEach(function(ms) { setTimeout(tryPatch, ms); });
   }
 
-  console.log('[RazorpayUPI] \ud83d\ude80 Live Razorpay checkout loaded \u2014 Key: rzp_live_SmqN... (delivery fee fix active)');
+  console.log('[RazorpayUPI] \ud83d\ude80 Live Razorpay checkout loaded \u2014 Key: rzp_live_SmqN...');
 })();
 </script>
 
@@ -4778,8 +4789,8 @@ waitFor(
               highDemandEnabled: data.highDemandEnabled === true,
               highDemandAmount: Number(data.highDemandAmount) || 0,
               businessHoursEnabled: data.businessHoursEnabled === true,
-              openHour: Number(data.openHour) || 9,
-              closeHour: Number(data.closeHour) || 22,
+              openHour: Number(data.openHour) || 6,
+              closeHour: Number(data.closeHour) || 20,
               outOfServiceMessage: data.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage,
               updatedAt: data.updatedAt || new Date().toISOString()
             };
@@ -4824,8 +4835,8 @@ waitFor(
             highDemandEnabled: freshSettings.highDemandEnabled || false,
             highDemandAmount: freshSettings.highDemandAmount || 0,
             businessHoursEnabled: freshSettings.businessHoursEnabled || false,
-            openHour: freshSettings.openHour || 9,
-            closeHour: freshSettings.closeHour || 22,
+            openHour: freshSettings.openHour || 6,
+            closeHour: freshSettings.closeHour || 20,
             outOfServiceMessage: freshSettings.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage,
             updatedAt: new Date().toISOString()
           };

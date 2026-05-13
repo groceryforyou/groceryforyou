@@ -3111,11 +3111,15 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         const firestoreData = docSnap.data();
         console.log('[DeliverySettings] Loaded from Firestore (primary):', firestoreData);
         
-        // Update localStorage with Firestore data
+        // Update localStorage with Firestore data (fee + business hours)
         const settings = {
-          ...getDeliverySettings(), // Keep other properties
+          ...getDeliverySettings(), // Keep any properties not stored in Firestore
           feeEnabled: firestoreData.feeEnabled !== undefined ? firestoreData.feeEnabled : false,
           feeAmount: firestoreData.feeAmount !== undefined ? firestoreData.feeAmount : 0,
+          businessHoursEnabled: firestoreData.businessHoursEnabled !== undefined ? firestoreData.businessHoursEnabled : true,
+          openHour: firestoreData.openHour !== undefined ? firestoreData.openHour : 9,
+          closeHour: firestoreData.closeHour !== undefined ? firestoreData.closeHour : 22,
+          outOfServiceMessage: firestoreData.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage,
           updatedAt: firestoreData.updatedAt || new Date().toISOString()
         };
         
@@ -3164,20 +3168,47 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
   
   function loadDeliverySettingsToUI(settings) {
     console.log('[DeliverySettings] Updating UI with settings:', settings);
-    
+
+    // ── Delivery-fee fields ────────────────────────────────────────────────
     const feeEnabledEl = document.getElementById('svc-fee-enabled');
-    const feeAmountEl = document.getElementById('svc-fee-amount');
-    
+    const feeAmountEl  = document.getElementById('svc-fee-amount');
+
     if (feeEnabledEl) {
       feeEnabledEl.checked = !!settings.feeEnabled;
       console.log('[DeliverySettings] Set fee enabled toggle to:', feeEnabledEl.checked);
     }
-    
     if (feeAmountEl) {
       feeAmountEl.value = settings.feeAmount || 0;
       console.log('[DeliverySettings] Set fee amount to:', feeAmountEl.value);
     }
-    
+
+    // ── Business Hours fields ──────────────────────────────────────────────
+    const bhEnabledEl = document.getElementById('svc-business-hours-enabled');
+    const openHourEl  = document.getElementById('svc-open-hour');
+    const closeHourEl = document.getElementById('svc-close-hour');
+    const outMsgEl    = document.getElementById('svc-outofservice-msg');
+
+    if (bhEnabledEl) {
+      bhEnabledEl.checked = settings.businessHoursEnabled !== undefined
+        ? !!settings.businessHoursEnabled
+        : true; // default: enabled
+      console.log('[DeliverySettings] Set business hours enabled to:', bhEnabledEl.checked);
+    }
+    if (openHourEl) {
+      openHourEl.value = (settings.openHour !== undefined && settings.openHour !== null)
+        ? settings.openHour : 9;
+      console.log('[DeliverySettings] Set open hour to:', openHourEl.value);
+    }
+    if (closeHourEl) {
+      closeHourEl.value = (settings.closeHour !== undefined && settings.closeHour !== null)
+        ? settings.closeHour : 22;
+      console.log('[DeliverySettings] Set close hour to:', closeHourEl.value);
+    }
+    if (outMsgEl) {
+      outMsgEl.value = settings.outOfServiceMessage || '';
+      console.log('[DeliverySettings] Set out-of-service message');
+    }
+
     // Apply fee to the delivery fee system
     if (settings.feeEnabled && settings.feeAmount > 0) {
       console.log('[DeliverySettings] Applying fee:', settings.feeAmount);
@@ -3189,7 +3220,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         updateCartTotal();
       }
     }
-    
+
     // Update UI components
     if (typeof dsUpdateUI === 'function') {
       dsUpdateUI();
@@ -3212,11 +3243,15 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
             const firestoreData = docSnap.data();
             console.log('[DeliverySettings] Real-time update from Firestore:', firestoreData);
             
-            // Update localStorage
+            // Update localStorage (fee + business hours)
             const settings = {
               ...getDeliverySettings(),
               feeEnabled: firestoreData.feeEnabled !== undefined ? firestoreData.feeEnabled : false,
               feeAmount: firestoreData.feeAmount !== undefined ? firestoreData.feeAmount : 0,
+              businessHoursEnabled: firestoreData.businessHoursEnabled !== undefined ? firestoreData.businessHoursEnabled : true,
+              openHour: firestoreData.openHour !== undefined ? firestoreData.openHour : 9,
+              closeHour: firestoreData.closeHour !== undefined ? firestoreData.closeHour : 22,
+              outOfServiceMessage: firestoreData.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage,
               updatedAt: firestoreData.updatedAt || new Date().toISOString()
             };
             

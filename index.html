@@ -3710,54 +3710,79 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       initialized: _supportTicketWatcherInit,
       seenCount: _seenTicketIds.size,
       timestamp: new Date().toLocaleString()
-    }),
-    forceNotify: (ticketData, ticketId) => {
-      console.log('[DebugNotify] 🧪 Manually triggering notification');
-      notifyAdminAboutTicket(ticketData || {
-        type: 'Test Ticket',
-        customerEmail: 'test@example.com',
-        orderId: 'ORD-12345',
-        desc: 'This is a test notification'
-      }, ticketId || 'manual-test-' + Date.now());
-    },
-    testNotificationFunctions: () => {
-      console.log('[TestNotif] 🧪 Testing individual notification functions...');
-      
-      if (typeof showToast === 'function') {
-        console.log('[TestNotif] ✅ showToast exists - calling it');
-        showToast('🎯 Test Toast Notification', 3000);
-      } else {
-        console.log('[TestNotif] ❌ showToast NOT FOUND');
-      }
-      
-      if (typeof playChimePattern === 'function') {
-        console.log('[TestNotif] ✅ playChimePattern exists - calling it');
-        playChimePattern();
-      } else {
-        console.log('[TestNotif] ❌ playChimePattern NOT FOUND');
-      }
-      
-      if (typeof showPromoNotification === 'function') {
-        console.log('[TestNotif] ✅ showPromoNotification exists - calling it');
-        showPromoNotification('🎯 Test Banner', 'This is a test banner notification', '🧪');
-      } else {
-        console.log('[TestNotif] ❌ showPromoNotification NOT FOUND');
-      }
-    }
+    })
   };
   
   console.log('[SupportNotify] 🎯 Debug API available at window._supportNotifyDebug');
-  console.log('[SupportNotify] 💡 Try: window._supportNotifyDebug.testNotificationFunctions()');
-  console.log('[SupportNotify] 💡 Try: window._supportNotifyDebug.status()');
-  console.log('[SupportNotify] 💡 Try: window._supportNotifyDebug.listAllTickets()');
 })();
 </script>
+
 <!-- ===== RAZORPAY LIVE PAYMENT INTEGRATION ===== -->
 <script>
 (function patchRazorpayUPI() {
   'use strict';
 
   var RZP_KEY = 'rzp_live_SmqNRvEpkEJ49k';
+
+  /* ─────────────────────────────────────────────────────────────
+   *  HELPER: Fetch fresh delivery fee from Firestore.
+   *  Checks primary (app_settings/delivery_settings) first,
+   *  then fallback (settings/delivery), then localStorage cache.
+   *  Returns 0 if fee is disabled or unavailable.
+   * ───────────────────────────────────────────────────────────── */
+  async function getDeliveryFee() {
+    // Read localStorage cache first as immediate fallback
+    var cachedFee = 0;
+    try {
+      var cached = localStorage.getItem('deliverySettings');
+      if (cached) {
+        var p = JSON.parse(cached);
+        if (p.feeEnabled && p.feeAmount > 0) cachedFee = Number(p.feeAmount);
+      }
+    } catch (_e) {}
+
+    if (typeof db === 'undefined' || !db) {
+      console.log('[RazorpayUPI] Firestore unavailable — using cached delivery fee: ₹' + cachedFee);
+      return cachedFee;
+    }
+
+    try {
+      // Primary Firestore path
+      var primaryDoc = await db.collection('app_settings').doc('delivery_settings').get();
+      if (primaryDoc.exists) {
+        var d = primaryDoc.data();
+        if (d.feeEnabled === true && d.feeAmount > 0) {
+          console.log('[RazorpayUPI] 📡 Delivery fee from Firestore (primary): ₹' + d.feeAmount);
+          return Number(d.feeAmount) || 0;
+        }
+        // feeEnabled is false
+        console.log('[RazorpayUPI] 📡 Delivery fee disabled (primary Firestore)');
+        return 0;
+      }
+    } catch (e) {
+      console.warn('[RazorpayUPI] Primary Firestore path error:', e && (e.code || e.message));
+    }
+
+    try {
+      // Fallback Firestore path
+      var fallbackDoc = await db.collection('settings').doc('delivery').get();
+      if (fallbackDoc.exists) {
+        var d2 = fallbackDoc.data();
+        if (d2.enabled === true && d2.fee > 0) {
+          console.log('[RazorpayUPI] 📡 Delivery fee from Firestore (fallback): ₹' + d2.fee);
+          return Number(d2.fee) || 0;
+        }
+        console.log('[RazorpayUPI] 📡 Delivery fee disabled (fallback Firestore)');
+        return 0;
+      }
+    } catch (e2) {
+      console.warn('[RazorpayUPI] Fallback Firestore path error:', e2 && (e2.code || e2.message));
+    }
+
+    // Last resort: use localStorage cache
+    console.log('[RazorpayUPI] Using localStorage cached delivery fee: ₹' + cachedFee);
+    return cachedFee;
+  }
 
   /* ── QR fallback: shows static QR modal ── */
   function showQRModal(amount) {
@@ -3810,9 +3835,45 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     }, 600);
   }
 
-  /* ── Main: override openRazorpayCheckout with LIVE Razorpay popup ── */
+  /* ── Main: override openRazorpayCheckout with dynamic calculation ── */
   function patchRazorpayCheckout() {
-    window.openRazorpayCheckout = function(amount, name, phone) {
+    window.openRazorpayCheckout = async function(baseAmount, name, phone) {
+      /* ── Step 1: Fetch fresh delivery fee from Firestore ── */
+      var deliveryFee = await getDeliveryFee();
+
+      /* ── Step 2: Read latest cart subtotal from DOM ── */
+      var cartSubtotal = (function() {
+        var omTotal = document.getElementById('om-total');
+        if (omTotal) {
+          var v = parseFloat((omTotal.innerText || omTotal.textContent || '').replace(/[^\d.]/g, '')) || 0;
+          if (v > 0) return v;
+        }
+        return parseFloat(baseAmount) || 0;
+      })();
+
+      /* ── Step 3: Compute final payable amount ── */
+      var totalAmount = cartSubtotal + deliveryFee;
+
+      console.log('[RazorpayUPI] 💰 Amount Calculation:',
+        'Cart Total = \u20B9' + cartSubtotal,
+        '| Delivery Fee = \u20B9' + deliveryFee,
+        '| FINAL = \u20B9' + totalAmount);
+
+      /* Safety guard */
+      if (totalAmount <= 0) {
+        totalAmount = parseFloat(baseAmount) || cartSubtotal;
+        console.warn('[RazorpayUPI] \u26A0\uFE0F totalAmount was 0 — using baseAmount fallback: \u20B9' + totalAmount);
+      }
+
+      /* Store for QR fallback */
+      window._pendingUPIAmount = totalAmount;
+
+      /* Update UI displays with correct total */
+      var upiAmtEl = document.getElementById('upi-amount-display');
+      if (upiAmtEl) upiAmtEl.textContent = '\u20B9' + totalAmount;
+      var grandEl = document.getElementById('om-grand-total');
+      if (grandEl) grandEl.textContent = '\u20B9' + totalAmount;
+
       /* Read customer info from order modal fields */
       var nameEl  = document.getElementById('om-name');
       var phoneEl = document.getElementById('om-phone');
@@ -3824,13 +3885,13 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       /* Fallback to QR if Razorpay SDK not loaded */
       if (typeof Razorpay === 'undefined') {
         console.warn('[RazorpayUPI] SDK not loaded, falling back to QR modal');
-        showQRModal(amount);
+        showQRModal(totalAmount);
         return;
       }
 
       var options = {
         key:         RZP_KEY,
-        amount:      Math.round(amount * 100),   /* paise */
+        amount:      Math.round(totalAmount * 100),   /* paise — uses final cart+delivery */
         currency:    'INR',
         name:        'Grocery For You Sirsilla',
         description: 'Grocery Order Payment',
@@ -3839,7 +3900,12 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           contact: phone,
           email:   email
         },
-        notes: { city: 'Sirsilla, Telangana' },
+        notes: {
+          city:        'Sirsilla, Telangana',
+          cartTotal:   '\u20B9' + cartSubtotal,
+          deliveryFee: '\u20B9' + deliveryFee,
+          finalAmount: '\u20B9' + totalAmount
+        },
         theme: { color: '#00b04e' },
         modal: {
           ondismiss: function() {
@@ -3849,9 +3915,10 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           }
         },
         handler: function(response) {
+          console.log('[RazorpayUPI] \u2705 Payment success. ID:', response.razorpay_payment_id, '| Amount: \u20B9' + totalAmount);
           onPaymentSuccess(
             response.razorpay_payment_id || ('RZP-' + Date.now()),
-            amount, name, phone, email
+            totalAmount, name, phone, email
           );
         }
       };
@@ -3863,16 +3930,16 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           if (typeof showToast === 'function') {
             showToast('\u274C ' + msg + '. Try again.', 3000);
           }
-          /* Offer QR as fallback */
-          setTimeout(function() { showQRModal(amount); }, 1500);
+          /* Offer QR as fallback with correct total */
+          setTimeout(function() { showQRModal(totalAmount); }, 1500);
         });
         rzp.open();
       } catch (e) {
         console.error('[RazorpayUPI] Checkout error:', e);
-        showQRModal(amount);
+        showQRModal(totalAmount);
       }
     };
-    console.log('[RazorpayUPI] \u2705 openRazorpayCheckout \u2192 Live Razorpay popup active');
+    console.log('[RazorpayUPI] \u2705 openRazorpayCheckout \u2192 Live Razorpay popup active (cart+delivery fix)');
   }
 
   /* ── confirmUPIPaid: for QR fallback "I've Paid" button ── */
@@ -3885,12 +3952,28 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     };
   }
 
-  /* ── showUPIRedirect: keep amount in sync ── */
+  /* ── showUPIRedirect: recompute cart+delivery before showing QR modal ── */
   function patchShowUPIRedirect() {
     var orig = window.showUPIRedirect;
-    window.showUPIRedirect = function(amount) {
-      window._pendingUPIAmount = amount;
-      if (orig) orig.apply(this, arguments);
+    window.showUPIRedirect = function(passedAmt) {
+      /* Recompute with fresh delivery fee before showing modal */
+      getDeliveryFee().then(function(deliveryFee) {
+        var omTotal = document.getElementById('om-total');
+        var cartSubtotal = 0;
+        if (omTotal) {
+          cartSubtotal = parseFloat((omTotal.innerText || omTotal.textContent || '').replace(/[^\d.]/g, '')) || 0;
+        }
+        if (cartSubtotal <= 0) cartSubtotal = parseFloat(passedAmt) || 0;
+
+        var finalAmt = cartSubtotal + deliveryFee;
+        console.log('[RazorpayUPI] showUPIRedirect — cart \u20B9' + cartSubtotal + ' + delivery \u20B9' + deliveryFee + ' = \u20B9' + finalAmt);
+
+        window._pendingUPIAmount = finalAmt;
+        var amtEl = document.getElementById('upi-amount-display');
+        if (amtEl) amtEl.textContent = '\u20B9' + finalAmt;
+
+        if (orig) orig.call(window, finalAmt);
+      });
     };
   }
 
@@ -3908,7 +3991,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     [0, 300, 800, 1500, 3000].forEach(function(ms) { setTimeout(tryPatch, ms); });
   }
 
-  console.log('[RazorpayUPI] \ud83d\ude80 Live Razorpay checkout loaded \u2014 Key: rzp_live_SmqN...');
+  console.log('[RazorpayUPI] \ud83d\ude80 Live Razorpay checkout loaded \u2014 Key: rzp_live_SmqN... (delivery fee fix active)');
 })();
 </script>
 

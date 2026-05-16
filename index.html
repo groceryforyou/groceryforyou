@@ -4267,7 +4267,13 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       return;
     }
     const authInst = firebase.auth();
+    // Initialize the provider
     const provider = new firebase.auth.GoogleAuthProvider();
+
+    // FORCE your verified Web Client ID into the provider settings
+    provider.setCustomParameters({
+        'client_id': '513928226780-99k0sfj6ltv4s49jsllk4614smk1r60f.apps.googleusercontent.com'
+    });
 
     // Handle redirect result first (fires after redirect-based sign-in)
     authInst.getRedirectResult().then(result => {

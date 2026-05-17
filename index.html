@@ -4759,45 +4759,42 @@ waitFor(
   }
 
   /* ── Apply fee to all UI elements ── */
+  var _applyFeeRunning = false; /* re-entrancy guard - prevents infinite MutationObserver loop */
+
   function applyFee(fee) {
-    fee = Number(fee) || 0;
-    _fee = fee;
-    currentDeliveryFee = fee; // Ensure obfuscated order code uses correct fee
-    window._gfyDeliveryFee = fee;
-    console.log('[DeliveryFee] applyFee:', fee);
-
-    updateCartDeliveryFee();
-
-    /* Sync admin input without stealing focus */
-    var adminInput = document.getElementById('gfy-delivery-fee-input')
-                  || document.getElementById('svc-fee-amount');
-    if (adminInput && document.activeElement !== adminInput) {
-      adminInput.value = fee;
+    if (_applyFeeRunning) return;
+    _applyFeeRunning = true;
+    try {
+      fee = Number(fee) || 0;
+      _fee = fee;
+      currentDeliveryFee = fee;
+      window._gfyDeliveryFee = fee;
+      console.log('[DeliveryFee] applyFee: fee=₹' + fee);
+      var adminInput = document.getElementById('gfy-delivery-fee-input')
+                    || document.getElementById('svc-fee-amount');
+      if (adminInput && document.activeElement !== adminInput) adminInput.value = fee;
+      /* Update display rows only — do NOT touch #om-total (causes glitch loop) */
+      updateCartDisplayRows();
+      updateCartDeliveryFee();
+    } finally {
+      _applyFeeRunning = false;
     }
-
-    /* Update cart display if available */
-    updateCartTotal();
   }
 
-  function updateCartTotal(){
-     const subtotal = getCartSubtotal();
-     const total = subtotal + _fee;
-
-     // Update cart display elements
-     const deliveryFeeEl = document.getElementById("deliveryFee");
-     const totalAmountEl = document.getElementById("totalAmount");
-     
-     if (deliveryFeeEl) deliveryFeeEl.innerText = "₹"+_fee;
-     if (totalAmountEl) totalAmountEl.innerText = "₹"+total;
-
-     // Update order modal elements — write GRAND total so checkout sees the right amount
-     const omTotalEl = document.getElementById('om-total');
-     if (omTotalEl) omTotalEl.innerText = "₹"+total;
-     updateCartDeliveryFee();
-
-     window.finalAmount = total;
-     console.log('[DeliveryFee] Cart total updated:', subtotal, '+', _fee, '=', total);
+  /* Updates cart summary display rows only — never writes to #om-total */
+  function updateCartDisplayRows() {
+    var subtotal = getCartSubtotal();
+    var total    = subtotal + _fee;
+    var deliveryFeeEl = document.getElementById('deliveryFee');
+    var totalAmountEl = document.getElementById('totalAmount');
+    if (deliveryFeeEl) deliveryFeeEl.innerText = '₹' + _fee;
+    if (totalAmountEl) totalAmountEl.innerText = '₹' + total;
+    window.finalAmount = total;
+    console.log('[DeliveryFee] Display: subtotal=₹' + subtotal + ' fee=₹' + _fee + ' total=₹' + total);
   }
+
+  /* Legacy alias — kept for compatibility */
+  function updateCartTotal() { updateCartDisplayRows(); }
 
   function getCartSubtotal(){
      if(typeof cart !== 'undefined'){
@@ -5090,8 +5087,15 @@ waitFor(
     var el = document.getElementById('om-total');
     if (!el) { setTimeout(watchOmTotal, 600); return; }
 
+    var _obsRunning = false;
     new MutationObserver(function() {
-      setTimeout(function() { applyFee(_fee); }, 40);
+      if (_obsRunning) return;
+      _obsRunning = true;
+      setTimeout(function() {
+        updateCartDeliveryFee();
+        updateCartDisplayRows();
+        _obsRunning = false;
+      }, 60);
     }).observe(el, { childList: true, subtree: true, characterData: true });
 
     console.log('[DeliveryFee] MutationObserver on om-total active');

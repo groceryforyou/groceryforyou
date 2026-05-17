@@ -3364,53 +3364,35 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
   }
 
   function updateBusinessHoursStatus() {
+    const settings = getDeliverySettings();
     let statusIndicator = document.getElementById('business-hours-status');
-
+    
     if (!statusIndicator) {
       statusIndicator = document.createElement('div');
       statusIndicator.id = 'business-hours-status';
-      statusIndicator.style.cssText = 'padding:10px;margin:10px 0;border-radius:6px;text-align:center;font-weight:bold;font-size:0.9rem;display:none;';
+      statusIndicator.style.cssText = 'padding:10px;margin:10px 0;border-radius:6px;text-align:center;font-weight:bold;font-size:0.9rem;';
       const header = document.querySelector('header');
       if (header) header.appendChild(statusIndicator);
     }
 
-    // Always hidden by default — only reveal after Firestore confirms
-    const applySettings = (settings) => {
-      if (!settings.businessHoursEnabled) {
-        statusIndicator.style.display = 'none';
-        return;
-      }
-      const isOpen = isWithinBusinessHours(settings);
-      const hoursText = getBusinessHoursText(settings);
-      if (isOpen) {
-        statusIndicator.style.display = '';
-        statusIndicator.style.background = '#c8e6c9';
-        statusIndicator.style.color = '#1e7a3a';
-        statusIndicator.innerHTML = `✅ Store is OPEN (${hoursText})`;
-      } else {
-        statusIndicator.style.display = '';
-        statusIndicator.style.background = '#ffcdd2';
-        statusIndicator.style.color = '#c62828';
-        statusIndicator.innerHTML = `🔴 Store is CLOSED (Opens at ${hoursText})`;
-      }
-    };
+    if (!settings.businessHoursEnabled) {
+      statusIndicator.style.display = 'none';
+      return;
+    }
 
-    // Fetch fresh Firestore data first — prevents stale localStorage flash
-    if (typeof db !== 'undefined' && db) {
-      db.collection('app_settings').doc('delivery_settings').get()
-        .then(docSnap => {
-          if (docSnap.exists) {
-            const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
-            localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
-            applySettings(fresh);
-          } else {
-            applySettings(getDeliverySettings());
-          }
-        })
-        .catch(() => applySettings(getDeliverySettings()));
+    const isOpen = isWithinBusinessHours(settings);
+    const hoursText = getBusinessHoursText(settings);
+    
+    if (isOpen) {
+      statusIndicator.style.display = '';
+      statusIndicator.style.background = '#c8e6c9';
+      statusIndicator.style.color = '#1e7a3a';
+      statusIndicator.innerHTML = `✅ Store is OPEN (${hoursText})`;
     } else {
-      // Firestore not ready yet — use localStorage but keep hidden if not enabled
-      applySettings(getDeliverySettings());
+      statusIndicator.style.display = '';
+      statusIndicator.style.background = '#ffcdd2';
+      statusIndicator.style.color = '#c62828';
+      statusIndicator.innerHTML = `🔴 Store is CLOSED (Opens at ${hoursText})`;
     }
   }
 

@@ -4167,12 +4167,25 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       phone = phone || (phoneEl ? phoneEl.value.trim() : '');
       var email = emailEl ? emailEl.value.trim().toLowerCase() : '';
 
-      /* ── ADD DELIVERY FEE TO AMOUNT ── */
-      var subtotal = Number(amount) || 0;
-      var deliveryFee = Number(window._gfyDeliveryFee) || 0;
-      var grandTotal = subtotal + deliveryFee;
-      console.log('[RazorpayUPI] 💰 Amount breakdown: subtotal=₹' + subtotal + ' + delivery=₹' + deliveryFee + ' = TOTAL ₹' + grandTotal);
-      amount = grandTotal;
+      /* ── AUTHORITATIVE GRAND TOTAL (subtotal + delivery fee) ──
+         window.finalAmount is set by GFYDeliveryFeeSystem every time
+         the cart changes:  finalAmount = cartSubtotal + deliveryFee
+         This is the single source of truth — always use it.
+         Only fall back to passed amount + fee if finalAmount is missing. */
+      var _passedAmt   = Number(amount) || 0;
+      var _deliveryFee = Number(window._gfyDeliveryFee) || 0;
+      var _finalAmt    = Number(window.finalAmount) || 0;
+
+      if (_finalAmt > 0) {
+        // Use the value computed by our own delivery-fee system (most reliable)
+        amount = _finalAmt;
+        console.log('[RazorpayUPI] 💰 Grand total from window.finalAmount: ₹' + amount +
+                    '  (passed=₹' + _passedAmt + ', delivery=₹' + _deliveryFee + ')');
+      } else {
+        // Fallback: add delivery fee to whatever the app passed in
+        amount = _passedAmt + _deliveryFee;
+        console.log('[RazorpayUPI] 💰 Fallback total: ₹' + _passedAmt + ' + ₹' + _deliveryFee + ' = ₹' + amount);
+      }
 
       /* Fallback to QR if Razorpay SDK not loaded */
       if (typeof Razorpay === 'undefined') {
@@ -4654,9 +4667,9 @@ waitFor(
      if (deliveryFeeEl) deliveryFeeEl.innerText = "₹"+_fee;
      if (totalAmountEl) totalAmountEl.innerText = "₹"+total;
 
-     // Update order modal elements
+     // Update order modal elements — write GRAND total so checkout sees the right amount
      const omTotalEl = document.getElementById('om-total');
-     if (omTotalEl) omTotalEl.innerText = "₹"+subtotal;
+     if (omTotalEl) omTotalEl.innerText = "₹"+total;
      updateCartDeliveryFee();
 
      window.finalAmount = total;

@@ -4102,176 +4102,139 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 <script>
 (function patchRazorpayUPI() {
   'use strict';
-
   var RZP_KEY = 'rzp_live_SmqNRvEpkEJ49k';
 
-  /* ═══════════════════════════════════════════════════════════════
-     1. FETCH DELIVERY FEE — fresh from Firestore every checkout
-        Priority:
-          (a) Firestore settings/delivery         { fee, enabled }
-          (b) Firestore app_settings/delivery_settings { feeAmount, feeEnabled }
-          (c) window._gfyDeliveryFee  (in-memory, set by GFYDeliveryFeeSystem)
-          (d) localStorage deliverySettings       { feeAmount, feeEnabled }
-          (e) 0 (disabled / not configured)
-  ═══════════════════════════════════════════════════════════════ */
-  async function fetchDeliveryFee() {
-    try {
-      var firestoreDB = (typeof db !== 'undefined' && db) ? db
-                      : (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length
-                         ? firebase.firestore() : null);
-
-      if (firestoreDB) {
-        /* (a) settings/delivery */
-        var snap1 = await Promise.race([
-          firestoreDB.collection('settings').doc('delivery').get(),
-          new Promise(function(_, rej) { setTimeout(function() { rej(new Error('timeout')); }, 3000); })
-        ]).catch(function() { return null; });
-
-        if (snap1 && snap1.exists) {
-          var d1      = snap1.data();
-          var enabled = d1.enabled === undefined ? true : d1.enabled === true;
-          var fee     = Number(d1.fee) || 0;
-          console.log('[RazorpayUPI] Firestore settings/delivery → enabled=' + enabled + ' fee=\u20b9' + fee);
-          return enabled ? fee : 0;
-        }
-
-        /* (b) app_settings/delivery_settings */
-        var snap2 = await Promise.race([
-          firestoreDB.collection('app_settings').doc('delivery_settings').get(),
-          new Promise(function(_, rej) { setTimeout(function() { rej(new Error('timeout')); }, 3000); })
-        ]).catch(function() { return null; });
-
-        if (snap2 && snap2.exists) {
-          var d2       = snap2.data();
-          var enabled2 = d2.feeEnabled === true;
-          var fee2     = Number(d2.feeAmount) || 0;
-          console.log('[RazorpayUPI] Firestore app_settings/delivery_settings → enabled=' + enabled2 + ' fee=\u20b9' + fee2);
-          return enabled2 ? fee2 : 0;
-        }
-      }
-    } catch (e) {
-      console.warn('[RazorpayUPI] Firestore delivery fetch error:', e.message);
-    }
-
-    /* (c) In-memory value from GFYDeliveryFeeSystem */
-    if (typeof window._gfyDeliveryFee === 'number' && window._gfyDeliveryFee > 0) {
-      console.log('[RazorpayUPI] Using window._gfyDeliveryFee = \u20b9' + window._gfyDeliveryFee);
+  /* ── 1. GET DELIVERY FEE (synchronous – from already-loaded memory) ──────
+     Checks every source the existing delivery systems populate.
+     This is called FIRST and is instant (no network).                       */
+  function getDeliveryFeeSync() {
+    // a) currentDeliveryFee – set by GFYDeliveryFeeSystem & DeliverySettings
+    if (typeof window.currentDeliveryFee === 'number' && window.currentDeliveryFee > 0)
+      return window.currentDeliveryFee;
+    // b) _gfyDeliveryFee – set by applyFee()
+    if (typeof window._gfyDeliveryFee === 'number' && window._gfyDeliveryFee > 0)
       return window._gfyDeliveryFee;
-    }
-
-    /* (d) localStorage cache */
+    // c) admin input DOM element
+    var inp = document.getElementById('svc-fee-amount')
+           || document.getElementById('gfy-delivery-fee-input');
+    if (inp && Number(inp.value) > 0) return Number(inp.value);
+    // d) localStorage – written by both DeliverySettings systems
     try {
-      var saved = JSON.parse(localStorage.getItem('deliverySettings') || '{}');
-      if (saved.feeEnabled === true && Number(saved.feeAmount) > 0) {
-        console.log('[RazorpayUPI] Using localStorage delivery fee = \u20b9' + saved.feeAmount);
-        return Number(saved.feeAmount);
-      }
-    } catch (e) {}
-
-    /* (e) Zero */
-    console.log('[RazorpayUPI] Delivery fee = \u20b90 (disabled or not configured)');
+      var s = JSON.parse(localStorage.getItem('deliverySettings') || '{}');
+      if (s.feeEnabled === true && Number(s.feeAmount) > 0) return Number(s.feeAmount);
+    } catch(e) {}
     return 0;
   }
 
-  /* ═══════════════════════════════════════════════════════════════
-     2. CART SUBTOTAL — computed fresh from global `cart` object
-        Obfuscated code exposes: cart[id].price, cart[id].qty
-        DOM fallback: #om-total element
-  ═══════════════════════════════════════════════════════════════ */
+  /* ── 2. FETCH DELIVERY FEE (async – Firestore fallback for cold load) ────
+     Only reached if none of the sync sources have a value yet.              */
+  async function fetchDeliveryFeeAsync() {
+    var syncVal = getDeliveryFeeSync();
+    if (syncVal > 0) {
+      console.log('[RazorpayUPI] \u2705 Delivery fee (sync): \u20b9' + syncVal);
+      return syncVal;
+    }
+    // Firestore fallback
+    try {
+      var fsDB = (typeof db !== 'undefined' && db) ? db
+               : (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length
+                  ? firebase.firestore() : null);
+      if (fsDB) {
+        var t3s = function(_, rej){ setTimeout(function(){ rej(new Error('timeout')); }, 3000); };
+
+        // Path A: settings/delivery  { fee, enabled }
+        var s1 = await Promise.race([fsDB.collection('settings').doc('delivery').get(),
+                                     new Promise(t3s)]).catch(function(){ return null; });
+        if (s1 && s1.exists) {
+          var d1 = s1.data(), en1 = d1.enabled === undefined ? true : d1.enabled === true,
+              f1 = Number(d1.fee) || 0;
+          console.log('[RazorpayUPI] Firestore settings/delivery: enabled=' + en1 + ' fee=\u20b9' + f1);
+          if (en1 && f1 > 0) {
+            window._gfyDeliveryFee = f1; window.currentDeliveryFee = f1; return f1;
+          }
+        }
+
+        // Path B: app_settings/delivery_settings  { feeAmount, feeEnabled }
+        var s2 = await Promise.race([fsDB.collection('app_settings').doc('delivery_settings').get(),
+                                     new Promise(t3s)]).catch(function(){ return null; });
+        if (s2 && s2.exists) {
+          var d2 = s2.data(), en2 = d2.feeEnabled === true, f2 = Number(d2.feeAmount) || 0;
+          console.log('[RazorpayUPI] Firestore app_settings: enabled=' + en2 + ' fee=\u20b9' + f2);
+          if (en2 && f2 > 0) {
+            window._gfyDeliveryFee = f2; window.currentDeliveryFee = f2; return f2;
+          }
+        }
+      }
+    } catch(e) { console.warn('[RazorpayUPI] Firestore error:', e.message); }
+
+    console.log('[RazorpayUPI] Delivery fee = \u20b90 (disabled / not configured)');
+    return 0;
+  }
+
+  /* ── 3. CART SUBTOTAL – always computed fresh from global cart object ──── */
   function getCartSubtotal() {
     try {
       if (typeof cart !== 'undefined' && cart && typeof cart === 'object') {
         var sub = Object.keys(cart).reduce(function(sum, id) {
           var item = cart[id];
-          return sum + (item ? (Number(item.price) || 0) * (Number(item.qty) || 0) : 0);
+          return sum + (item ? (Number(item.price)||0) * (Number(item.qty)||0) : 0);
         }, 0);
-        console.log('[RazorpayUPI] Cart subtotal = \u20b9' + sub + ' (' + Object.keys(cart).length + ' item types)');
+        console.log('[RazorpayUPI] \ud83d\uded2 Cart subtotal = \u20b9' + sub +
+                    ' (' + Object.keys(cart).length + ' items)');
         return sub;
       }
-    } catch (e) {
-      console.warn('[RazorpayUPI] cart object error:', e.message);
-    }
-
-    /* DOM fallback */
+    } catch(e) { console.warn('[RazorpayUPI] cart error:', e.message); }
+    // DOM fallback
     var el = document.getElementById('om-total');
     if (el) {
-      var v = parseInt((el.innerText || el.textContent || '0').replace(/[^\d]/g, ''), 10) || 0;
-      console.log('[RazorpayUPI] Cart subtotal from DOM #om-total = \u20b9' + v);
+      var v = parseInt((el.innerText||el.textContent||'0').replace(/[^\d]/g,''),10)||0;
+      console.log('[RazorpayUPI] \ud83d\uded2 Cart subtotal (DOM): \u20b9' + v);
       return v;
     }
     return 0;
   }
 
-  /* ═══════════════════════════════════════════════════════════════
-     3. QR FALLBACK — static QR modal
-  ═══════════════════════════════════════════════════════════════ */
+  /* ── 4. QR FALLBACK ───────────────────────────────────────────────────── */
   function showQRModal(amount) {
-    var amtEl = document.getElementById('upi-amount-display');
-    if (amtEl) amtEl.textContent = '\u20B9' + amount;
-    var overlay = document.getElementById('upi-redirect-overlay');
-    if (overlay) overlay.classList.add('open');
+    var el = document.getElementById('upi-amount-display');
+    if (el) el.textContent = '\u20b9' + amount;
+    var ov = document.getElementById('upi-redirect-overlay');
+    if (ov) ov.classList.add('open');
     window._pendingUPIAmount = amount;
-    console.log('[RazorpayUPI] QR modal shown for \u20b9' + amount);
   }
 
-  /* ═══════════════════════════════════════════════════════════════
-     4. PAYMENT SUCCESS — save breakdown to Firestore
-  ═══════════════════════════════════════════════════════════════ */
-  function onPaymentSuccess(paymentId, grandTotal, cartSubtotal, deliveryFee, name, phone, email) {
-    if (typeof showToast === 'function') showToast('\u2705 Payment successful! Placing your order...', 2500);
-
-    console.log('[RazorpayUPI] Payment success: id=' + paymentId +
-                ' | cart=\u20b9' + cartSubtotal + ' + delivery=\u20b9' + deliveryFee + ' = \u20b9' + grandTotal);
-
-    var fsDB = (typeof db !== 'undefined' && db) ? db : null;
-    if (fsDB) {
+  /* ── 5. PAYMENT SUCCESS – saves full breakdown to Firestore ───────────── */
+  function onPaymentSuccess(paymentId, grand, sub, fee, name, phone, email) {
+    if (typeof showToast === 'function')
+      showToast('\u2705 Payment successful! Placing your order...', 2500);
+    console.log('[RazorpayUPI] \u2705 id=' + paymentId +
+                ' cart=\u20b9' + sub + ' delivery=\u20b9' + fee + ' TOTAL=\u20b9' + grand);
+    var fs = (typeof db !== 'undefined' && db) ? db : null;
+    if (fs) {
       var uid  = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.uid : null;
       var mail = email || (typeof currentUser !== 'undefined' && currentUser ? currentUser.email : null);
-
-      fsDB.collection('razorpay_payments').add({
-        razorpayPaymentId : paymentId,
-        amount            : grandTotal,
-        cartSubtotal      : cartSubtotal,
-        deliveryFee       : deliveryFee,
-        customerName      : name  || '',
-        customerPhone     : phone || '',
-        customerEmail     : mail,
-        customerUid       : uid,
-        status            : 'captured',
-        paidAt            : firebase.firestore.FieldValue.serverTimestamp(),
-        source            : 'razorpay_checkout'
-      }).catch(function() {});
-
-      fsDB.collection('admin_notifications').add({
-        type          : 'payment_received',
-        paymentId     : paymentId,
-        amount        : grandTotal,
-        cartSubtotal  : cartSubtotal,
-        deliveryFee   : deliveryFee,
-        customerName  : name  || '',
-        customerPhone : phone || '',
-        customerEmail : mail,
-        customerUid   : uid,
-        createdAt     : firebase.firestore.FieldValue.serverTimestamp(),
-        read          : false
-      }).catch(function() {});
+      var ts   = firebase.firestore.FieldValue.serverTimestamp();
+      fs.collection('razorpay_payments').add({
+        razorpayPaymentId:paymentId, amount:grand, cartSubtotal:sub, deliveryFee:fee,
+        customerName:name||'', customerPhone:phone||'', customerEmail:mail,
+        customerUid:uid, status:'captured', paidAt:ts, source:'razorpay_checkout'
+      }).catch(function(){});
+      fs.collection('admin_notifications').add({
+        type:'payment_received', paymentId:paymentId, amount:grand, cartSubtotal:sub,
+        deliveryFee:fee, customerName:name||'', customerPhone:phone||'',
+        customerEmail:mail, customerUid:uid, createdAt:ts, read:false
+      }).catch(function(){});
     }
-
-    setTimeout(function() {
+    setTimeout(function(){
       if (typeof finalizeOrder === 'function') finalizeOrder('upi', true, paymentId);
     }, 600);
   }
 
-  /* ═══════════════════════════════════════════════════════════════
-     5. MAIN OVERRIDE — openRazorpayCheckout (async)
-        Obfuscated app calls: openRazorpayCheckout(window.finalAmount, name, phone)
-        We IGNORE the passed amount and recompute everything fresh.
-  ═══════════════════════════════════════════════════════════════ */
+  /* ── 6. MAIN OVERRIDE – openRazorpayCheckout ─────────────────────────── */
   function patchRazorpayCheckout() {
     window.openRazorpayCheckout = async function(amount, name, phone) {
-      console.log('[RazorpayUPI] openRazorpayCheckout triggered | passed amount=\u20b9' + amount);
+      console.log('[RazorpayUPI] \ud83d\ude80 triggered | passed=\u20b9' + amount);
 
-      /* Customer info */
       var nameEl  = document.getElementById('om-name');
       var phoneEl = document.getElementById('om-phone');
       var emailEl = document.getElementById('om-email');
@@ -4279,105 +4242,79 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       phone = phone || (phoneEl ? phoneEl.value.trim() : '');
       var email = emailEl ? emailEl.value.trim().toLowerCase() : '';
 
-      /* Loading feedback */
-      if (typeof showToast === 'function') showToast('\u23f3 Calculating your total...', 2000);
+      if (typeof showToast === 'function') showToast('\u23f3 Calculating total...', 2000);
 
-      /* Fetch both values fresh and simultaneously */
-      var cartSubtotal = getCartSubtotal();
-      var deliveryFee  = await fetchDeliveryFee();
-      var grandTotal   = cartSubtotal + deliveryFee;
+      var sub   = getCartSubtotal();
+      var fee   = await fetchDeliveryFeeAsync();
+      var grand = sub + fee;
 
-      console.log('[RazorpayUPI] ===== PAYMENT AMOUNT BREAKDOWN =====');
-      console.log('[RazorpayUPI]   Cart subtotal : \u20b9' + cartSubtotal);
-      console.log('[RazorpayUPI]   Delivery fee  : \u20b9' + deliveryFee);
-      console.log('[RazorpayUPI]   GRAND TOTAL   : \u20b9' + grandTotal);
-      console.log('[RazorpayUPI] =======================================');
+      console.log('[RazorpayUPI] ======= PAYMENT BREAKDOWN =======');
+      console.log('[RazorpayUPI]  Cart items  : \u20b9' + sub);
+      console.log('[RazorpayUPI]  Delivery fee: \u20b9' + fee);
+      console.log('[RazorpayUPI]  GRAND TOTAL : \u20b9' + grand);
+      console.log('[RazorpayUPI] ====================================');
 
-      /* Guard against zero */
-      if (grandTotal <= 0) {
-        console.error('[RazorpayUPI] Grand total is \u20b90 — aborting');
+      if (grand <= 0) {
         if (typeof showToast === 'function')
-          showToast('\u274C Cart appears empty. Please refresh and try again.', 3000);
+          showToast('\u274c Cart is empty. Please refresh and try again.', 3000);
         return;
       }
+      window.finalAmount = grand;
 
-      /* Keep window.finalAmount in sync */
-      window.finalAmount = grandTotal;
-
-      /* QR fallback if Razorpay SDK not loaded */
-      if (typeof Razorpay === 'undefined') {
-        console.warn('[RazorpayUPI] Razorpay SDK missing \u2192 QR modal');
-        showQRModal(grandTotal);
-        return;
-      }
-
-      /* Open Razorpay with verified amount */
-      var options = {
-        key         : RZP_KEY,
-        amount      : Math.round(grandTotal * 100),   /* paise */
-        currency    : 'INR',
-        name        : 'Grocery For You Sircilla',
-        description : 'Cart \u20b9' + cartSubtotal + ' + Delivery \u20b9' + deliveryFee,
-        prefill     : { name: name, contact: phone, email: email },
-        notes       : {
-          cart_subtotal : cartSubtotal,
-          delivery_fee  : deliveryFee,
-          grand_total   : grandTotal,
-          city          : 'Sircilla, Telangana'
-        },
-        theme : { color: '#00b04e' },
-        modal : {
-          ondismiss: function() {
-            if (typeof showToast === 'function')
-              showToast('\u274C Payment cancelled. Try again or use QR code.', 2500);
-          }
-        },
-        handler: function(response) {
-          onPaymentSuccess(
-            response.razorpay_payment_id || ('RZP-' + Date.now()),
-            grandTotal, cartSubtotal, deliveryFee, name, phone, email
-          );
-        }
-      };
+      if (typeof Razorpay === 'undefined') { showQRModal(grand); return; }
 
       try {
-        var rzp = new Razorpay(options);
-        rzp.on('payment.failed', function(resp) {
-          var msg = (resp.error && resp.error.description) ? resp.error.description : 'Payment failed';
-          if (typeof showToast === 'function') showToast('\u274C ' + msg + '. Try again.', 3000);
-          setTimeout(function() { showQRModal(grandTotal); }, 1500);
+        var rzp = new Razorpay({
+          key: RZP_KEY,
+          amount: Math.round(grand * 100),
+          currency: 'INR',
+          name: 'Grocery For You Sircilla',
+          description: 'Cart \u20b9' + sub + ' + Delivery \u20b9' + fee,
+          prefill: { name: name, contact: phone, email: email },
+          notes: { cart_subtotal: sub, delivery_fee: fee, grand_total: grand, city: 'Sircilla, Telangana' },
+          theme: { color: '#00b04e' },
+          modal: { ondismiss: function(){
+            if (typeof showToast === 'function')
+              showToast('\u274c Payment cancelled.', 2500);
+          }},
+          handler: function(r) {
+            onPaymentSuccess(r.razorpay_payment_id||('RZP-'+Date.now()),
+                             grand, sub, fee, name, phone, email);
+          }
+        });
+        rzp.on('payment.failed', function(r) {
+          var msg = (r.error && r.error.description) ? r.error.description : 'Payment failed';
+          if (typeof showToast === 'function') showToast('\u274c ' + msg, 3000);
+          setTimeout(function(){ showQRModal(grand); }, 1500);
         });
         rzp.open();
-        console.log('[RazorpayUPI] Razorpay popup opened for \u20b9' + grandTotal);
-      } catch (e) {
-        console.error('[RazorpayUPI] Checkout error:', e);
-        showQRModal(grandTotal);
+        console.log('[RazorpayUPI] \u2705 Razorpay opened for \u20b9' + grand);
+      } catch(e) {
+        console.error('[RazorpayUPI] Error:', e);
+        showQRModal(grand);
       }
     };
-    console.log('[RazorpayUPI] openRazorpayCheckout \u2192 async Live Razorpay active');
+    console.log('[RazorpayUPI] \u2705 Patched');
   }
 
-  /* QR "I've Paid" button */
   function patchConfirmUPIPaid() {
     window.confirmUPIPaid = function() {
-      var overlay = document.getElementById('upi-redirect-overlay');
-      if (overlay) overlay.classList.remove('open');
-      var amount = window._pendingUPIAmount || 0;
-      onPaymentSuccess('UPI-QR-' + Date.now(), amount, amount, 0, '', '', '');
+      var ov = document.getElementById('upi-redirect-overlay');
+      if (ov) ov.classList.remove('open');
+      var amt = window._pendingUPIAmount || 0;
+      onPaymentSuccess('UPI-QR-'+Date.now(), amt, amt, 0, '', '', '');
     };
   }
 
-  /* QR redirect amount sync */
   function patchShowUPIRedirect() {
     var orig = window.showUPIRedirect;
     window.showUPIRedirect = async function(amount) {
       var sub   = getCartSubtotal();
-      var fee   = await fetchDeliveryFee();
-      var total = (sub > 0 ? sub : Number(amount) || 0) + fee;
+      var fee   = await fetchDeliveryFeeAsync();
+      var total = (sub > 0 ? sub : Number(amount)||0) + fee;
       window._pendingUPIAmount = total;
-      var amtEl = document.getElementById('upi-amount-display');
-      if (amtEl) amtEl.textContent = '\u20b9' + total;
-      console.log('[RazorpayUPI] showUPIRedirect total = \u20b9' + total);
+      var el = document.getElementById('upi-amount-display');
+      if (el) el.textContent = '\u20b9' + total;
       if (orig) orig.call(this, total);
     };
   }
@@ -4390,15 +4327,15 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
-      [0, 300, 800, 1500, 3000].forEach(function(ms) { setTimeout(tryPatch, ms); });
+      [0,300,800,1500,3000].forEach(function(ms){ setTimeout(tryPatch, ms); });
     });
   } else {
-    [0, 300, 800, 1500, 3000].forEach(function(ms) { setTimeout(tryPatch, ms); });
+    [0,300,800,1500,3000].forEach(function(ms){ setTimeout(tryPatch, ms); });
   }
-
-  console.log('[RazorpayUPI] Loaded \u2014 Key: rzp_live_SmqN...');
+  console.log('[RazorpayUPI] Loaded');
 })();
 </script>
+
 
 
 <!-- ✅ Sign-In Fix: Popup → Redirect fallback -->
@@ -4761,7 +4698,7 @@ waitFor(
   /* ── Apply fee to all UI elements ── */
   var _applyFeeRunning = false; /* re-entrancy guard - prevents infinite MutationObserver loop */
 
-  function applyFee(fee) {
+function applyFee(fee) {
     if (_applyFeeRunning) return;
     _applyFeeRunning = true;
     try {
@@ -4769,14 +4706,28 @@ waitFor(
       _fee = fee;
       currentDeliveryFee = fee;
       window._gfyDeliveryFee = fee;
+      window.currentDeliveryFee = fee;
       console.log('[DeliveryFee] applyFee: fee=₹' + fee);
+
+      /* ── Sync localStorage so checkout always has the latest fee ── */
+      try {
+        var _stored = JSON.parse(localStorage.getItem('deliverySettings') || '{}');
+        _stored.feeAmount  = fee;
+        _stored.feeEnabled = fee > 0;
+        _stored.updatedAt  = new Date().toISOString();
+        localStorage.setItem('deliverySettings', JSON.stringify(_stored));
+        console.log('[DeliveryFee] localStorage synced: feeAmount=₹' + fee);
+      } catch(e) {}
+
       var adminInput = document.getElementById('gfy-delivery-fee-input')
                     || document.getElementById('svc-fee-amount');
       if (adminInput && document.activeElement !== adminInput) adminInput.value = fee;
-      /* Update display rows only — do NOT touch #om-total (causes glitch loop) */
       updateCartDisplayRows();
       updateCartDeliveryFee();
     } finally {
+      _applyFeeRunning = false;
+    }
+  } finally {
       _applyFeeRunning = false;
     }
   }

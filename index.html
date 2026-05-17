@@ -4167,6 +4167,13 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       phone = phone || (phoneEl ? phoneEl.value.trim() : '');
       var email = emailEl ? emailEl.value.trim().toLowerCase() : '';
 
+      /* ── ADD DELIVERY FEE TO AMOUNT ── */
+      var subtotal = Number(amount) || 0;
+      var deliveryFee = Number(window._gfyDeliveryFee) || 0;
+      var grandTotal = subtotal + deliveryFee;
+      console.log('[RazorpayUPI] 💰 Amount breakdown: subtotal=₹' + subtotal + ' + delivery=₹' + deliveryFee + ' = TOTAL ₹' + grandTotal);
+      amount = grandTotal;
+
       /* Fallback to QR if Razorpay SDK not loaded */
       if (typeof Razorpay === 'undefined') {
         console.warn('[RazorpayUPI] SDK not loaded, falling back to QR modal');

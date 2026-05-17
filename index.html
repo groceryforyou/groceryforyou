@@ -136,16 +136,16 @@
 
 
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-    html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior-y:contain}
-    body{background:var(--cream);font-family:"Lato",sans-serif;color:var(--deep);overflow-x:hidden;-webkit-overflow-scrolling:touch;min-height:100vh;min-height:100dvh}
+    html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior-y:contain;overflow-x:hidden;width:100%}
+    body{background:var(--cream);font-family:"Lato",sans-serif;color:var(--deep);overflow-x:hidden;-webkit-overflow-scrolling:touch;min-height:100vh;min-height:100dvh;width:100%;max-width:100vw;position:relative}
     img,video{max-width:100%;height:auto;display:block}
     input,select,textarea{font-size:16px!important;-webkit-appearance:none;appearance:none}
     button,a,[role="button"]{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
     button:focus-visible,a:focus-visible{outline:2px solid var(--saffron);outline-offset:2px}
 
     /* ===== HEADER ===== */
-    header{background:linear-gradient(135deg,var(--brown) 0%,#0d3b1a 60%,#1e7a3a 100%);color:#fff;padding:0;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,0.35)}
-    .header-inner{max-width:1200px;margin:auto;display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:var(--header-h);gap:10px}
+    header{background:linear-gradient(135deg,var(--brown) 0%,#0d3b1a 60%,#1e7a3a 100%);color:#fff;padding:0;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,0.35);width:100%;overflow-x:hidden}
+    .header-inner{max-width:1200px;margin:auto;display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:var(--header-h);gap:8px;width:100%;overflow:hidden}
     .logo{display:flex;align-items:center;gap:10px;cursor:pointer;flex-shrink:0}
     .logo-icon{font-size:2rem;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.4))}
     .logo-text{font-family:"Yeseva One",serif;font-size:1.4rem;letter-spacing:.5px;color:var(--turmeric);line-height:1.1}
@@ -153,8 +153,8 @@
     .header-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
 
     /* Search Bar */
-    .search-bar-wrap{position:relative;display:flex;align-items:center}
-    .search-bar{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:#fff;padding:8px 12px 8px 34px;border-radius:20px;font-size:.82rem;font-family:"Lato",sans-serif;width:180px;transition:all .3s;outline:none}
+    .search-bar-wrap{position:relative;display:flex;align-items:center;flex-shrink:1;min-width:0}
+    .search-bar{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:#fff;padding:8px 12px 8px 34px;border-radius:20px;font-size:.82rem;font-family:"Lato",sans-serif;width:180px;max-width:180px;transition:all .3s;outline:none}
     .search-bar::placeholder{color:rgba(255,255,255,0.6)}
     .search-bar:focus{background:rgba(255,255,255,0.2);border-color:var(--turmeric);width:220px}
     .search-icon{position:absolute;left:10px;font-size:.9rem;opacity:.7;pointer-events:none}
@@ -194,8 +194,8 @@
     .mob-search-results{position:fixed;top:60px;left:0;right:0;z-index:199;background:#fff;max-height:60vh;overflow-y:auto;border-bottom:2px solid var(--border);box-shadow:0 8px 24px rgba(0,0,0,0.18)}
 
     /* ===== HERO ===== */
-    .hero{background:linear-gradient(160deg,#0d3b1a 0%,#1e7a3a 40%,#00b04e 100%);padding:44px 20px 38px;text-align:center;position:relative;overflow:hidden;width:100%}
-`   1    .hero::before{content:"🥦";font-size:140px;opacity:.07;position:absolute;top:-20px;right:-10px;animation:float 4s ease-in-out infinite;pointer-events:none}
+    .hero{background:linear-gradient(160deg,#0d3b1a 0%,#1e7a3a 40%,#00b04e 100%);padding:44px 20px 38px;text-align:center;position:relative;overflow:hidden;width:100%;max-width:100vw}
+    .hero::before{content:"🥦";font-size:140px;opacity:.07;position:absolute;top:-20px;right:-10px;animation:float 4s ease-in-out infinite;pointer-events:none}
     @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
     .hero h1{font-family:"Yeseva One",serif;font-size:2.2rem;color:var(--turmeric);text-shadow:0 2px 12px rgba(0,0,0,0.5)}
     .hero p{color:#c8e6c9;font-size:1rem;margin-top:8px;font-style:italic}
@@ -215,7 +215,7 @@
 
     /* ===== MENU CARDS ===== */
     .menu-section{margin-bottom:40px}
-    .menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+    .menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(240px,45vw),1fr));gap:14px}
     .menu-card{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px;transition:transform .2s,box-shadow .2s;position:relative;overflow:hidden}
     .menu-card:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,176,78,0.18)}
     .menu-card.out-of-stock{opacity:.72}
@@ -350,7 +350,7 @@
     .om-route-badge{background:#fff;border:1px solid var(--border);border-radius:8px;padding:4px 9px;font-size:.76rem;color:var(--brown);display:flex;align-items:center;gap:3px}
     .om-address-picker{background:linear-gradient(135deg,#f0faf4,#fffdf8);border:1px solid var(--border);border-radius:14px;padding:12px}
     .om-address-picker-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .om-address-picker-row select{flex:1;min-width:220px}
+    .om-address-picker-row select{flex:1;min-width:min(220px,60vw)}
     .om-address-manage-btn{background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:.8rem;font-weight:700;color:var(--brown);cursor:pointer;white-space:nowrap}
     .om-address-manage-btn:hover{border-color:var(--saffron);background:#f0faf4}
     .om-selected-address{margin-top:10px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 12px}
@@ -644,8 +644,8 @@
       .badge{font-size:.72rem;padding:4px 10px}
 
       /* Menu cards */
-      .menu-grid{grid-template-columns:1fr 1fr;gap:10px}
-      .menu-card{padding:12px 10px}
+      .menu-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+      .menu-card{padding:10px 8px;min-width:0}
       .card-name{font-size:.85rem}
       .card-price{font-size:.95rem}
       .menu-card:hover{transform:none} /* disable hover on touch */
@@ -693,8 +693,60 @@
       .logo-sub{display:none}
       .section-title{font-size:1.15rem}
 
-      /* User menu */
-      .user-menu-popup{right:-8px;top:46px;width:220px}
+      /* User menu — full-screen slide-in on mobile */
+      .user-menu-popup{
+        position:fixed !important;
+        top:0 !important;
+        right:0 !important;
+        bottom:0 !important;
+        left:auto !important;
+        width:82vw !important;
+        max-width:320px !important;
+        height:100dvh !important;
+        height:100vh !important;
+        border-radius:0 !important;
+        border-left:3px solid var(--saffron) !important;
+        box-shadow:-8px 0 40px rgba(0,0,0,0.35) !important;
+        z-index:9010 !important;
+        transform:translateX(100%);
+        transition:transform .28s cubic-bezier(0.4,0,0.2,1);
+        display:flex !important;
+        flex-direction:column;
+        overflow:hidden;
+      }
+      .user-menu-popup.open{
+        transform:translateX(0) !important;
+        display:flex !important;
+      }
+      .user-menu-backdrop{
+        display:none;
+        position:fixed;inset:0;
+        background:rgba(0,0,0,0.55);
+        z-index:9009;
+        backdrop-filter:blur(2px);
+      }
+      .user-menu-backdrop.open{display:block}
+      .user-menu-head{
+        padding:20px 18px 16px !important;
+        flex-shrink:0;
+      }
+      .user-menu-head .email{font-size:.88rem !important}
+      .user-menu-actions{
+        flex:1;
+        overflow-y:auto;
+        padding:10px 12px !important;
+        gap:8px !important;
+        max-height:none !important;
+      }
+      .user-menu-item{
+        padding:14px 16px !important;
+        font-size:.95rem !important;
+        border-radius:14px !important;
+        min-height:52px;
+        display:flex;
+        align-items:center;
+        gap:10px;
+      }
 
       /* Category tabs */
       .cat-tabs-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;scrollbar-width:none}
@@ -738,13 +790,16 @@
 
     /* Small phones */
     @media(max-width:400px){
-      .menu-grid{grid-template-columns:1fr 1fr;gap:8px}
+      .menu-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
       .payment-options{grid-template-columns:1fr}
       .hero h1,.hero h2{font-size:1.35rem!important}
-      .logo-text{font-size:1.15rem}
+      .logo-text{font-size:1.1rem}
       .cart-btn .cart-btn-text{display:none}
-      .menu-card{padding:10px 8px}
+      .menu-card{padding:9px 7px;min-width:0}
+      .card-name{font-size:.82rem}
+      .card-price{font-size:.88rem}
       .upi-redirect-btns{grid-template-columns:1fr}
+      .header-inner{padding:0 8px;gap:6px}
     }
 
     /* Very small phones (360px and below) */
@@ -1051,7 +1106,27 @@
     #offline-banner.visible{display:flex}
     #offline-banner .ob-icon{font-size:1.1rem}
 
-    
+    /* Pull-to-Refresh indicator */
+    #ptr-indicator{
+      position:fixed;top:calc(var(--header-h) + 8px);left:50%;
+      transform:translateX(-50%);
+      background:var(--card-bg);border:1px solid var(--border);
+      border-radius:50px;padding:8px 18px;font-size:.78rem;
+      font-weight:700;color:var(--brown);z-index:9990;
+      display:none;align-items:center;gap:8px;
+      box-shadow:0 4px 20px rgba(0,0,0,0.15);
+      transition:opacity .2s ease;pointer-events:none;opacity:0;
+    }
+    #ptr-indicator.ptr-visible{display:flex;opacity:1}
+    #ptr-indicator.ptr-refreshing{display:flex;opacity:1}
+    #ptr-indicator .ptr-spinner{
+      width:16px;height:16px;border:2px solid var(--border);
+      border-top-color:var(--saffron);border-radius:50%;
+      animation:spinPTR .7s linear infinite;display:none;
+    }
+    #ptr-indicator.ptr-refreshing .ptr-spinner{display:block}
+    #ptr-indicator.ptr-refreshing .ptr-arrow{display:none}
+    @keyframes spinPTR{to{transform:rotate(360deg)}}
 
     /* Admin Sidebar Overlay (mobile) */
     #admin-sidebar-overlay{
@@ -1146,7 +1221,8 @@
 <!-- Offline Banner -->
 <div id="offline-banner"><span class="ob-icon">📡</span> No internet connection. Please check your network.</div>
 
-
+<!-- Pull-to-Refresh Indicator -->
+<div id="ptr-indicator"><span class="ptr-arrow">↓</span><span class="ptr-spinner"></span> <span id="ptr-text"></span></div>
 
 <!-- Admin Sidebar Overlay (mobile) -->
 <div id="admin-sidebar-overlay" onclick="closeMobileAdminSidebar()"></div>
@@ -1224,13 +1300,20 @@
       <button class="mob-search-btn" onclick="openMobSearch()">🔍</button>
       <button id="admin-mob-menu-btn" onclick="toggleMobileAdminSidebar()" title="Admin Menu">☰</button>
 
-      <div class="user-menu">
+      <div class="user-menu-backdrop" id="user-menu-backdrop" onclick="closeUserMenu()"></div>
+      <div class="user-menu" id="user-menu-container">
         <button id="signin-top-btn" class="signin-top-btn" onclick="signInWithGoogle()" style="display:none">Sign in</button>
         <div id="user-status-display" class="user-status" style="display:none">
           <div class="user-avatar" id="user-avatar" onclick="toggleUserMenu()">☰</div>
         </div>
         <div class="user-menu-popup" id="user-menu-popup">
-          <div class="user-menu-head"><div class="email" id="user-menu-email">—</div></div>
+          <div class="user-menu-head">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <div style="font-weight:900;color:var(--brown);font-size:.85rem">☰ Menu</div>
+              <button onclick="closeUserMenu()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--brown);padding:4px 8px;border-radius:8px;line-height:1">✕</button>
+            </div>
+            <div class="email" id="user-menu-email">—</div>
+          </div>
           <div class="user-menu-actions">
             <button class="user-menu-item" onclick="userMenuGo('menu')">🍽 Menu</button>
             <button class="user-menu-item" onclick="userMenuGo('tracking')">📦 Track Order</button>
@@ -4081,247 +4164,161 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 <script>
 (function patchRazorpayUPI() {
   'use strict';
+
   var RZP_KEY = 'rzp_live_SmqNRvEpkEJ49k';
 
-  /* ═══════════════════════════════════════════════════════════
-     STEP 1 — Make window.finalAmount a LIVE computed property.
-     The obfuscated app calls openRazorpayCheckout(window.finalAmount).
-     By overriding the property with a getter, that call always
-     receives the fresh (cartSubtotal + deliveryFee) value.
-  ═══════════════════════════════════════════════════════════ */
-  var _faSeed = 0; // fallback seed written by legacy setters
-  function _computeGrandTotal() {
-    // Cart subtotal — read live from global cart object
-    var sub = 0;
-    try {
-      if (typeof cart !== 'undefined' && cart && typeof cart === 'object') {
-        sub = Object.keys(cart).reduce(function(s, id) {
-          var it = cart[id];
-          return s + (it ? (Number(it.price)||0)*(Number(it.qty)||0) : 0);
-        }, 0);
-      }
-    } catch(e) {}
-
-    // DOM fallback for cart subtotal
-    if (sub === 0) {
-      var el = document.getElementById('om-total');
-      if (el) sub = parseInt((el.innerText||el.textContent||'0').replace(/[^\d]/g,''),10)||0;
-    }
-
-    // Delivery fee — read from whichever source is populated
-    var fee = Number(window.currentDeliveryFee)||Number(window._gfyDeliveryFee)||0;
-    if (fee === 0) {
-      try {
-        var ls = JSON.parse(localStorage.getItem('deliverySettings')||'{}');
-        if (ls.feeEnabled===true && Number(ls.feeAmount)>0) fee = Number(ls.feeAmount);
-      } catch(e) {}
-    }
-
-    var grand = (sub > 0 ? sub : _faSeed) + fee;
-    console.log('[RazorpayUPI] window.finalAmount computed: cart=\u20b9'+sub+' fee=\u20b9'+fee+' grand=\u20b9'+grand);
-    return grand;
-  }
-
-  function installFinalAmountGetter() {
-    try {
-      Object.defineProperty(window, 'finalAmount', {
-        get: function() { return _computeGrandTotal(); },
-        set: function(v) { _faSeed = Number(v)||0; },
-        configurable: true
-      });
-      console.log('[RazorpayUPI] window.finalAmount \u2192 live computed property installed');
-    } catch(e) {
-      console.warn('[RazorpayUPI] defineProperty failed:', e.message);
-    }
-  }
-
-  /* ═══════════════════════════════════════════════════════════
-     STEP 2 — Delivery fee helpers (sync + async Firestore)
-  ═══════════════════════════════════════════════════════════ */
-  function getDeliveryFeeSync() {
-    if (Number(window.currentDeliveryFee) > 0) return Number(window.currentDeliveryFee);
-    if (Number(window._gfyDeliveryFee)    > 0) return Number(window._gfyDeliveryFee);
-    var inp = document.getElementById('svc-fee-amount')||document.getElementById('gfy-delivery-fee-input');
-    if (inp && Number(inp.value) > 0) return Number(inp.value);
-    try {
-      var s = JSON.parse(localStorage.getItem('deliverySettings')||'{}');
-      if (s.feeEnabled===true && Number(s.feeAmount)>0) return Number(s.feeAmount);
-    } catch(e) {}
-    return 0;
-  }
-
-  async function getDeliveryFeeAsync() {
-    var v = getDeliveryFeeSync();
-    if (v > 0) { console.log('[RazorpayUPI] Fee (sync)=\u20b9'+v); return v; }
-    try {
-      var fs = (typeof db!=='undefined'&&db) ? db
-             : (typeof firebase!=='undefined'&&firebase.apps&&firebase.apps.length ? firebase.firestore():null);
-      if (fs) {
-        var to = function(_,r){setTimeout(function(){r(new Error('t'));},3000);};
-        var s1 = await Promise.race([fs.collection('settings').doc('delivery').get(),new Promise(to)]).catch(function(){return null;});
-        if (s1&&s1.exists){var d=s1.data(),en=d.enabled===undefined?true:d.enabled===true,f=Number(d.fee)||0;if(en&&f>0){window._gfyDeliveryFee=f;window.currentDeliveryFee=f;console.log('[RazorpayUPI] Fee (Firestore A)=\u20b9'+f);return f;}}
-        var s2 = await Promise.race([fs.collection('app_settings').doc('delivery_settings').get(),new Promise(to)]).catch(function(){return null;});
-        if (s2&&s2.exists){var d2=s2.data(),en2=d2.feeEnabled===true,f2=Number(d2.feeAmount)||0;if(en2&&f2>0){window._gfyDeliveryFee=f2;window.currentDeliveryFee=f2;console.log('[RazorpayUPI] Fee (Firestore B)=\u20b9'+f2);return f2;}}
-      }
-    } catch(e){console.warn('[RazorpayUPI] Firestore fee error:',e.message);}
-    console.log('[RazorpayUPI] Fee=\u20b90 (disabled/not found)');
-    return 0;
-  }
-
-  /* ═══════════════════════════════════════════════════════════
-     STEP 3 — Cart subtotal (fresh from cart object)
-  ═══════════════════════════════════════════════════════════ */
-  function getCartSubtotal() {
-    var sub = 0;
-    try {
-      if (typeof cart!=='undefined'&&cart&&typeof cart==='object') {
-        sub = Object.keys(cart).reduce(function(s,id){
-          var it=cart[id]; return s+(it?(Number(it.price)||0)*(Number(it.qty)||0):0);
-        },0);
-      }
-    } catch(e) {}
-    if (sub===0) {
-      var el=document.getElementById('om-total');
-      if (el) sub=parseInt((el.innerText||el.textContent||'0').replace(/[^\d]/g,''),10)||0;
-    }
-    console.log('[RazorpayUPI] Cart subtotal=\u20b9'+sub);
-    return sub;
-  }
-
-  /* ═══════════════════════════════════════════════════════════
-     STEP 4 — QR fallback & payment success
-  ═══════════════════════════════════════════════════════════ */
+  /* ── QR fallback: shows static QR modal ── */
   function showQRModal(amount) {
-    var el=document.getElementById('upi-amount-display'); if(el) el.textContent='\u20b9'+amount;
-    var ov=document.getElementById('upi-redirect-overlay'); if(ov) ov.classList.add('open');
-    window._pendingUPIAmount=amount;
+    var amtEl = document.getElementById('upi-amount-display');
+    if (amtEl) amtEl.textContent = '\u20B9' + amount;
+    var overlay = document.getElementById('upi-redirect-overlay');
+    if (overlay) overlay.classList.add('open');
+    window._pendingUPIAmount = amount;
   }
 
-  function onPaymentSuccess(pid,grand,sub,fee,name,phone,email) {
-    if(typeof showToast==='function') showToast('\u2705 Payment successful! Placing order...',2500);
-    console.log('[RazorpayUPI] SUCCESS: pid='+pid+' cart=\u20b9'+sub+' delivery=\u20b9'+fee+' total=\u20b9'+grand);
-    var fs=(typeof db!=='undefined'&&db)?db:null;
-    if(fs) {
-      var uid=(typeof currentUser!=='undefined'&&currentUser)?currentUser.uid:null;
-      var mail=email||(typeof currentUser!=='undefined'&&currentUser?currentUser.email:null);
-      var ts=firebase.firestore.FieldValue.serverTimestamp();
-      fs.collection('razorpay_payments').add({razorpayPaymentId:pid,amount:grand,cartSubtotal:sub,deliveryFee:fee,customerName:name||'',customerPhone:phone||'',customerEmail:mail,customerUid:uid,status:'captured',paidAt:ts,source:'razorpay_checkout'}).catch(function(){});
-      fs.collection('admin_notifications').add({type:'payment_received',paymentId:pid,amount:grand,cartSubtotal:sub,deliveryFee:fee,customerName:name||'',customerPhone:phone||'',customerEmail:mail,customerUid:uid,createdAt:ts,read:false}).catch(function(){});
+  /* ── Save payment + finalize order ── */
+  function onPaymentSuccess(paymentId, amount, name, phone, email) {
+    if (typeof showToast === 'function') {
+      showToast('\u2705 Payment successful! Placing your order...', 2500);
     }
-    setTimeout(function(){if(typeof finalizeOrder==='function') finalizeOrder('upi',true,pid);},600);
+
+    if (typeof db !== 'undefined' && db) {
+      var uid = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.uid : null;
+      var userEmail = email || (typeof currentUser !== 'undefined' && currentUser ? currentUser.email : null);
+
+      db.collection('razorpay_payments').add({
+        razorpayPaymentId: paymentId,
+        amount: amount,
+        customerName: name || '',
+        customerPhone: phone || '',
+        customerEmail: userEmail,
+        customerUid: uid,
+        status: 'captured',
+        paidAt: firebase.firestore.FieldValue.serverTimestamp(),
+        source: 'razorpay_checkout'
+      }).catch(function() {});
+
+      db.collection('admin_notifications').add({
+        type: 'payment_received',
+        paymentId: paymentId,
+        amount: amount,
+        customerName: name || '',
+        customerPhone: phone || '',
+        customerEmail: userEmail,
+        customerUid: uid,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        read: false
+      }).catch(function() {});
+    }
+
+    setTimeout(function() {
+      if (typeof finalizeOrder === 'function') {
+        finalizeOrder('upi', true, paymentId);
+      }
+    }, 600);
   }
 
-  /* ═══════════════════════════════════════════════════════════
-     STEP 5 — Override openRazorpayCheckout (async)
-     NOTE: amount passed in = window.finalAmount (our live getter)
-           so it already equals cartSubtotal + deliveryFee.
-           We still recompute independently as a safety check.
-  ═══════════════════════════════════════════════════════════ */
+  /* ── Main: override openRazorpayCheckout with LIVE Razorpay popup ── */
   function patchRazorpayCheckout() {
-    window.openRazorpayCheckout = async function(amount, name, phone) {
-      var nameEl=document.getElementById('om-name'),phoneEl=document.getElementById('om-phone'),emailEl=document.getElementById('om-email');
-      name  = name ||(nameEl ?nameEl.value.trim() :'');
-      phone = phone||(phoneEl?phoneEl.value.trim():'');
-      var email=emailEl?emailEl.value.trim().toLowerCase():'';
+    window.openRazorpayCheckout = function(amount, name, phone) {
+      /* Read customer info from order modal fields */
+      var nameEl  = document.getElementById('om-name');
+      var phoneEl = document.getElementById('om-phone');
+      var emailEl = document.getElementById('om-email');
+      name  = name  || (nameEl  ? nameEl.value.trim()  : '');
+      phone = phone || (phoneEl ? phoneEl.value.trim() : '');
+      var email = emailEl ? emailEl.value.trim().toLowerCase() : '';
 
-      if(typeof showToast==='function') showToast('\u23f3 Calculating total...',2000);
-
-      var sub  = getCartSubtotal();
-      var fee  = await getDeliveryFeeAsync();
-      var grand= sub + fee;
-
-      // If our fresh computation gives 0 but passed amount > 0, trust passed amount
-      if (grand <= 0 && Number(amount) > 0) {
-        grand = Number(amount);
-        sub   = grand;
-        fee   = 0;
-      }
-
-      console.log('[RazorpayUPI] ===== PAYMENT BREAKDOWN =====');
-      console.log('[RazorpayUPI]   Cart items  : \u20b9' + sub);
-      console.log('[RazorpayUPI]   Delivery fee: \u20b9' + fee);
-      console.log('[RazorpayUPI]   GRAND TOTAL : \u20b9' + grand);
-      console.log('[RazorpayUPI] ==============================');
-
-      if (grand<=0) {
-        if(typeof showToast==='function') showToast('\u274c Cart empty. Refresh and try again.',3000);
+      /* Fallback to QR if Razorpay SDK not loaded */
+      if (typeof Razorpay === 'undefined') {
+        console.warn('[RazorpayUPI] SDK not loaded, falling back to QR modal');
+        showQRModal(amount);
         return;
       }
 
-      if(typeof Razorpay==='undefined'){showQRModal(grand);return;}
+      var options = {
+        key:         RZP_KEY,
+        amount:      Math.round(amount * 100),   /* paise */
+        currency:    'INR',
+        name:        'Grocery For You Sircilla',
+        description: 'Grocery Order Payment',
+        prefill: {
+          name:    name,
+          contact: phone,
+          email:   email
+        },
+        notes: { city: 'Sircilla, Telangana' },
+        theme: { color: '#00b04e' },
+        modal: {
+          ondismiss: function() {
+            if (typeof showToast === 'function') {
+              showToast('\u274C Payment cancelled. Try again or use QR code.', 2500);
+            }
+          }
+        },
+        handler: function(response) {
+          onPaymentSuccess(
+            response.razorpay_payment_id || ('RZP-' + Date.now()),
+            amount, name, phone, email
+          );
+        }
+      };
 
       try {
-        var rzp=new Razorpay({
-          key:RZP_KEY, amount:Math.round(grand*100), currency:'INR',
-          name:'Grocery For You Sircilla',
-          description:'Cart \u20b9'+sub+' + Delivery \u20b9'+fee,
-          prefill:{name:name,contact:phone,email:email},
-          notes:{cart_subtotal:sub,delivery_fee:fee,grand_total:grand,city:'Sircilla, Telangana'},
-          theme:{color:'#00b04e'},
-          modal:{ondismiss:function(){if(typeof showToast==='function') showToast('\u274c Payment cancelled.',2500);}},
-          handler:function(r){onPaymentSuccess(r.razorpay_payment_id||('RZP-'+Date.now()),grand,sub,fee,name,phone,email);}
-        });
-        rzp.on('payment.failed',function(r){
-          var msg=(r.error&&r.error.description)?r.error.description:'Payment failed';
-          if(typeof showToast==='function') showToast('\u274c '+msg,3000);
-          setTimeout(function(){showQRModal(grand);},1500);
+        var rzp = new Razorpay(options);
+        rzp.on('payment.failed', function(resp) {
+          var msg = (resp.error && resp.error.description) ? resp.error.description : 'Payment failed';
+          if (typeof showToast === 'function') {
+            showToast('\u274C ' + msg + '. Try again.', 3000);
+          }
+          /* Offer QR as fallback */
+          setTimeout(function() { showQRModal(amount); }, 1500);
         });
         rzp.open();
-        console.log('[RazorpayUPI] Razorpay opened for \u20b9'+grand);
-      } catch(e){console.error('[RazorpayUPI] Error:',e);showQRModal(grand);}
+      } catch (e) {
+        console.error('[RazorpayUPI] Checkout error:', e);
+        showQRModal(amount);
+      }
     };
+    console.log('[RazorpayUPI] \u2705 openRazorpayCheckout \u2192 Live Razorpay popup active');
   }
 
+  /* ── confirmUPIPaid: for QR fallback "I've Paid" button ── */
   function patchConfirmUPIPaid() {
-    window.confirmUPIPaid=function(){
-      var ov=document.getElementById('upi-redirect-overlay'); if(ov) ov.classList.remove('open');
-      onPaymentSuccess('UPI-QR-'+Date.now(),window._pendingUPIAmount||0,window._pendingUPIAmount||0,0,'','','');
+    window.confirmUPIPaid = function() {
+      var overlay = document.getElementById('upi-redirect-overlay');
+      if (overlay) overlay.classList.remove('open');
+      var amount = window._pendingUPIAmount || 0;
+      onPaymentSuccess('UPI-QR-' + Date.now(), amount, '', '', '');
     };
   }
 
+  /* ── showUPIRedirect: keep amount in sync ── */
   function patchShowUPIRedirect() {
-    var orig=window.showUPIRedirect;
-    window.showUPIRedirect=async function(amount){
-      var sub=getCartSubtotal(), fee=await getDeliveryFeeAsync();
-      var total=(sub>0?sub:Number(amount)||0)+fee;
-      window._pendingUPIAmount=total;
-      var el=document.getElementById('upi-amount-display'); if(el) el.textContent='\u20b9'+total;
-      if(orig) orig.call(this,total);
+    var orig = window.showUPIRedirect;
+    window.showUPIRedirect = function(amount) {
+      window._pendingUPIAmount = amount;
+      if (orig) orig.apply(this, arguments);
     };
   }
-
-  /* Debug helper: type gfyDeliveryDebug() in console */
-  window.gfyDeliveryDebug=function(){
-    console.log('=== GFY Delivery Fee Debug ===');
-    console.log('window.currentDeliveryFee:',window.currentDeliveryFee);
-    console.log('window._gfyDeliveryFee:',window._gfyDeliveryFee);
-    console.log('localStorage deliverySettings:',JSON.parse(localStorage.getItem('deliverySettings')||'{}'));
-    console.log('Cart subtotal: \u20b9'+getCartSubtotal());
-    console.log('Sync fee: \u20b9'+getDeliveryFeeSync());
-    console.log('window.finalAmount (computed):', _computeGrandTotal());
-    console.log('cart object:', typeof cart!=='undefined'?cart:'undefined');
-  };
 
   function tryPatch() {
-    installFinalAmountGetter();
     patchRazorpayCheckout();
     patchConfirmUPIPaid();
     patchShowUPIRedirect();
   }
 
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',function(){
-      [0,300,800,1500,3000].forEach(function(ms){setTimeout(tryPatch,ms);});
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      [0, 300, 800, 1500, 3000].forEach(function(ms) { setTimeout(tryPatch, ms); });
     });
   } else {
-    [0,300,800,1500,3000].forEach(function(ms){setTimeout(tryPatch,ms);});
+    [0, 300, 800, 1500, 3000].forEach(function(ms) { setTimeout(tryPatch, ms); });
   }
-  console.log('[RazorpayUPI] Loaded');
+
+  console.log('[RazorpayUPI] \ud83d\ude80 Live Razorpay checkout loaded \u2014 Key: rzp_live_SmqN...');
 })();
 </script>
-
-
-
 
 <!-- ✅ Sign-In Fix: Popup → Redirect fallback -->
 <script>
@@ -4681,56 +4678,45 @@ waitFor(
   }
 
   /* ── Apply fee to all UI elements ── */
-  var _applyFeeRunning = false; /* re-entrancy guard - prevents infinite MutationObserver loop */
+  function applyFee(fee) {
+    fee = Number(fee) || 0;
+    _fee = fee;
+    currentDeliveryFee = fee; // Ensure obfuscated order code uses correct fee
+    window._gfyDeliveryFee = fee;
+    console.log('[DeliveryFee] applyFee:', fee);
 
-function applyFee(fee) {
-    if (_applyFeeRunning) return;
-    _applyFeeRunning = true;
-    try {
-      fee = Number(fee) || 0;
-      _fee = fee;
-      currentDeliveryFee = fee;
-      window._gfyDeliveryFee = fee;
-      window.currentDeliveryFee = fee;
-      console.log('[DeliveryFee] applyFee: fee=₹' + fee);
+    updateCartDeliveryFee();
 
-      /* ── Sync localStorage so checkout always has the latest fee ── */
-      try {
-        var _stored = JSON.parse(localStorage.getItem('deliverySettings') || '{}');
-        _stored.feeAmount  = fee > 0 ? fee : (_stored.feeAmount || 0);
-        _stored.feeEnabled = fee > 0;
-        _stored.updatedAt  = new Date().toISOString();
-        localStorage.setItem('deliverySettings', JSON.stringify(_stored));
-        console.log('[DeliveryFee] localStorage synced: feeAmount=₹' + fee);
-      } catch(e) {}
-
-      var adminInput = document.getElementById('gfy-delivery-fee-input')
-                    || document.getElementById('svc-fee-amount');
-      if (adminInput && document.activeElement !== adminInput) adminInput.value = fee;
-      updateCartDisplayRows();
-      updateCartDeliveryFee();
-    } finally {
-      _applyFeeRunning = false;
+    /* Sync admin input without stealing focus */
+    var adminInput = document.getElementById('gfy-delivery-fee-input')
+                  || document.getElementById('svc-fee-amount');
+    if (adminInput && document.activeElement !== adminInput) {
+      adminInput.value = fee;
     }
-  } finally {
-      _applyFeeRunning = false;
-    }
+
+    /* Update cart display if available */
+    updateCartTotal();
   }
 
-  /* Updates cart summary display rows only — never writes to #om-total */
-  function updateCartDisplayRows() {
-    var subtotal = getCartSubtotal();
-    var total    = subtotal + _fee;
-    var deliveryFeeEl = document.getElementById('deliveryFee');
-    var totalAmountEl = document.getElementById('totalAmount');
-    if (deliveryFeeEl) deliveryFeeEl.innerText = '₹' + _fee;
-    if (totalAmountEl) totalAmountEl.innerText = '₹' + total;
-    window.finalAmount = total;
-    console.log('[DeliveryFee] Display: subtotal=₹' + subtotal + ' fee=₹' + _fee + ' total=₹' + total);
-  }
+  function updateCartTotal(){
+     const subtotal = getCartSubtotal();
+     const total = subtotal + _fee;
 
-  /* Legacy alias — kept for compatibility */
-  function updateCartTotal() { updateCartDisplayRows(); }
+     // Update cart display elements
+     const deliveryFeeEl = document.getElementById("deliveryFee");
+     const totalAmountEl = document.getElementById("totalAmount");
+     
+     if (deliveryFeeEl) deliveryFeeEl.innerText = "₹"+_fee;
+     if (totalAmountEl) totalAmountEl.innerText = "₹"+total;
+
+     // Update order modal elements
+     const omTotalEl = document.getElementById('om-total');
+     if (omTotalEl) omTotalEl.innerText = "₹"+subtotal;
+     updateCartDeliveryFee();
+
+     window.finalAmount = total;
+     console.log('[DeliveryFee] Cart total updated:', subtotal, '+', _fee, '=', total);
+  }
 
   function getCartSubtotal(){
      if(typeof cart !== 'undefined'){
@@ -5023,15 +5009,8 @@ function applyFee(fee) {
     var el = document.getElementById('om-total');
     if (!el) { setTimeout(watchOmTotal, 600); return; }
 
-    var _obsRunning = false;
     new MutationObserver(function() {
-      if (_obsRunning) return;
-      _obsRunning = true;
-      setTimeout(function() {
-        updateCartDeliveryFee();
-        updateCartDisplayRows();
-        _obsRunning = false;
-      }, 60);
+      setTimeout(function() { applyFee(_fee); }, 40);
     }).observe(el, { childList: true, subtree: true, characterData: true });
 
     console.log('[DeliveryFee] MutationObserver on om-total active');
@@ -5308,6 +5287,52 @@ function applyFee(fee) {
     }
   };
 
+  /* ── 4. Pull-to-Refresh visual indicator ── */
+  (function initPTR() {
+    var indicator = document.getElementById('ptr-indicator');
+    var ptrText   = document.getElementById('ptr-text');
+    if (!indicator) return;
+
+    var startY = 0, pulling = false, threshold = 65;
+    var isMobile = window.matchMedia('(max-width:768px)').matches;
+    if (!isMobile) return;
+
+    document.addEventListener('touchstart', function(e) {
+      if (window.scrollY === 0) {
+        startY = e.touches[0].clientY;
+        pulling = true;
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function(e) {
+      if (!pulling) return;
+      var dy = e.touches[0].clientY - startY;
+      if (dy > 10 && window.scrollY === 0) {
+        indicator.classList.add('ptr-visible');
+        if (ptrText) ptrText.textContent = dy > threshold ? 'Release to refresh' : '';
+      } else {
+        indicator.classList.remove('ptr-visible');
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchend', function(e) {
+      if (!pulling) return;
+      pulling = false;
+      var dy = e.changedTouches[0].clientY - startY;
+      if (dy > threshold && window.scrollY === 0) {
+        indicator.classList.add('ptr-refreshing');
+        if (ptrText) ptrText.textContent = 'Refreshing…';
+        setTimeout(function() {
+          indicator.classList.remove('ptr-visible');
+          indicator.classList.remove('ptr-refreshing');
+          if (ptrText) ptrText.textContent = '';
+        }, 1200);
+      } else {
+        indicator.classList.remove('ptr-visible');
+      }
+    }, { passive: true });
+  })();
+
   /* ── 5. Body scroll lock when cart/modal open ── */
   var _scrollPos = 0;
   window.lockBodyScroll = function() {
@@ -5337,6 +5362,59 @@ function applyFee(fee) {
     }
   });
 
+})();
+
+</script>
+
+<!-- Mobile hamburger menu backdrop patch -->
+<script>
+(function patchMobileMenu() {
+  function isMobile() { return window.innerWidth <= 480; }
+
+  function getBackdrop() { return document.getElementById('user-menu-backdrop'); }
+  function getPopup()    { return document.getElementById('user-menu-popup'); }
+
+  /* Override toggleUserMenu */
+  var _origToggle = window.toggleUserMenu;
+  window.toggleUserMenu = function() {
+    var popup    = getPopup();
+    var backdrop = getBackdrop();
+    if (!popup) return;
+    var isOpen = popup.classList.contains('open');
+    if (isOpen) {
+      popup.classList.remove('open');
+      if (backdrop) backdrop.classList.remove('open');
+      document.body.style.overflow = '';
+    } else {
+      popup.classList.add('open');
+      if (backdrop && isMobile()) backdrop.classList.add('open');
+      if (isMobile()) document.body.style.overflow = 'hidden';
+    }
+  };
+
+  /* Override closeUserMenu */
+  var _origClose = window.closeUserMenu;
+  window.closeUserMenu = function() {
+    var popup    = getPopup();
+    var backdrop = getBackdrop();
+    if (popup)    popup.classList.remove('open');
+    if (backdrop) backdrop.classList.remove('open');
+    document.body.style.overflow = '';
+  };
+
+  /* Also patch userMenuGo to close properly */
+  var _origGo = window.userMenuGo;
+  window.userMenuGo = function(page) {
+    window.closeUserMenu();
+    if (typeof showPage === 'function') showPage(page);
+  };
+
+  /* Run after obfuscated code settles */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { setTimeout(patchMobileMenu, 300); });
+  } else {
+    setTimeout(patchMobileMenu, 300);
+  }
 })();
 </script>
 </html>

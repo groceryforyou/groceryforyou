@@ -1699,6 +1699,8 @@ let _dsSettings = {
   fee: 0,
   freeAbove: 0
 };
+// Tracks whether we already started the DS listener (prevent duplicates)
+let _dsListenerStarted = false;
 
 function updateDsPreview() {
   const enabled =
@@ -1764,30 +1766,78 @@ function onDsToggleChange() {
 }
 
 async function saveDsSettings() {
+  const toggleEl   = document.getElementById('ds-enabled-toggle');
+  const feeEl      = document.getElementById('ds-fee-amount');
+  const freeAboveEl = document.getElementById('ds-free-above');
 
-  const enabled =
-    document.getElementById('ds-enabled-toggle').checked;
+  if (!toggleEl || !feeEl) {
+    if (typeof showToast === 'function') showToast('⚠️ Form elements not found', 2000);
+    return;
+  }
 
-  const fee =
-    Number(document.getElementById('ds-fee-amount').value) || 0;
+  const enabled   = toggleEl.checked;
+  const fee       = Math.max(0, Number(feeEl.value) || 0);
+  const freeAbove = Math.max(0, Number(freeAboveEl?.value) || 0);
 
-  const freeAbove =
-    Number(document.getElementById('ds-free-above').value) || 0;
+  if (enabled && fee <= 0) {
+    if (typeof showToast === 'function') showToast('⚠️ Please enter a valid delivery fee (> 0)', 2500);
+    feeEl.focus();
+    return;
+  }
 
-  await db.collection('settings')
-    .doc('deliverySettings')
-    .set({
-      enabled,
-      fee,
-      freeAbove,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+  // 1. Update in-memory state immediately so calcDeliveryFee uses new value
+  _dsSettings = { enabled, fee, freeAbove };
 
-  showToast('✅ Delivery settings saved');
+  // 2. Update global fee used by checkout
+  const effectiveFee = enabled ? fee : 0;
+  window._gfyDeliveryFee = effectiveFee;
+  window.currentDeliveryFee = effectiveFee;
+  if (typeof applyFee === 'function') applyFee(effectiveFee);
+  if (typeof updateCartTotal === 'function') updateCartTotal();
+  updateCartDeliveryFee();
+  updateDsPreview();
+
+  // 3. Persist to Firestore — single source of truth: settings/delivery
+  const firestore = (typeof db !== 'undefined' && db)
+    ? db
+    : (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+
+  if (!firestore) {
+    if (typeof showToast === 'function') showToast('⚠️ Firestore not ready, please retry', 2500);
+    return;
+  }
+
+  const payload = {
+    enabled,
+    fee,
+    freeAbove,
+    updatedAt: new Date().toISOString()
+  };
+
+  // Also sync to app_settings for admin panel
+  const appPayload = {
+    feeEnabled: enabled,
+    feeAmount: fee,
+    freeAbove,
+    updatedAt: new Date().toISOString(),
+    savedBy: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.email : 'admin'
+  };
+
+  try {
+    await firestore.collection('settings').doc('delivery').set(payload, { merge: true });
+    console.log('[saveDsSettings] ✓ Saved to settings/delivery');
+    // Secondary sync so admin-panel listener (app_settings/delivery_settings) also updates
+    firestore.collection('app_settings').doc('delivery_settings').set(appPayload, { merge: true })
+      .then(() => console.log('[saveDsSettings] ✓ Synced to app_settings/delivery_settings'))
+      .catch(e => console.warn('[saveDsSettings] app_settings sync failed (non-critical):', e.code || e.message));
+    if (typeof showToast === 'function') showToast('✅ Delivery settings saved & synced!', 2500);
+  } catch (err) {
+    console.error('[saveDsSettings] Firestore save failed:', err.code || err.message);
+    if (typeof showToast === 'function') showToast('⚠️ Could not save to Firestore. Check security rules.', 3000);
+  }
 }
 
 function applyDsToAdminPage() {
-
   const tog =
     document.getElementById('ds-enabled-toggle');
 
@@ -1813,43 +1863,56 @@ function applyDsToAdminPage() {
 }
 
 function startDeliverySettingsListener() {
+  if (_dsListenerStarted) return; // singleton guard
+  _dsListenerStarted = true;
 
-  db.collection('settings')
-    .doc('deliverySettings')
-    .onSnapshot((snap) => {
+  // Single source of truth: settings/delivery
+  db.collection('settings').doc('delivery').onSnapshot((snap) => {
+    if (!snap.exists) return;
 
-      if (snap.exists) {
+    const data = snap.data();
+    // Map field names: settings/delivery uses {enabled, fee, freeAbove}
+    _dsSettings = {
+      enabled:   data.enabled   === true,
+      fee:       Number(data.fee)       || 0,
+      freeAbove: Number(data.freeAbove) || 0
+    };
 
-        const data = snap.data();
+    // Push to global checkout fee variables
+    const effectiveFee = _dsSettings.enabled ? _dsSettings.fee : 0;
+    window._gfyDeliveryFee    = effectiveFee;
+    window.currentDeliveryFee = effectiveFee;
 
-        _dsSettings = {
-          enabled: data.enabled || false,
-          fee: data.fee || 0,
-          freeAbove: data.freeAbove || 0
-        };
+    console.log('[startDeliverySettingsListener] Update: enabled=%s fee=%d', _dsSettings.enabled, effectiveFee);
 
-        if (typeof applyDsToAdminPage === 'function') {
-          applyDsToAdminPage();
-        }
+    // Update admin panel UI if visible
+    if (typeof applyDsToAdminPage === 'function') applyDsToAdminPage();
 
-        updateCartDeliveryFee();
-      }
-    });
+    // Update cart totals
+    updateCartDeliveryFee();
+    if (typeof applyFee === 'function') applyFee(effectiveFee);
+    if (typeof updateCartTotal === 'function') updateCartTotal();
+  }, (err) => {
+    console.error('[startDeliverySettingsListener] Error:', err);
+    _dsListenerStarted = false; // allow retry
+  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Wire the Save button in the delivery-settings page
+  const dsSaveBtn = document.getElementById('ds-save-btn') ||
+                    document.querySelector('.ds-save-btn');
+  if (dsSaveBtn) {
+    dsSaveBtn.removeAttribute('onclick');
+    dsSaveBtn.addEventListener('click', saveDsSettings);
+  }
 
   const waitForDb = setInterval(() => {
-
     if (typeof db !== 'undefined' && db) {
-
       clearInterval(waitForDb);
-
       startDeliverySettingsListener();
     }
-
   }, 400);
-
 });
 </script>
 

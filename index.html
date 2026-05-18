@@ -3743,9 +3743,15 @@ if (document.readyState === 'loading') {
       return;
     }
 
-    // Save local state immediately so UI persistence remains stable even if Firestore save is blocked.
-    localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
-    console.log('[DeliverySettings] Saved to localStorage:', settings);
+    // Preserve any existing delivery settings so business status and hours are not reset.
+    const existing = typeof getDeliverySettings === 'function' ? getDeliverySettings() : {};
+    const mergedSettings = {
+      ...existing,
+      ...settings,
+      updatedAt: new Date().toISOString()
+    };
+    localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(mergedSettings));
+    console.log('[DeliverySettings] Saved to localStorage:', mergedSettings);
     
     // Apply fee immediately to delivery fee system
     if (feeEnabled && feeAmount > 0) {
@@ -3777,7 +3783,7 @@ if (document.readyState === 'loading') {
     const firestore = (typeof db !== 'undefined' && db) ? db : (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
     if (firestore) {
       const settingsWithAdmin = {
-        ...settings,
+        ...mergedSettings,
         savedBy: currentUser?.email || 'unknown',
         updatedAt: new Date().toISOString()
       };
@@ -3785,10 +3791,12 @@ if (document.readyState === 'loading') {
       const checkoutSettings = {
         fee: feeAmount,
         enabled: feeEnabled,
-        businessOpen: settings.businessOpen !== undefined ? settings.businessOpen : DEFAULT_DELIVERY_SETTINGS.businessOpen,
         updatedAt: new Date().toISOString(),
         savedBy: currentUser?.email || 'unknown'
       };
+      if (mergedSettings.businessOpen !== undefined) {
+        checkoutSettings.businessOpen = mergedSettings.businessOpen;
+      }
 
       let successCount = 0;
       let errors = [];
@@ -3877,7 +3885,6 @@ if (document.readyState === 'loading') {
     };
 
     localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
-    localStorage.setItem('business_open_status_v2', settings.businessOpen ? 'true' : 'false');
     if (typeof updateBusinessUI === 'function') updateBusinessUI();
     if (typeof updateBusinessHoursStatus === 'function') updateBusinessHoursStatus();
 

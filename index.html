@@ -1427,7 +1427,13 @@ animation:spinRefresh .7s linear infinite;
     <span class="badge">🚴 Fast Delivery Sircilla</span>
     <span class="badge">⭐ 4.8 Rating · 50+ Reviews</span>
     <span class="badge">💳 UPI · COD Accepted</span>
-    <span class="badge">🕘 Open 9AM–10PM Daily</span>
+    <span class="badge">🕘 Open 6AM–8PM Daily</span>
+  </div>
+  <div class="business-status-wrap">
+    <div id="business-status-badge" class="business-status-badge open">
+      <span class="business-status-dot"></span>
+      <span id="business-status-text">OPEN NOW</span>
+    </div>
   </div>
 </div>
 
@@ -3153,7 +3159,7 @@ function updateBusinessUI(){
     text.textContent = isOpen ? "OPEN NOW" : "CLOSED NOW";
   }
 
-  document.querySelectorAll(".add-btn,.checkout-btn,.om-place,.upi-app-btn,.payment-opt").forEach(btn=>{
+  document.querySelectorAll(".add-btn,.checkout-btn,.place-order-btn,.om-place,.upi-app-btn,.payment-opt").forEach(btn=>{
     if(!isOpen){
       btn.disabled = true;
       btn.style.opacity = ".55";
@@ -3183,6 +3189,15 @@ function updateBusinessUI(){
 document.addEventListener("change",(e)=>{
   if(e.target && e.target.id === "businessToggle"){
     localStorage.setItem(STORAGE_KEY, e.target.checked ? "true" : "false");
+    updateBusinessUI();
+  }
+});
+
+const businessStatusObserver = new MutationObserver(() => updateBusinessUI());
+businessStatusObserver.observe(document.body, { childList: true, subtree: true });
+
+window.addEventListener("storage", (event) => {
+  if (event.key === STORAGE_KEY) {
     updateBusinessUI();
   }
 });

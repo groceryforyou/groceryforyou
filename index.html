@@ -1847,6 +1847,7 @@ animation:spinRefresh .7s linear infinite;
           <span id="dash-live-clock" style="font-family:'Yeseva One',serif;color:var(--turmeric);font-size:.95rem;letter-spacing:.5px">00:00:00</span>
           <span id="dash-live-date" style="font-size:.7rem;color:rgba(245,169,35,.7)"></span>
         </div>
+        <button class="back-btn-light" type="button" onclick="refreshDashboardOrders()" style="margin-bottom:0;padding:8px 14px">↻ Refresh</button>
         <div style="background:#e8f5e9;border:1px solid var(--green);border-radius:10px;padding:5px 12px;font-size:.78rem;font-weight:800;color:var(--green)">🟢 Live</div>
       </div>
     </div>
@@ -1939,6 +1940,7 @@ animation:spinRefresh .7s linear infinite;
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px">
       <div class="section-title" style="margin-bottom:0">🧾 Orders</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="back-btn-light" onclick="refreshAdminOrdersPage()" style="margin-bottom:0">↻ Refresh Orders</button>
         <div id="admin-orders-subtitle" style="font-size:.8rem;color:#888;font-weight:700"></div>
       </div>
     </div>

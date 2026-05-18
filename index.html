@@ -3364,10 +3364,15 @@ document.addEventListener("change",(e)=>{
 });
 
 window.addEventListener('storage', (e) => {
-  if (e.key === STORAGE_KEY || e.key === 'deliverySettings' || e.key === 'business_open_status_v2') {
+  if (!e.key || e.key === STORAGE_KEY || e.key === 'deliverySettings' || e.key === 'business_open_status_v2' || e.key === 'delivery_settings' || e.key === 'delivery_settings_v2') {
     if (typeof updateBusinessUI === 'function') updateBusinessUI();
     if (typeof updateBusinessHours === 'function') updateBusinessHours();
   }
+});
+
+window.addEventListener('focus', () => {
+  if (typeof updateBusinessUI === 'function') updateBusinessUI();
+  if (typeof updateBusinessHours === 'function') updateBusinessHours();
 });
 
 window.addEventListener("DOMContentLoaded", updateBusinessUI);
@@ -3426,10 +3431,15 @@ document.addEventListener('change', (e) => {
 });
 
 window.addEventListener('storage', (e) => {
-  if (e.key === 'business_open_status_v2' || e.key === 'deliverySettings' || e.key === 'delivery_settings_v2' || e.key === 'delivery_settings') {
+  if (!e.key || e.key === 'business_open_status_v2' || e.key === 'deliverySettings' || e.key === 'delivery_settings_v2' || e.key === 'delivery_settings') {
     if (typeof updateBusinessUI === 'function') updateBusinessUI();
     if (typeof updateBusinessHours === 'function') updateBusinessHours();
   }
+});
+
+window.addEventListener('focus', () => {
+  if (typeof updateBusinessUI === 'function') updateBusinessUI();
+  if (typeof updateBusinessHours === 'function') updateBusinessHours();
 });
 
 window.addEventListener('DOMContentLoaded', updateBusinessHours);

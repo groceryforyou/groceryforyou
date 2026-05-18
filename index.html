@@ -1313,6 +1313,135 @@ animation:spinRefresh .7s linear infinite;
 100%{transform:rotate(360deg)}
 }
 
+/* ===== BUSINESS HOURS SECTION ===== */
+
+.business-hours-section{
+  padding:50px 18px;
+  background:linear-gradient(135deg,#fff8ef,#fffdf8);
+}
+
+.bh-container{
+  max-width:700px;
+  margin:auto;
+}
+
+.bh-header{
+  text-align:center;
+  margin-bottom:24px;
+}
+
+.bh-header h2{
+  font-family:"Yeseva One",serif;
+  color:var(--brown);
+  font-size:2rem;
+  margin-bottom:8px;
+}
+
+.bh-header p{
+  color:#777;
+  font-size:.95rem;
+}
+
+.bh-status{
+  width:max-content;
+  margin:0 auto 20px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 18px;
+  border-radius:30px;
+  font-weight:800;
+  font-size:.9rem;
+}
+
+.bh-status.open{
+  background:#e8f5e9;
+  color:var(--green);
+  border:2px solid var(--green);
+}
+
+.bh-status.closed{
+  background:#ffebee;
+  color:var(--red);
+  border:2px solid var(--red);
+}
+
+.bh-toggle-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin:0 auto 20px;
+  max-width:480px;
+  padding:0 10px;
+}
+
+.bh-toggle-label{
+  font-weight:700;
+  color:#444;
+  font-size:.95rem;
+}
+
+.status-dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:currentColor;
+  animation:pulseDot 1.2s infinite;
+}
+
+@keyframes pulseDot{
+  0%,100%{opacity:1}
+  50%{opacity:.4}
+}
+
+.bh-timing-card{
+  background:#fff;
+  border:2px solid var(--border);
+  border-radius:22px;
+  overflow:hidden;
+  box-shadow:var(--shadow);
+}
+
+.bh-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:16px 20px;
+  border-bottom:1px solid #f1e0c7;
+}
+
+.bh-row:last-child{
+  border-bottom:none;
+}
+
+.bh-day{
+  font-weight:800;
+  color:var(--brown);
+}
+
+.bh-time{
+  color:var(--saffron);
+  font-weight:700;
+}
+
+@media(max-width:600px){
+
+  .bh-header h2{
+    font-size:1.6rem;
+  }
+
+  .bh-row{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:4px;
+  }
+
+  .bh-time{
+    font-size:.9rem;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -2008,7 +2137,44 @@ animation:spinRefresh .7s linear infinite;
   <div class="page" id="page-business-hours">
     <button class="back-btn-light" onclick="adminSidebarGo('dashboard')">← Back to Dashboard</button>
     <div class="section-title">🕐 Business Hours</div>
-    <div class="form-grid" style="margin-top:12px;"></div>
+    <section class="business-hours-section" aria-labelledby="bh-heading" style="margin-top:12px;">
+      <div class="bh-header">
+        <h2 id="bh-heading">🕒 Business Hours</h2>
+        <p class="bh-sub">We accept orders during these hours. Times are local.</p>
+      </div>
+
+      <div class="bh-status" id="business-status" role="status" aria-live="polite" style="margin-bottom:12px">
+        <span class="status-dot" aria-hidden="true" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#777;margin-right:8px;vertical-align:middle"></span>
+        <span id="status-text">Closed</span>
+      </div>
+
+      <div class="bh-toggle-row">
+        <div class="bh-toggle-label">Manual business hours toggle</div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="businessToggle">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <table class="bh-table" aria-describedby="bh-desc" style="width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden">
+        <caption id="bh-desc" style="text-align:left;padding:8px 12px;color:#666;font-size:.92rem">Regular weekly opening hours</caption>
+        <thead style="background:rgba(0,0,0,.03);font-weight:700">
+          <tr>
+            <th scope="col" style="text-align:left;padding:10px 12px">Day</th>
+            <th scope="col" style="text-align:left;padding:10px 12px">Hours</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row" style="padding:10px 12px;border-top:1px solid var(--border)">Monday</th><td style="padding:10px 12px;border-top:1px solid var(--border)">09:00 AM – 10:00 PM</td></tr>
+          <tr><th scope="row" style="padding:10px 12px">Tuesday</th><td style="padding:10px 12px">09:00 AM – 10:00 PM</td></tr>
+          <tr><th scope="row" style="padding:10px 12px">Wednesday</th><td style="padding:10px 12px">09:00 AM – 10:00 PM</td></tr>
+          <tr><th scope="row" style="padding:10px 12px">Thursday</th><td style="padding:10px 12px">09:00 AM – 10:00 PM</td></tr>
+          <tr><th scope="row" style="padding:10px 12px">Friday</th><td style="padding:10px 12px">09:00 AM – 10:00 PM</td></tr>
+          <tr><th scope="row" style="padding:10px 12px">Saturday</th><td style="padding:10px 12px">09:00 AM – 10:00 PM</td></tr>
+          <tr><th scope="row" style="padding:10px 12px">Sunday</th><td style="padding:10px 12px">09:00 AM – 10:00 PM</td></tr>
+        </tbody>
+      </table>
+    </section>
   </div>
 
   <!-- DELIVERY SETTINGS PAGE -->
@@ -3194,6 +3360,47 @@ document.addEventListener("change",(e)=>{
 
 window.addEventListener("DOMContentLoaded", updateBusinessUI);
 })();
+</script>
+
+<script>
+
+/* ===== BUSINESS HOURS STATUS ===== */
+
+function updateBusinessHours(){
+
+  const statusBox = document.getElementById("business-status");
+  const statusText = document.getElementById("status-text");
+
+  const now = new Date();
+
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+
+  const currentTime = currentHour + currentMinute / 60;
+
+  const openTime = 9;
+  const closeTime = 22;
+
+  if(currentTime >= openTime && currentTime < closeTime){
+
+    statusBox.classList.remove("closed");
+    statusBox.classList.add("open");
+
+    statusText.innerText = "Open Now • Closes 10:00 PM";
+
+  }else{
+
+    statusBox.classList.remove("open");
+    statusBox.classList.add("closed");
+
+    statusText.innerText = "Closed Now • Opens 9:00 AM";
+  }
+}
+
+updateBusinessHours();
+
+setInterval(updateBusinessHours,60000);
+
 </script>
 
 </body>

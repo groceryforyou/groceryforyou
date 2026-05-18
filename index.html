@@ -3122,7 +3122,7 @@ window.addEventListener("touchmove",(e)=>{
   const currentY = e.touches[0].clientY;
   const diff = currentY - startY;
 
-  if(window.scrollY <= 0 && diff > 55){
+  if(window.scrollY <= 0 && diff > 140){
     pulling = true;
     spinner.classList.add("show");
   }
@@ -3150,7 +3150,7 @@ function updateBusinessUI(){
   if(badge && text){
     badge.classList.remove("open","closed");
     badge.classList.add(isOpen ? "open" : "closed");
-    text.textContent = isOpen ? "OPEN NOW" : "CLOSED NOW";
+    text.textContent = isOpen ? "STORE OPEN" : "STORE CLOSED";
   }
 
   document.querySelectorAll(".add-btn,.checkout-btn,.om-place,.upi-app-btn,.payment-opt").forEach(btn=>{
@@ -3189,6 +3189,38 @@ document.addEventListener("change",(e)=>{
 
 window.addEventListener("DOMContentLoaded", updateBusinessUI);
 })();
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+
+  const toggle = document.getElementById("businessToggle");
+
+  function applyStoreState(){
+    const isOpen = localStorage.getItem("business_open_status_v2") !== "false";
+
+    document.querySelectorAll(".add-btn,.checkout-btn,.om-place,.upi-app-btn,.payment-opt").forEach(btn=>{
+      btn.disabled = !isOpen;
+      btn.style.pointerEvents = isOpen ? "auto" : "none";
+      btn.style.opacity = isOpen ? "1" : ".5";
+    });
+
+    const badgeText = document.getElementById("business-status-text");
+    if(badgeText){
+      badgeText.textContent = isOpen ? "STORE OPEN" : "STORE CLOSED";
+    }
+  }
+
+  if(toggle){
+    toggle.addEventListener("change", function(){
+      localStorage.setItem("business_open_status_v2", this.checked ? "true" : "false");
+      applyStoreState();
+    });
+  }
+
+  applyStoreState();
+});
 </script>
 
 </body>

@@ -2836,9 +2836,11 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         savedBy: currentUser?.email || 'unknown'
       };
 
+      // Try to save to both collections with individual error handling
       let successCount = 0;
       let errors = [];
 
+      // Save to app_settings (admin panel)
       db.collection('app_settings').doc('delivery_settings')
         .set(settingsWithAdmin, { merge: true })
         .then(() => {
@@ -2848,6 +2850,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         .catch(err => {
           console.error('[DeliverySettings] app_settings save failed:', err.code, err.message);
           errors.push('app_settings: ' + (err.code || err.message));
+          // Try again with simpler data if permission denied
           if (err.code === 'permission-denied') {
             console.log('[DeliverySettings] Retrying with reduced data for app_settings...');
             db.collection('app_settings').doc('delivery_settings')
@@ -2860,6 +2863,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           }
         });
 
+      // Save to settings/delivery (checkout system)
       db.collection('settings').doc('delivery')
         .set(checkoutSettings, { merge: true })
         .then(() => {
@@ -2869,6 +2873,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
         .catch(err => {
           console.error('[DeliverySettings] settings/delivery save failed:', err.code, err.message);
           errors.push('settings/delivery: ' + (err.code || err.message));
+          // Try again with simpler data if permission denied
           if (err.code === 'permission-denied') {
             console.log('[DeliverySettings] Retrying with reduced data for settings/delivery...');
             db.collection('settings').doc('delivery')
@@ -2881,8 +2886,11 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           }
         });
 
+      // Show result after a brief delay to allow both requests to complete
       setTimeout(() => {
         console.log('[DeliverySettings] Save complete - success count:', successCount, 'errors:', errors);
+        
+        // Update currentDeliveryFee immediately
         if (typeof window !== 'undefined' && feeEnabled) {
           window.currentDeliveryFee = feeAmount;
           console.log('[DeliverySettings] Updated window.currentDeliveryFee to:', feeAmount);
@@ -2890,16 +2898,19 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
             updateCartTotal();
           }
         }
-
+        
         if (successCount >= 1) {
           console.log('[DeliverySettings] Saved successfully to Firestore');
           showToast('✅ Delivery fee settings saved & synced!', 2500);
+          
+          // Update UI to reflect saved state
           if (typeof dsUpdateUI === 'function') dsUpdateUI();
           if (typeof renderDeliverySettings === 'function') {
             setTimeout(() => renderDeliverySettings(), 500);
           }
         } else if (errors.length > 0) {
           console.warn('[DeliverySettings] All Firestore saves failed:', errors);
+          // Settings are saved to localStorage, so show partial success message
           showToast('⚠️ Saved locally (Firestore access limited). Check Firestore rules.', 3500);
           console.log('[DeliverySettings] TROUBLESHOOTING: You may need to add these Firestore security rules:', {
             'app_settings': 'allow write if request.auth.token.admin == true;',
@@ -2979,36 +2990,6 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
             console.log('[DeliverySettings] Loaded from Firestore:', settings);
           } else {
             console.log('[DeliverySettings] Local settings are newer, keeping localStorage');
-          }
-        } else {
-          // Fallback to settings/delivery if app_settings is not available yet
-          try {
-            const checkoutSnap = await db.collection('settings').doc('delivery').get();
-            if (checkoutSnap.exists) {
-              const data = checkoutSnap.data();
-              const checkoutSettings = {
-                feeEnabled: data.enabled === true,
-                feeAmount: Number(data.fee) || 0,
-                freeAbove: Number(data.freeAbove) || 0,
-                freeOffer: data.freeOffer === true,
-                highDemandEnabled: data.highDemandEnabled === true,
-                highDemandAmount: Number(data.highDemandAmount) || 0,
-                businessHoursEnabled: data.businessHoursEnabled === true,
-                openHour: Number(data.openHour) || 9,
-                closeHour: Number(data.closeHour) || 22,
-                outOfServiceMessage: data.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage,
-                updatedAt: data.updatedAt || new Date().toISOString()
-              };
-              const remoteTime = new Date(checkoutSettings.updatedAt || 0);
-              const localTime = new Date(settings.updatedAt || 0);
-              if (remoteTime > localTime) {
-                settings = { ...settings, ...checkoutSettings };
-                localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
-                console.log('[DeliverySettings] Loaded admin settings from settings/delivery fallback:', settings);
-              }
-            }
-          } catch (err) {
-            console.warn('[DeliverySettings] Could not load delivery settings fallback from settings/delivery:', err);
           }
         }
       } catch (err) {
@@ -4354,18 +4335,7 @@ waitFor(
     }
 
     console.log('[DeliveryFee] Saving: enabled=%s fee=%d', enabled, fee);
-    // Keep a local copy so the admin UI can restore even if Firestore is temporarily unavailable.
-    try {
-      localStorage.setItem('deliverySettings', JSON.stringify({
-        feeEnabled: enabled,
-        feeAmount: fee,
-        updatedAt: new Date().toISOString()
-      }));
-      console.log('[DeliveryFee] localStorage persisted delivery fee state');
-    } catch (err) {
-      console.warn('[DeliveryFee] localStorage save failed:', err);
-    }
-
+    
     let successCount = 0;
     let errors = [];
 
@@ -4520,13 +4490,13 @@ waitFor(
   /* ── Wire admin save buttons ── */
   function wireAdminUI() {
     /* Override global function used by existing save buttons */
-    window.saveDeliverySettings = saveDeliverySettings;
+    window.saveDeliverySettings = saveFee;
     window.gfySaveDeliveryFee   = saveFee;
 
     /* Wire any existing or new save button */
     ['svc-save-btn', 'gfy-save-delivery-fee'].forEach(function(id) {
       var btn = document.getElementById(id);
-      if (btn) btn.addEventListener('click', function(e) { e.preventDefault(); saveDeliverySettings(); });
+      if (btn) btn.addEventListener('click', function(e) { e.preventDefault(); saveFee(); });
     });
 
     /* Wire existing fee amount input for live preview */
@@ -4587,102 +4557,44 @@ waitFor(
           const checkoutSettingsSnap = await db.collection('settings').doc('delivery').get();
           
           let freshSettings = { ...DEFAULT_DELIVERY_SETTINGS };
-          let source = 'default';
-          const appData = appSettingsSnap.exists ? appSettingsSnap.data() : null;
-          const checkoutData = checkoutSettingsSnap.exists ? checkoutSettingsSnap.data() : null;
-
-          function normalizeCheckoutData(data) {
-            return {
-              feeEnabled: data.enabled === true,
-              feeAmount: Number(data.fee) || 0,
-              freeAbove: Number(data.freeAbove) || 0,
-              freeOffer: data.freeOffer === true,
-              highDemandEnabled: data.highDemandEnabled === true,
-              highDemandAmount: Number(data.highDemandAmount) || 0,
-              businessHoursEnabled: data.businessHoursEnabled === true,
-              openHour: Number(data.openHour) || 9,
-              closeHour: Number(data.closeHour) || 22,
-              outOfServiceMessage: data.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage,
-              updatedAt: data.updatedAt || new Date().toISOString()
-            };
-          }
-
-          if (appData && checkoutData) {
-            const appTime = new Date(appData.updatedAt || 0).getTime();
-            const checkoutTime = new Date(checkoutData.updatedAt || 0).getTime();
-            if (checkoutTime > appTime) {
-              freshSettings = { ...DEFAULT_DELIVERY_SETTINGS, ...normalizeCheckoutData(checkoutData) };
-              source = 'checkout';
-            } else {
-              freshSettings = { ...DEFAULT_DELIVERY_SETTINGS, ...appData };
-              source = 'app_settings';
-            }
-          } else if (appData) {
+          
+          if (appSettingsSnap.exists) {
+            const appData = appSettingsSnap.data();
             freshSettings = { ...DEFAULT_DELIVERY_SETTINGS, ...appData };
-            source = 'app_settings';
-          } else if (checkoutData) {
-            freshSettings = { ...DEFAULT_DELIVERY_SETTINGS, ...normalizeCheckoutData(checkoutData) };
-            source = 'checkout';
+            const localSettings = getDeliverySettings();
+            const freshTime = new Date(appData.updatedAt || 0);
+            const localTime = new Date(localSettings.updatedAt || 0);
+            
+            if (freshTime > localTime) {
+              localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(freshSettings));
+              console.log('[DeliverySettings] Loaded from Firestore at bootstrap:', freshSettings);
+              // Update UI with fresh data
+              if (typeof renderDeliverySettings === 'function') {
+                renderDeliverySettings();
+              }
+            } else {
+              console.log('[DeliverySettings] Local settings are newer, keeping localStorage');
+            }
           }
-
-          const localSettings = getDeliverySettings();
-          const freshTime = new Date(freshSettings.updatedAt || 0);
-          const localTime = new Date(localSettings.updatedAt || 0);
-          if (source !== 'default' && freshTime >= localTime) {
-            localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(freshSettings));
-            console.log('[DeliverySettings] Loaded from', source, 'at bootstrap:', freshSettings);
-            if (typeof renderDeliverySettings === 'function') {
-              renderDeliverySettings();
-            }
-          } else if (source !== 'default') {
-            console.log('[DeliverySettings] Local settings are newer than', source, 'keeping localStorage');
-          }
-
-          const desiredSettings = {
-            fee: freshSettings.feeEnabled ? freshSettings.feeAmount : 0,
-            enabled: freshSettings.feeEnabled,
-            freeAbove: freshSettings.freeAbove || 0,
-            freeOffer: freshSettings.freeOffer || false,
-            highDemandEnabled: freshSettings.highDemandEnabled || false,
-            highDemandAmount: freshSettings.highDemandAmount || 0,
-            businessHoursEnabled: freshSettings.businessHoursEnabled || false,
-            openHour: freshSettings.openHour || 9,
-            closeHour: freshSettings.closeHour || 22,
-            outOfServiceMessage: freshSettings.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage,
-            updatedAt: new Date().toISOString()
-          };
-
-          const appSettingsSync = {
-            ...freshSettings,
-            updatedAt: new Date().toISOString()
-          };
-
-          const shouldSyncCheckout = !checkoutData
-            || checkoutData.fee !== desiredSettings.fee
-            || checkoutData.enabled !== desiredSettings.enabled
-            || checkoutData.freeAbove !== desiredSettings.freeAbove
-            || checkoutData.freeOffer !== desiredSettings.freeOffer
-            || checkoutData.highDemandEnabled !== desiredSettings.highDemandEnabled
-            || checkoutData.highDemandAmount !== desiredSettings.highDemandAmount;
-
-          const shouldSyncApp = !appData
-            || appData.feeEnabled !== freshSettings.feeEnabled
-            || appData.feeAmount !== freshSettings.feeAmount
-            || appData.freeAbove !== freshSettings.freeAbove
-            || appData.freeOffer !== freshSettings.freeOffer
-            || appData.highDemandEnabled !== freshSettings.highDemandEnabled
-            || appData.highDemandAmount !== freshSettings.highDemandAmount;
-
-          if (shouldSyncCheckout || shouldSyncApp) {
-            console.log('[DeliveryFee] Settings mismatch detected at bootstrap, syncing collections...');
-            const batchOps = [];
-            if (shouldSyncCheckout) {
-              batchOps.push(db.collection('settings').doc('delivery').set(desiredSettings, { merge: true }));
-            }
-            if (shouldSyncApp) {
-              batchOps.push(db.collection('app_settings').doc('delivery_settings').set(appSettingsSync, { merge: true }));
-            }
-            await Promise.all(batchOps);
+          
+          // Ensure settings/delivery collection has the correct fee data
+          const checkoutFee = checkoutSettingsSnap.exists ? checkoutSettingsSnap.data() : null;
+          const expectedFee = freshSettings.feeEnabled ? freshSettings.feeAmount : 0;
+          
+          if (!checkoutFee || checkoutFee.fee !== expectedFee || checkoutFee.enabled !== freshSettings.feeEnabled) {
+            console.log('[DeliveryFee] Settings mismatch detected at bootstrap, syncing...');
+            await db.collection('settings').doc('delivery').set({
+              fee: expectedFee,
+              enabled: freshSettings.feeEnabled,
+              freeAbove: freshSettings.freeAbove || 0,
+              freeOffer: freshSettings.freeOffer || false,
+              highDemandEnabled: freshSettings.highDemandEnabled || false,
+              highDemandAmount: freshSettings.highDemandAmount || 0,
+              businessHoursEnabled: freshSettings.businessHoursEnabled || false,
+              openHour: freshSettings.openHour || 9,
+              closeHour: freshSettings.closeHour || 22,
+              updatedAt: new Date().toISOString()
+            }, { merge: true });
             console.log('[DeliveryFee] Collections synced successfully');
           } else {
             console.log('[DeliveryFee] Collections already in sync');

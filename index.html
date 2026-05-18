@@ -2841,9 +2841,6 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       showToast('⚠️ Settings saved locally. Firestore will sync when ready.', 3000);
     }
   }
-  
-  // Expose saveDeliverySettings to global scope for HTML onclick handlers
-  window.saveDeliverySettings = saveDeliverySettings;
 
   async function renderDeliverySettings() {
     console.log('[DeliverySettings] renderDeliverySettings called');
@@ -4420,28 +4417,13 @@ waitFor(
   /* ── Wire admin save buttons ── */
   function wireAdminUI() {
     /* Override global function used by existing save buttons */
-    if (typeof saveDeliverySettings !== 'undefined') {
-      window.saveDeliverySettings = saveDeliverySettings;
-    } else {
-      console.warn('[DeliveryFee] saveDeliverySettings not yet defined, will be wired on demand');
-    }
-    
-    if (typeof saveFee !== 'undefined') {
-      window.gfySaveDeliveryFee = saveFee;
-    }
+    window.saveDeliverySettings = saveDeliverySettings;
+    window.gfySaveDeliveryFee   = saveFee;
 
     /* Wire any existing or new save button */
     ['svc-save-btn', 'gfy-save-delivery-fee'].forEach(function(id) {
       var btn = document.getElementById(id);
-      if (btn) btn.addEventListener('click', function(e) { 
-        e.preventDefault(); 
-        if (typeof saveDeliverySettings === 'function') {
-          saveDeliverySettings();
-        } else {
-          console.error('[DeliveryFee] saveDeliverySettings function not found');
-          showToast('⚠️ Delivery settings function not loaded. Please refresh the page.', 3000);
-        }
-      });
+      if (btn) btn.addEventListener('click', function(e) { e.preventDefault(); saveDeliverySettings(); });
     });
 
     /* Wire existing fee amount input for live preview */

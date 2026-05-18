@@ -2714,130 +2714,119 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 </script>
 
 
+<!-- GRAND TOTAL + UPI PAYMENT FINAL FIX -->
 <script>
 (function(){
-  function getSubtotal(){
-    try{
-      const cart = window.cart || {};
-      return Object.values(cart).reduce((sum,item)=>{
+'use strict';
+
+function getSubtotal(){
+  try{
+    if(typeof cart !== 'undefined'){
+      return Object.keys(cart).reduce(function(sum,id){
+        var item=cart[id]||{};
         return sum + ((Number(item.price)||0) * (Number(item.qty)||0));
       },0);
-    }catch(e){ return 0; }
+    }
+  }catch(e){}
+  return 0;
+}
+
+function getDeliveryFee(){
+  return Number(window._gfyDeliveryFee || window.currentDeliveryFee || window._fee || 0);
+}
+
+function getGrandTotal(){
+  return getSubtotal() + getDeliveryFee();
+}
+
+window.getGrandTotal = getGrandTotal;
+
+function updateGrandTotalUI(){
+  var subtotal = getSubtotal();
+  var fee = getDeliveryFee();
+  var grand = subtotal + fee;
+
+  var omTotal = document.getElementById('om-total');
+  if(omTotal){
+    omTotal.innerText = '₹' + grand;
   }
 
-  function getDeliveryFee(){
+  var totalAmount = document.getElementById('totalAmount');
+  if(totalAmount){
+    totalAmount.innerText = '₹' + grand;
+  }
+
+  var deliveryFee = document.getElementById('deliveryFee');
+  if(deliveryFee){
+    deliveryFee.innerText = '₹' + fee;
+  }
+
+  var upiAmount = document.getElementById('upi-amount-display');
+  if(upiAmount){
+    upiAmount.innerText = '₹' + grand;
+  }
+
+  var phonepeAmount = document.getElementById('phonepe-qr-amount');
+  if(phonepeAmount){
+    phonepeAmount.innerText = '₹' + grand;
+  }
+
+  window.finalAmount = grand;
+  window._pendingUPIAmount = grand;
+  window._gfyGrandTotal = grand;
+
+  console.log('[GFY FIX] subtotal=',subtotal,'delivery=',fee,'grand=',grand);
+}
+
+setInterval(updateGrandTotalUI,500);
+
+var oldOpen = window.openRazorpayCheckout;
+window.openRazorpayCheckout = function(amount,name,phone){
+  var finalAmount = getGrandTotal();
+  updateGrandTotalUI();
+
+  if(typeof oldOpen === 'function'){
+    return oldOpen(finalAmount,name,phone);
+  }
+};
+
+var oldDeepLink = window.deepLinkUPI;
+window.deepLinkUPI = function(app){
+  var amount = getGrandTotal();
+  window._pendingUPIAmount = amount;
+
+  var amtEl = document.getElementById('upi-amount-display');
+  if(amtEl){
+    amtEl.innerText = '₹' + amount;
+  }
+
+  if(typeof UPI_ID !== 'undefined'){
+    var upiLink = 'upi://pay?pa=' + UPI_ID + '&pn=GroceryForYou&am=' + amount + '&cu=INR&tn=GroceryForYouOrder';
+    var links = {
+      gpay: 'tez://upi/pay?' + upiLink.replace('upi://pay?',''),
+      phonepe: 'phonepe://pay?' + upiLink.replace('upi://pay?',''),
+      paytm: 'paytmmp://pay?' + upiLink.replace('upi://pay?',''),
+      bhim: upiLink
+    };
+
     try{
-      if(typeof window.currentDeliveryFee !== 'undefined'){
-        return Number(window.currentDeliveryFee) || 0;
-      }
-
-      const feeEl =
-        document.getElementById('delivery-fee') ||
-        document.getElementById('om-delivery-fee');
-
-      if(feeEl){
-        return parseInt((feeEl.innerText || '0').replace(/[^\d]/g,''),10) || 0;
-      }
-
-      return 0;
-    }catch(e){ return 0; }
+      window.location.href = links[app] || upiLink;
+      return;
+    }catch(e){}
   }
 
-  function getGrandTotal(){
-    return getSubtotal() + getDeliveryFee();
+  if(typeof oldDeepLink === 'function'){
+    return oldDeepLink(app);
   }
+};
 
-  function updateGrandTotalUI(){
-    try{
-      const subtotal = getSubtotal();
-      const deliveryFee = getDeliveryFee();
-      const grandTotal = subtotal + deliveryFee;
-
-      const totalEls = [
-        document.getElementById('om-total'),
-        document.getElementById('cart-total'),
-        document.getElementById('grand-total'),
-        document.getElementById('om-order-total')
-      ];
-
-      totalEls.forEach(el=>{
-        if(el){
-          el.innerText = '₹' + grandTotal;
-        }
-      });
-
-      const deliveryEls = [
-        document.getElementById('delivery-fee'),
-        document.getElementById('om-delivery-fee')
-      ];
-
-      deliveryEls.forEach(el=>{
-        if(el){
-          el.innerText = '₹' + deliveryFee;
-        }
-      });
-
-    }catch(err){
-      console.error('Grand total update error', err);
-    }
-  }
-
-  const originalOpenRazorpayCheckout = window.openRazorpayCheckout;
-
-  window.openRazorpayCheckout = function(amount, customerName, customerPhone){
-    try{
-      updateGrandTotalUI();
-      const correctGrandTotal = getGrandTotal();
-
-      console.log('Fixed Razorpay Amount:', correctGrandTotal);
-
-      return originalOpenRazorpayCheckout.call(
-        this,
-        correctGrandTotal,
-        customerName,
-        customerPhone
-      );
-    }catch(err){
-      console.error('Razorpay total fix error', err);
-
-      return originalOpenRazorpayCheckout.call(
-        this,
-        amount,
-        customerName,
-        customerPhone
-      );
-    }
-  };
-
-  const originalUpdateCart = window.updateCart;
-
-  window.updateCart = function(){
-    if(typeof originalUpdateCart === 'function'){
-      originalUpdateCart.apply(this, arguments);
-    }
-
-    setTimeout(updateGrandTotalUI, 50);
-    setTimeout(updateGrandTotalUI, 300);
-  };
-
-  const originalOpenOrderModal = window.openOrderModal;
-
-  window.openOrderModal = function(){
-    if(typeof originalOpenOrderModal === 'function'){
-      originalOpenOrderModal.apply(this, arguments);
-    }
-
-    setTimeout(updateGrandTotalUI, 100);
-    setTimeout(updateGrandTotalUI, 500);
-  };
-
-  document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(updateGrandTotalUI, 500);
-    setInterval(updateGrandTotalUI, 1500);
-  });
+document.addEventListener('DOMContentLoaded',function(){
+  setTimeout(updateGrandTotalUI,500);
+  setTimeout(updateGrandTotalUI,1500);
+  setTimeout(updateGrandTotalUI,3000);
+});
 })();
 </script>
-
 </body>
 <script>
   document.addEventListener('contextmenu', event => event.preventDefault());

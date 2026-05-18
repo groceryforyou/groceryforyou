@@ -2479,6 +2479,152 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 })();
 </script>
 
+
+<!-- ===== GRAND TOTAL + UPI PAYMENT FIX ===== -->
+<script>
+(function(){
+  'use strict';
+
+  function getCartSubtotalFixed() {
+    try {
+      if (typeof cart !== 'undefined' && cart) {
+        return Object.keys(cart).reduce(function(sum, id){
+          var item = cart[id] || {};
+          return sum + ((Number(item.price) || 0) * (Number(item.qty) || 0));
+        }, 0);
+      }
+    } catch(e){}
+    return 0;
+  }
+
+  function getDeliveryFeeFixed(subtotal) {
+    try {
+      if (typeof calcDeliveryFee === 'function') {
+        return Number(calcDeliveryFee(subtotal)) || 0;
+      }
+    } catch(e){}
+
+    if (typeof currentDeliveryFee !== 'undefined') {
+      return Number(currentDeliveryFee) || 0;
+    }
+
+    return 0;
+  }
+
+  function updateGrandTotalFixed() {
+    try {
+      var subtotal = getCartSubtotalFixed();
+      var deliveryFee = getDeliveryFeeFixed(subtotal);
+      var highDemandFee = 0;
+      var grandTotal = subtotal + deliveryFee + highDemandFee;
+
+      var omTotal = document.getElementById('om-total');
+      var omDelivery = document.getElementById('om-delivery-fee-display');
+      var omGrand = document.getElementById('om-grand-total');
+
+      if (omTotal) {
+        omTotal.innerText = '₹' + subtotal;
+      }
+
+      if (omDelivery) {
+        omDelivery.innerText = deliveryFee > 0 ? ('₹' + deliveryFee) : '🎁 Free';
+      }
+
+      if (omGrand) {
+        omGrand.innerText = '₹' + grandTotal;
+      }
+
+      var totalAmountEl = document.getElementById('totalAmount');
+      if (totalAmountEl) {
+        totalAmountEl.innerText = '₹' + grandTotal;
+      }
+
+      var deliveryFeeEl = document.getElementById('deliveryFee');
+      if (deliveryFeeEl) {
+        deliveryFeeEl.innerText = '₹' + deliveryFee;
+      }
+
+      window.finalAmount = grandTotal;
+      window.cartGrandTotal = grandTotal;
+
+      console.log('[GFY FIX] Totals Updated:', {
+        subtotal: subtotal,
+        deliveryFee: deliveryFee,
+        grandTotal: grandTotal
+      });
+
+      return grandTotal;
+    } catch(err) {
+      console.error('[GFY FIX] Total update error:', err);
+      return 0;
+    }
+  }
+
+  function patchUPIPayment() {
+    var original = window.openRazorpayCheckout;
+
+    window.openRazorpayCheckout = function(amount, name, phone) {
+      var finalTotal = updateGrandTotalFixed();
+
+      if (!finalTotal || finalTotal <= 0) {
+        finalTotal = Number(amount) || 0;
+      }
+
+      console.log('[GFY FIX] Sending Grand Total to UPI:', finalTotal);
+
+      if (typeof original === 'function') {
+        return original(finalTotal, name, phone);
+      }
+    };
+  }
+
+  function patchOrderModal() {
+    var originalOpenOrderModal = window.openOrderModal;
+
+    if (typeof originalOpenOrderModal === 'function') {
+      window.openOrderModal = function() {
+        updateGrandTotalFixed();
+
+        setTimeout(updateGrandTotalFixed, 300);
+        setTimeout(updateGrandTotalFixed, 800);
+
+        return originalOpenOrderModal.apply(this, arguments);
+      };
+    }
+  }
+
+  function patchCartFunctions() {
+    ['addToCart', 'updateCartTotal', 'renderCart', 'changeQty'].forEach(function(fnName){
+      if (typeof window[fnName] === 'function') {
+        var originalFn = window[fnName];
+
+        window[fnName] = function() {
+          var result = originalFn.apply(this, arguments);
+
+          setTimeout(updateGrandTotalFixed, 50);
+          setTimeout(updateGrandTotalFixed, 300);
+
+          return result;
+        };
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function(){
+      updateGrandTotalFixed();
+      patchUPIPayment();
+      patchOrderModal();
+      patchCartFunctions();
+    }, 1000);
+
+    setInterval(updateGrandTotalFixed, 1500);
+  });
+
+  window.updateGrandTotalFixed = updateGrandTotalFixed;
+})();
+</script>
+
 </body>
 <script>
   document.addEventListener('contextmenu', event => event.preventDefault());

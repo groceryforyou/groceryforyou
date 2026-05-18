@@ -1625,60 +1625,232 @@
 
   <!-- DELIVERY SETTINGS PAGE -->
   <div class="page" id="page-delivery-settings">
-    <button class="back-btn-light" onclick="adminSidebarGo('dashboard')">← Back to Dashboard</button>
-    <div class="section-title">🚚 Delivery Settings</div>
 
-    <!-- DELIVERY FEE CARD -->
-    <div style="background:#fff;border:2px solid var(--border);border-radius:18px;padding:18px 20px;margin-bottom:18px;box-shadow:var(--shadow)">
-      <div style="display:flex;align-items:center;gap:9px;margin-bottom:16px">
-        <span style="font-size:1.4rem">💰</span>
-        <div>
-          <div style="font-family:'Yeseva One',serif;color:var(--brown);font-size:1rem">Delivery Fee</div>
-          <div style="font-size:.72rem;color:#888">Charge customers for delivery below a set order value</div>
-        </div>
-        <span id="ds-fee-badge" style="margin-left:auto;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:800;background:#fee;color:#c62828">OFF</span>
-      </div>
+    <div class="delivery-settings-card">
 
-      <div class="pay-toggle-row" style="margin-bottom:0">
-        <div class="pay-toggle-label">
-          <span>🔛</span>
-          <span>Enable Delivery Fee<br><span class="pay-toggle-sublabel">Toggle fee on / off instantly for all customers</span></span>
+      <div class="ds-toggle-row">
+        <div class="ds-toggle-label">
+          <strong>Charge Delivery Fee</strong>
         </div>
+
         <label class="toggle-switch">
-          <input type="checkbox" id="svc-fee-enabled" onchange="dsUpdateUI(); saveDeliverySettings();"/>
+          <input type="checkbox" id="ds-enabled-toggle" onchange="onDsToggleChange()">
           <span class="toggle-slider"></span>
         </label>
       </div>
 
-      <div id="ds-fee-fields" style="display:none;margin-top:14px">
-        <div class="form-grid" style="margin-top:0">
-          <div class="form-group">
-            <label>Fee Amount (₹)</label>
-            <input type="number" id="svc-fee-amount" value="" min="0" placeholder="e.g. 20" onchange="saveDeliverySettings()"/>
-          </div>
-        </div>
-      </div>
-    </div>
+      <div class="ds-fee-row">
 
-    <button class="aip-save" style="max-width:240px" onclick="saveDeliverySettings();dsUpdateUI()">💾 Save & Apply Now</button>
+        <div class="ds-fee-group">
+          <label>Delivery Fee (₹)</label>
+
+          <input
+            type="number"
+            id="ds-fee-amount"
+            class="ds-fee-input"
+            min="0"
+            value="0"
+            oninput="updateDsPreview()"
+            disabled
+          />
+        </div>
+
+        <div class="ds-fee-group">
+          <label>Free Delivery Above (₹)</label>
+
+          <input
+            type="number"
+            id="ds-free-above"
+            class="ds-fee-input"
+            min="0"
+            value="0"
+            oninput="updateDsPreview()"
+            disabled
+          />
+        </div>
+
+      </div>
+
+      <div class="ds-preview-box">
+
+        <div id="ds-preview-sub">
+          Delivery is currently <strong>free</strong>
+        </div>
+
+        <div id="ds-preview-fee" class="ds-preview-free">
+          🎁 Free Delivery
+        </div>
+
+      </div>
+
+      <button class="ds-save-btn" onclick="saveDsSettings()">
+        💾 Save Delivery Settings
+      </button>
+
+    </div>
   </div>
 
 </div><!-- end .main -->
 
 <script>
-function dsUpdateUI(){
-  var feeOn=document.getElementById('svc-fee-enabled')?.checked;
-  var feeFields=document.getElementById('ds-fee-fields');
-  var feeBadge=document.getElementById('ds-fee-badge');
-  // Show/hide fee fields
-  if(feeFields) feeFields.style.display=feeOn?'':'none';
-  // Fee badge
-  if(feeBadge){
-    if(feeOn){feeBadge.textContent='ON';feeBadge.style.background='#e8f5e9';feeBadge.style.color='#1b5e20';}
-    else{feeBadge.textContent='OFF';feeBadge.style.background='#fee';feeBadge.style.color='#c62828';}
+/* ── DELIVERY SETTINGS VARIABLES ── */
+let _dsSettings = {
+  enabled: false,
+  fee: 0,
+  freeAbove: 0
+};
+
+function updateDsPreview() {
+  const enabled =
+    document.getElementById('ds-enabled-toggle')?.checked || false;
+
+  const fee =
+    Number(document.getElementById('ds-fee-amount')?.value) || 0;
+
+  const freeAbove =
+    Number(document.getElementById('ds-free-above')?.value) || 0;
+
+  const previewEl =
+    document.getElementById('ds-preview-fee');
+
+  const subEl =
+    document.getElementById('ds-preview-sub');
+
+  if (!enabled) {
+
+    if (previewEl) {
+      previewEl.textContent = '🎁 Free Delivery';
+    }
+
+    if (subEl) {
+      subEl.innerHTML = 'Delivery is currently <strong>free</strong>';
+    }
+
+    return;
+  }
+
+  if (freeAbove > 0) {
+
+    if (previewEl) {
+      previewEl.textContent =
+        '₹' + fee + ' (free above ₹' + freeAbove + ')';
+    }
+
+  } else {
+
+    if (previewEl) {
+      previewEl.textContent =
+        '₹' + fee + ' delivery fee';
+    }
   }
 }
-document.addEventListener('DOMContentLoaded',function(){dsUpdateUI();});
+
+function onDsToggleChange() {
+
+  const enabled =
+    document.getElementById('ds-enabled-toggle').checked;
+
+  const feeIn =
+    document.getElementById('ds-fee-amount');
+
+  const freeIn =
+    document.getElementById('ds-free-above');
+
+  if (feeIn) feeIn.disabled = !enabled;
+
+  if (freeIn) freeIn.disabled = !enabled;
+
+  updateDsPreview();
+}
+
+async function saveDsSettings() {
+
+  const enabled =
+    document.getElementById('ds-enabled-toggle').checked;
+
+  const fee =
+    Number(document.getElementById('ds-fee-amount').value) || 0;
+
+  const freeAbove =
+    Number(document.getElementById('ds-free-above').value) || 0;
+
+  await db.collection('settings')
+    .doc('deliverySettings')
+    .set({
+      enabled,
+      fee,
+      freeAbove,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+  showToast('✅ Delivery settings saved');
+}
+
+function applyDsToAdminPage() {
+
+  const tog =
+    document.getElementById('ds-enabled-toggle');
+
+  const feeI =
+    document.getElementById('ds-fee-amount');
+
+  const freeI =
+    document.getElementById('ds-free-above');
+
+  if (!tog) return;
+
+  tog.checked = _dsSettings.enabled;
+
+  if (feeI) feeI.value = _dsSettings.fee;
+
+  if (freeI) freeI.value = _dsSettings.freeAbove;
+
+  if (feeI) feeI.disabled = !_dsSettings.enabled;
+
+  if (freeI) freeI.disabled = !_dsSettings.enabled;
+
+  updateDsPreview();
+}
+
+function startDeliverySettingsListener() {
+
+  db.collection('settings')
+    .doc('deliverySettings')
+    .onSnapshot((snap) => {
+
+      if (snap.exists) {
+
+        const data = snap.data();
+
+        _dsSettings = {
+          enabled: data.enabled || false,
+          fee: data.fee || 0,
+          freeAbove: data.freeAbove || 0
+        };
+
+        if (typeof applyDsToAdminPage === 'function') {
+          applyDsToAdminPage();
+        }
+
+        updateCartDeliveryFee();
+      }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+
+  const waitForDb = setInterval(() => {
+
+    if (typeof db !== 'undefined' && db) {
+
+      clearInterval(waitForDb);
+
+      startDeliverySettingsListener();
+    }
+
+  }, 400);
+
+});
 </script>
 
 <footer style="background:var(--brown);color:#c8e6c9;text-align:center;padding:22px 16px 80px;font-size:.82rem">
@@ -1730,9 +1902,19 @@ document.addEventListener('DOMContentLoaded',function(){dsUpdateUI();});
         <div class="om-summary-title">📦 Your Items</div>
         <div id="om-items-list"></div>
         <div class="om-total-row"><span>Items Total</span><span id="om-total">₹0</span></div>
-        <div class="om-total-row" id="om-delivery-fee-row" style="display:none"><span>Delivery Fee</span><span id="om-delivery-fee">₹0</span></div>
+        <div class="om-delivery-row" id="om-delivery-row">
+          <span>🚚 Delivery Fee</span>
+
+          <span class="om-delivery-fee-val" id="om-delivery-fee-display">
+            🎁 Free
+          </span>
+        </div>
         <div class="om-total-row" id="om-highdemand-fee-row" style="display:none"><span>High Demand Fee</span><span id="om-highdemand-fee">₹0</span></div>
-        <div class="om-total-row" style="font-weight:800"><span>Order Total</span><span id="om-order-total">₹0</span></div>
+        <div class="om-grand-total-row">
+          <span>Grand Total</span>
+
+          <span id="om-grand-total">₹0</span>
+        </div>
         <div id="om-fee-note" style="display:none;color:#555;font-size:.88rem;line-height:1.5;margin-top:8px;border:1px dashed #d7ccc8;border-radius:10px;padding:10px;background:#fff8e1;"></div>
       </div>
       <div class="om-form" id="om-form-fields">
@@ -3014,32 +3196,57 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
   // Expose globally so inline onchange can reach it
   window.updateDeliveryFeeUI = updateDeliveryFeeUI;
 
-  function computeDeliveryFees(subtotal) {
-    const settings = getDeliverySettings();
-    const effectiveFee = typeof window._gfyDeliveryFee === 'number' ? window._gfyDeliveryFee : settings.feeAmount;
-    const deliveryFee = settings.feeEnabled && subtotal > 0 ? effectiveFee : 0;
-    return {
-      deliveryFee,
-      highDemandFee: 0,
-      highDemandMessage: ''
-    };
+  function calcDeliveryFee(subtotal = 0) {
+
+    if (!_dsSettings.enabled) return 0;
+
+    if (
+      _dsSettings.freeAbove > 0 &&
+      subtotal >= _dsSettings.freeAbove
+    ) {
+      return 0;
+    }
+
+    return Number(_dsSettings.fee) || 0;
+  }
+
+  function updateCartDeliveryFee() {
+
+    const totalEl = document.getElementById('om-total');
+
+    const subtotal =
+      totalEl
+        ? parseInt(totalEl.textContent.replace(/[^\d]/g,'')) || 0
+        : 0;
+
+    const fee = calcDeliveryFee(subtotal);
+
+    const grand = subtotal + fee;
+
+    const feeEl = document.getElementById('om-delivery-fee-display');
+
+    const grandEl = document.getElementById('om-grand-total');
+
+    if (feeEl) {
+
+      if (fee === 0) {
+
+        feeEl.textContent = '🎁 Free';
+
+      } else {
+
+        feeEl.textContent = '₹' + fee;
+
+      }
+    }
+
+    if (grandEl) {
+      grandEl.textContent = '₹' + grand;
+    }
   }
 
   function updateDeliveryInfoDisplay() {
-    const omTotalEl = document.getElementById('om-total');
-    const omDeliveryFeeRow = document.getElementById('om-delivery-fee-row');
-    const omOrderTotalEl = document.getElementById('om-order-total');
-    const omDeliveryFeeEl = document.getElementById('om-delivery-fee');
-
-    if (!omTotalEl || !omOrderTotalEl) return;
-
-    const subtotal = parseInt((omTotalEl.innerText || '0').replace(/\D/g, ''), 10) || 0;
-    const { deliveryFee } = computeDeliveryFees(subtotal);
-    const total = subtotal + deliveryFee;
-
-    if (omDeliveryFeeEl) omDeliveryFeeEl.innerText = `₹${deliveryFee}`;
-    if (omDeliveryFeeRow) omDeliveryFeeRow.style.display = deliveryFee > 0 ? '' : 'none';
-    if (omOrderTotalEl) omOrderTotalEl.innerText = `₹${total}`;
+    updateCartDeliveryFee();
   }
 
   function isWithinBusinessHours(settings) {
@@ -3161,7 +3368,8 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       const omOrderTotalEl = document.getElementById('om-order-total');
       if (omTotalEl) {
         const subtotal = parseInt((omTotalEl.innerText || '0').replace(/\D/g, ''), 10) || 0;
-        const { deliveryFee, highDemandFee } = computeDeliveryFees(subtotal);
+        const deliveryFee = calcDeliveryFee(subtotal);
+        const highDemandFee = 0;
         const grandTotal = subtotal + deliveryFee + highDemandFee;
         // Temporarily patch om-total so obfuscated code reads the grand total
         if (grandTotal !== subtotal) {
@@ -3502,54 +3710,79 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       initialized: _supportTicketWatcherInit,
       seenCount: _seenTicketIds.size,
       timestamp: new Date().toLocaleString()
-    }),
-    forceNotify: (ticketData, ticketId) => {
-      console.log('[DebugNotify] 🧪 Manually triggering notification');
-      notifyAdminAboutTicket(ticketData || {
-        type: 'Test Ticket',
-        customerEmail: 'test@example.com',
-        orderId: 'ORD-12345',
-        desc: 'This is a test notification'
-      }, ticketId || 'manual-test-' + Date.now());
-    },
-    testNotificationFunctions: () => {
-      console.log('[TestNotif] 🧪 Testing individual notification functions...');
-      
-      if (typeof showToast === 'function') {
-        console.log('[TestNotif] ✅ showToast exists - calling it');
-        showToast('🎯 Test Toast Notification', 3000);
-      } else {
-        console.log('[TestNotif] ❌ showToast NOT FOUND');
-      }
-      
-      if (typeof playChimePattern === 'function') {
-        console.log('[TestNotif] ✅ playChimePattern exists - calling it');
-        playChimePattern();
-      } else {
-        console.log('[TestNotif] ❌ playChimePattern NOT FOUND');
-      }
-      
-      if (typeof showPromoNotification === 'function') {
-        console.log('[TestNotif] ✅ showPromoNotification exists - calling it');
-        showPromoNotification('🎯 Test Banner', 'This is a test banner notification', '🧪');
-      } else {
-        console.log('[TestNotif] ❌ showPromoNotification NOT FOUND');
-      }
-    }
+    })
   };
   
   console.log('[SupportNotify] 🎯 Debug API available at window._supportNotifyDebug');
-  console.log('[SupportNotify] 💡 Try: window._supportNotifyDebug.testNotificationFunctions()');
-  console.log('[SupportNotify] 💡 Try: window._supportNotifyDebug.status()');
-  console.log('[SupportNotify] 💡 Try: window._supportNotifyDebug.listAllTickets()');
 })();
 </script>
+
 <!-- ===== RAZORPAY LIVE PAYMENT INTEGRATION ===== -->
 <script>
 (function patchRazorpayUPI() {
   'use strict';
 
   var RZP_KEY = 'rzp_live_SmqNRvEpkEJ49k';
+
+  /* ─────────────────────────────────────────────────────────────
+   *  HELPER: Fetch fresh delivery fee from Firestore.
+   *  Checks primary (app_settings/delivery_settings) first,
+   *  then fallback (settings/delivery), then localStorage cache.
+   *  Returns 0 if fee is disabled or unavailable.
+   * ───────────────────────────────────────────────────────────── */
+  async function getDeliveryFee() {
+    // Read localStorage cache first as immediate fallback
+    var cachedFee = 0;
+    try {
+      var cached = localStorage.getItem('deliverySettings');
+      if (cached) {
+        var p = JSON.parse(cached);
+        if (p.feeEnabled && p.feeAmount > 0) cachedFee = Number(p.feeAmount);
+      }
+    } catch (_e) {}
+
+    if (typeof db === 'undefined' || !db) {
+      console.log('[RazorpayUPI] Firestore unavailable — using cached delivery fee: ₹' + cachedFee);
+      return cachedFee;
+    }
+
+    try {
+      // Primary Firestore path
+      var primaryDoc = await db.collection('app_settings').doc('delivery_settings').get();
+      if (primaryDoc.exists) {
+        var d = primaryDoc.data();
+        if (d.feeEnabled === true && d.feeAmount > 0) {
+          console.log('[RazorpayUPI] 📡 Delivery fee from Firestore (primary): ₹' + d.feeAmount);
+          return Number(d.feeAmount) || 0;
+        }
+        // feeEnabled is false
+        console.log('[RazorpayUPI] 📡 Delivery fee disabled (primary Firestore)');
+        return 0;
+      }
+    } catch (e) {
+      console.warn('[RazorpayUPI] Primary Firestore path error:', e && (e.code || e.message));
+    }
+
+    try {
+      // Fallback Firestore path
+      var fallbackDoc = await db.collection('settings').doc('delivery').get();
+      if (fallbackDoc.exists) {
+        var d2 = fallbackDoc.data();
+        if (d2.enabled === true && d2.fee > 0) {
+          console.log('[RazorpayUPI] 📡 Delivery fee from Firestore (fallback): ₹' + d2.fee);
+          return Number(d2.fee) || 0;
+        }
+        console.log('[RazorpayUPI] 📡 Delivery fee disabled (fallback Firestore)');
+        return 0;
+      }
+    } catch (e2) {
+      console.warn('[RazorpayUPI] Fallback Firestore path error:', e2 && (e2.code || e2.message));
+    }
+
+    // Last resort: use localStorage cache
+    console.log('[RazorpayUPI] Using localStorage cached delivery fee: ₹' + cachedFee);
+    return cachedFee;
+  }
 
   /* ── QR fallback: shows static QR modal ── */
   function showQRModal(amount) {
@@ -3602,9 +3835,45 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     }, 600);
   }
 
-  /* ── Main: override openRazorpayCheckout with LIVE Razorpay popup ── */
+  /* ── Main: override openRazorpayCheckout with dynamic calculation ── */
   function patchRazorpayCheckout() {
-    window.openRazorpayCheckout = function(amount, name, phone) {
+    window.openRazorpayCheckout = async function(baseAmount, name, phone) {
+      /* ── Step 1: Fetch fresh delivery fee from Firestore ── */
+      var deliveryFee = await getDeliveryFee();
+
+      /* ── Step 2: Read latest cart subtotal from DOM ── */
+      var cartSubtotal = (function() {
+        var omTotal = document.getElementById('om-total');
+        if (omTotal) {
+          var v = parseFloat((omTotal.innerText || omTotal.textContent || '').replace(/[^\d.]/g, '')) || 0;
+          if (v > 0) return v;
+        }
+        return parseFloat(baseAmount) || 0;
+      })();
+
+      /* ── Step 3: Compute final payable amount ── */
+      var totalAmount = cartSubtotal + deliveryFee;
+
+      console.log('[RazorpayUPI] 💰 Amount Calculation:',
+        'Cart Total = \u20B9' + cartSubtotal,
+        '| Delivery Fee = \u20B9' + deliveryFee,
+        '| FINAL = \u20B9' + totalAmount);
+
+      /* Safety guard */
+      if (totalAmount <= 0) {
+        totalAmount = parseFloat(baseAmount) || cartSubtotal;
+        console.warn('[RazorpayUPI] \u26A0\uFE0F totalAmount was 0 — using baseAmount fallback: \u20B9' + totalAmount);
+      }
+
+      /* Store for QR fallback */
+      window._pendingUPIAmount = totalAmount;
+
+      /* Update UI displays with correct total */
+      var upiAmtEl = document.getElementById('upi-amount-display');
+      if (upiAmtEl) upiAmtEl.textContent = '\u20B9' + totalAmount;
+      var grandEl = document.getElementById('om-grand-total');
+      if (grandEl) grandEl.textContent = '\u20B9' + totalAmount;
+
       /* Read customer info from order modal fields */
       var nameEl  = document.getElementById('om-name');
       var phoneEl = document.getElementById('om-phone');
@@ -3616,13 +3885,13 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
       /* Fallback to QR if Razorpay SDK not loaded */
       if (typeof Razorpay === 'undefined') {
         console.warn('[RazorpayUPI] SDK not loaded, falling back to QR modal');
-        showQRModal(amount);
+        showQRModal(totalAmount);
         return;
       }
 
       var options = {
         key:         RZP_KEY,
-        amount:      Math.round(amount * 100),   /* paise */
+        amount:      Math.round(totalAmount * 100),   /* paise — uses final cart+delivery */
         currency:    'INR',
         name:        'Grocery For You Sirsilla',
         description: 'Grocery Order Payment',
@@ -3631,7 +3900,12 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           contact: phone,
           email:   email
         },
-        notes: { city: 'Sirsilla, Telangana' },
+        notes: {
+          city:        'Sirsilla, Telangana',
+          cartTotal:   '\u20B9' + cartSubtotal,
+          deliveryFee: '\u20B9' + deliveryFee,
+          finalAmount: '\u20B9' + totalAmount
+        },
         theme: { color: '#00b04e' },
         modal: {
           ondismiss: function() {
@@ -3641,9 +3915,10 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           }
         },
         handler: function(response) {
+          console.log('[RazorpayUPI] \u2705 Payment success. ID:', response.razorpay_payment_id, '| Amount: \u20B9' + totalAmount);
           onPaymentSuccess(
             response.razorpay_payment_id || ('RZP-' + Date.now()),
-            amount, name, phone, email
+            totalAmount, name, phone, email
           );
         }
       };
@@ -3655,16 +3930,16 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
           if (typeof showToast === 'function') {
             showToast('\u274C ' + msg + '. Try again.', 3000);
           }
-          /* Offer QR as fallback */
-          setTimeout(function() { showQRModal(amount); }, 1500);
+          /* Offer QR as fallback with correct total */
+          setTimeout(function() { showQRModal(totalAmount); }, 1500);
         });
         rzp.open();
       } catch (e) {
         console.error('[RazorpayUPI] Checkout error:', e);
-        showQRModal(amount);
+        showQRModal(totalAmount);
       }
     };
-    console.log('[RazorpayUPI] \u2705 openRazorpayCheckout \u2192 Live Razorpay popup active');
+    console.log('[RazorpayUPI] \u2705 openRazorpayCheckout \u2192 Live Razorpay popup active (cart+delivery fix)');
   }
 
   /* ── confirmUPIPaid: for QR fallback "I've Paid" button ── */
@@ -3677,12 +3952,28 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     };
   }
 
-  /* ── showUPIRedirect: keep amount in sync ── */
+  /* ── showUPIRedirect: recompute cart+delivery before showing QR modal ── */
   function patchShowUPIRedirect() {
     var orig = window.showUPIRedirect;
-    window.showUPIRedirect = function(amount) {
-      window._pendingUPIAmount = amount;
-      if (orig) orig.apply(this, arguments);
+    window.showUPIRedirect = function(passedAmt) {
+      /* Recompute with fresh delivery fee before showing modal */
+      getDeliveryFee().then(function(deliveryFee) {
+        var omTotal = document.getElementById('om-total');
+        var cartSubtotal = 0;
+        if (omTotal) {
+          cartSubtotal = parseFloat((omTotal.innerText || omTotal.textContent || '').replace(/[^\d.]/g, '')) || 0;
+        }
+        if (cartSubtotal <= 0) cartSubtotal = parseFloat(passedAmt) || 0;
+
+        var finalAmt = cartSubtotal + deliveryFee;
+        console.log('[RazorpayUPI] showUPIRedirect — cart \u20B9' + cartSubtotal + ' + delivery \u20B9' + deliveryFee + ' = \u20B9' + finalAmt);
+
+        window._pendingUPIAmount = finalAmt;
+        var amtEl = document.getElementById('upi-amount-display');
+        if (amtEl) amtEl.textContent = '\u20B9' + finalAmt;
+
+        if (orig) orig.call(window, finalAmt);
+      });
     };
   }
 
@@ -3700,7 +3991,7 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
     [0, 300, 800, 1500, 3000].forEach(function(ms) { setTimeout(tryPatch, ms); });
   }
 
-  console.log('[RazorpayUPI] \ud83d\ude80 Live Razorpay checkout loaded \u2014 Key: rzp_live_SmqN...');
+  console.log('[RazorpayUPI] \ud83d\ude80 Live Razorpay checkout loaded \u2014 Key: rzp_live_SmqN... (delivery fee fix active)');
 })();
 </script>
 
@@ -4063,24 +4354,7 @@ waitFor(
     window._gfyDeliveryFee = fee;
     console.log('[DeliveryFee] applyFee:', fee);
 
-    /* Order modal fee row */
-    var feeEl    = document.getElementById('om-delivery-fee');
-    var feeRow   = document.getElementById('om-delivery-fee-row');
-    var totalEl  = document.getElementById('om-order-total');
-    var subtotEl = document.getElementById('om-total');
-
-    if (feeEl)  feeEl.innerText = fmt(fee);
-    if (feeRow) feeRow.style.display = fee > 0 ? '' : 'none';
-
-    if (subtotEl && totalEl) {
-      var sub   = numFrom(subtotEl);
-      var grand = sub + fee;
-      totalEl.innerText = fmt(grand);
-      window._gfySubtotal   = sub;
-      window._gfyGrandTotal = grand;
-      window.finalAmount = grand; // Ensure payment uses correct amount
-      console.log('[DeliveryFee] Total recalculated:', sub, '+', fee, '=', grand);
-    }
+    updateCartDeliveryFee();
 
     /* Sync admin input without stealing focus */
     var adminInput = document.getElementById('gfy-delivery-fee-input')
@@ -4106,14 +4380,8 @@ waitFor(
 
      // Update order modal elements
      const omTotalEl = document.getElementById('om-total');
-     const omOrderTotalEl = document.getElementById('om-order-total');
-     const omDeliveryFeeEl = document.getElementById('om-delivery-fee');
-     const omDeliveryFeeRow = document.getElementById('om-delivery-fee-row');
-
      if (omTotalEl) omTotalEl.innerText = "₹"+subtotal;
-     if (omOrderTotalEl) omOrderTotalEl.innerText = "₹"+total;
-     if (omDeliveryFeeEl) omDeliveryFeeEl.innerText = "₹"+_fee;
-     if (omDeliveryFeeRow) omDeliveryFeeRow.style.display = _fee > 0 ? '' : 'none';
+     updateCartDeliveryFee();
 
      window.finalAmount = total;
      console.log('[DeliveryFee] Cart total updated:', subtotal, '+', _fee, '=', total);
@@ -4451,7 +4719,7 @@ waitFor(
         inp.addEventListener('input', function() {
           var v = Number(inp.value) || 0;
           /* Live preview only — does not save */
-          var feeEl = document.getElementById('om-delivery-fee');
+          var feeEl = document.getElementById('om-delivery-fee-display');
           if (feeEl) feeEl.innerText = fmt(v);
         });
       }

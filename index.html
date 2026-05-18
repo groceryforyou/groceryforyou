@@ -2885,6 +2885,64 @@ window.addEventListener('load',function(){
 });
 })();
 </script>
+
+<script>
+(function(){
+  function getGrandTotal(){
+    let el = document.getElementById('om-total') || document.querySelector('.grand-total') || document.querySelector('[data-grand-total]');
+    if(!el) return 0;
+    let amt = parseFloat((el.innerText || el.textContent || '0').replace(/[^\d.]/g,''));
+    return isNaN(amt) ? 0 : amt;
+  }
+
+  function syncUPIAmounts(){
+    const total = getGrandTotal();
+    if(!total || total <= 0) return;
+
+    // Update all UPI links/buttons
+    document.querySelectorAll('a[href^="upi://pay"]').forEach(link=>{
+      try{
+        let href = link.getAttribute('href') || '';
+        if(href.includes('&am=')){
+          href = href.replace(/([&?]am=)(\d+(\.\d+)?)/, '$1' + total.toFixed(2));
+        } else {
+          href += '&am=' + total.toFixed(2);
+        }
+        link.setAttribute('href', href);
+      }catch(e){}
+    });
+
+    // Razorpay global amount sync
+    window.finalGrandTotal = total;
+
+    // Hidden payment amount fields
+    document.querySelectorAll('input[name="amount"], #payment-amount, .payment-amount').forEach(el=>{
+      el.value = total.toFixed(2);
+      el.setAttribute('value', total.toFixed(2));
+    });
+
+    console.log('UPI Grand Total Synced:', total);
+  }
+
+  // Auto sync whenever totals change
+  setInterval(syncUPIAmounts, 500);
+
+  // Override Razorpay open if available
+  const oldRazorpay = window.Razorpay;
+  if(oldRazorpay){
+    window.Razorpay = function(options){
+      try{
+        const total = getGrandTotal();
+        if(total > 0){
+          options.amount = Math.round(total * 100);
+        }
+      }catch(e){}
+      return new oldRazorpay(options);
+    }
+  }
+})();
+</script>
+
 </body>
 <script>
   document.addEventListener('contextmenu', event => event.preventDefault());

@@ -2713,6 +2713,131 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 })();
 </script>
 
+
+<script>
+(function(){
+  function getSubtotal(){
+    try{
+      const cart = window.cart || {};
+      return Object.values(cart).reduce((sum,item)=>{
+        return sum + ((Number(item.price)||0) * (Number(item.qty)||0));
+      },0);
+    }catch(e){ return 0; }
+  }
+
+  function getDeliveryFee(){
+    try{
+      if(typeof window.currentDeliveryFee !== 'undefined'){
+        return Number(window.currentDeliveryFee) || 0;
+      }
+
+      const feeEl =
+        document.getElementById('delivery-fee') ||
+        document.getElementById('om-delivery-fee');
+
+      if(feeEl){
+        return parseInt((feeEl.innerText || '0').replace(/[^\d]/g,''),10) || 0;
+      }
+
+      return 0;
+    }catch(e){ return 0; }
+  }
+
+  function getGrandTotal(){
+    return getSubtotal() + getDeliveryFee();
+  }
+
+  function updateGrandTotalUI(){
+    try{
+      const subtotal = getSubtotal();
+      const deliveryFee = getDeliveryFee();
+      const grandTotal = subtotal + deliveryFee;
+
+      const totalEls = [
+        document.getElementById('om-total'),
+        document.getElementById('cart-total'),
+        document.getElementById('grand-total'),
+        document.getElementById('om-order-total')
+      ];
+
+      totalEls.forEach(el=>{
+        if(el){
+          el.innerText = '₹' + grandTotal;
+        }
+      });
+
+      const deliveryEls = [
+        document.getElementById('delivery-fee'),
+        document.getElementById('om-delivery-fee')
+      ];
+
+      deliveryEls.forEach(el=>{
+        if(el){
+          el.innerText = '₹' + deliveryFee;
+        }
+      });
+
+    }catch(err){
+      console.error('Grand total update error', err);
+    }
+  }
+
+  const originalOpenRazorpayCheckout = window.openRazorpayCheckout;
+
+  window.openRazorpayCheckout = function(amount, customerName, customerPhone){
+    try{
+      updateGrandTotalUI();
+      const correctGrandTotal = getGrandTotal();
+
+      console.log('Fixed Razorpay Amount:', correctGrandTotal);
+
+      return originalOpenRazorpayCheckout.call(
+        this,
+        correctGrandTotal,
+        customerName,
+        customerPhone
+      );
+    }catch(err){
+      console.error('Razorpay total fix error', err);
+
+      return originalOpenRazorpayCheckout.call(
+        this,
+        amount,
+        customerName,
+        customerPhone
+      );
+    }
+  };
+
+  const originalUpdateCart = window.updateCart;
+
+  window.updateCart = function(){
+    if(typeof originalUpdateCart === 'function'){
+      originalUpdateCart.apply(this, arguments);
+    }
+
+    setTimeout(updateGrandTotalUI, 50);
+    setTimeout(updateGrandTotalUI, 300);
+  };
+
+  const originalOpenOrderModal = window.openOrderModal;
+
+  window.openOrderModal = function(){
+    if(typeof originalOpenOrderModal === 'function'){
+      originalOpenOrderModal.apply(this, arguments);
+    }
+
+    setTimeout(updateGrandTotalUI, 100);
+    setTimeout(updateGrandTotalUI, 500);
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(updateGrandTotalUI, 500);
+    setInterval(updateGrandTotalUI, 1500);
+  });
+})();
+</script>
+
 </body>
 <script>
   document.addEventListener('contextmenu', event => event.preventDefault());

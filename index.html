@@ -1395,6 +1395,10 @@ animation:spinRefresh .7s linear infinite;
       </div>
       <button class="mob-search-btn" onclick="openMobSearch()">🔍</button>
       <button id="admin-mob-menu-btn" onclick="toggleMobileAdminSidebar()" title="Admin Menu">☰</button>
+      <div id="business-status-badge" class="business-status-badge closed" style="display:none;margin-left:12px;white-space:nowrap;">
+        <span class="business-status-dot"></span>
+        <span id="business-status-text">CLOSED NOW</span>
+      </div>
 
       <div class="user-menu">
         <button id="signin-top-btn" class="signin-top-btn" onclick="signInWithGoogle()" style="display:none">Sign in</button>
@@ -3636,6 +3640,8 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
       };
       localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(merged));
       console.log('[DeliverySettings] Business hours saved to localStorage:', merged);
+      if (typeof updateBusinessUI === 'function') updateBusinessUI();
+      if (typeof updateBusinessHoursStatus === 'function') updateBusinessHoursStatus();
 
       // Persist to Firestore
       const firestore = (typeof db !== 'undefined' && db) ? db

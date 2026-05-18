@@ -3208,6 +3208,13 @@ document.addEventListener("change",(e)=>{
   }
 });
 
+window.addEventListener("storage", (e) => {
+  if (!e) return;
+  if (e.key === STORAGE_KEY || e.key === DELIVERY_SETTINGS_KEY) {
+    if (typeof updateBusinessUI === 'function') updateBusinessUI();
+  }
+});
+
 window.addEventListener("DOMContentLoaded", updateBusinessUI);
 })();
 </script>
@@ -3625,13 +3632,13 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
       }
 
       const bhEnabled     = !!bhEnabledEl.checked;
+      const existing      = getDeliverySettings();
       const businessOpen  = businessOpenEl ? !!businessOpenEl.checked : (existing.businessOpen !== undefined ? existing.businessOpen : true);
       const openHour      = Math.min(23, Math.max(0, parseInt(openHourEl.value, 10) || 6));
       const closeHour     = Math.min(23, Math.max(0, parseInt(closeHourEl.value, 10) || 20));
       const outOfSvcMsg   = outMsgEl ? outMsgEl.value.trim() : '';
 
       // Merge into existing localStorage settings (don't wipe fee settings)
-      const existing = getDeliverySettings();
       const merged = {
         ...existing,
         businessHoursEnabled: bhEnabled,

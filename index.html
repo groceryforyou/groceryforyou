@@ -136,8 +136,15 @@
 
 
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-    html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior-y:contain}
-    body{background:var(--cream);font-family:"Lato",sans-serif;color:var(--deep);overflow-x:hidden;-webkit-overflow-scrolling:touch;min-height:100vh;min-height:100dvh}
+    html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior-y:none}
+    
+    /* Disable aggressive pull-to-refresh / long swipe refresh on mobile */
+    html, body{
+      overscroll-behavior-y:none;
+      overscroll-behavior-x:none;
+    }
+
+body{background:var(--cream);font-family:"Lato",sans-serif;color:var(--deep);overflow-x:hidden;-webkit-overflow-scrolling:touch;min-height:100vh;min-height:100dvh}
     img,video{max-width:100%;height:auto;display:block}
     input,select,textarea{font-size:16px!important;-webkit-appearance:none;appearance:none}
     button,a,[role="button"]{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
@@ -3188,6 +3195,27 @@ document.addEventListener("change",(e)=>{
 });
 
 window.addEventListener("DOMContentLoaded", updateBusinessUI);
+})();
+</script>
+
+
+<script>
+/* Prevent long pull-down refresh on mobile browsers */
+(function () {
+  let startY = 0;
+  document.addEventListener('touchstart', function(e){
+    startY = e.touches[0].pageY;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function(e){
+    const currentY = e.touches[0].pageY;
+    const isPullingDown = currentY > startY;
+    const atTop = window.pageYOffset <= 0;
+
+    if (atTop && isPullingDown) {
+      e.preventDefault();
+    }
+  }, { passive: false });
 })();
 </script>
 

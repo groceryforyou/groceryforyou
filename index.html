@@ -625,10 +625,6 @@
       .search-bar-wrap{display:none}
       .mob-search-btn{display:flex}
       .mob-bottom-nav{display:block}
-      .header-inner{flex-wrap:wrap;align-items:flex-start;padding:10px 14px;gap:10px}
-      .header-right{width:100%;justify-content:flex-end;flex-wrap:wrap;gap:10px}
-      .cart-btn,.signin-top-btn,.user-menu{min-width:0}
-      .user-menu-popup{right:8px;left:auto;max-width:calc(100vw - 24px)}
 
       /* Spacing accounting for bottom nav */
       .float-order-bar{bottom:calc(var(--mob-nav-h) + var(--safe-bottom));padding:10px 14px;left:0;right:0}
@@ -741,16 +737,8 @@
     }
 
     /* Small phones */
-    @media(max-width:520px){
-      .menu-grid{grid-template-columns:1fr;gap:10px}
-      .section-title{font-size:1.1rem}
-      .hero h1,.hero h2{font-size:1.4rem!important}
-      .cart-btn .cart-btn-text{display:none}
-      .menu-card{padding:12px 10px}
-    }
-
     @media(max-width:400px){
-      .menu-grid{grid-template-columns:1fr;gap:8px}
+      .menu-grid{grid-template-columns:1fr 1fr;gap:8px}
       .payment-options{grid-template-columns:1fr}
       .hero h1,.hero h2{font-size:1.35rem!important}
       .logo-text{font-size:1.15rem}
@@ -1439,13 +1427,7 @@ animation:spinRefresh .7s linear infinite;
     <span class="badge">🚴 Fast Delivery Sircilla</span>
     <span class="badge">⭐ 4.8 Rating · 50+ Reviews</span>
     <span class="badge">💳 UPI · COD Accepted</span>
-    <span class="badge">🕘 Open 6AM–8PM Daily</span>
-  </div>
-  <div class="business-status-wrap">
-    <div id="business-status-badge" class="business-status-badge open">
-      <span class="business-status-dot"></span>
-      <span id="business-status-text">OPEN NOW</span>
-    </div>
+    <span class="badge">🕘 Open 9AM–10PM Daily</span>
   </div>
 </div>
 
@@ -3171,7 +3153,7 @@ function updateBusinessUI(){
     text.textContent = isOpen ? "OPEN NOW" : "CLOSED NOW";
   }
 
-  document.querySelectorAll(".add-btn,.checkout-btn,.place-order-btn,.om-place,.upi-app-btn,.payment-opt").forEach(btn=>{
+  document.querySelectorAll(".add-btn,.checkout-btn,.om-place,.upi-app-btn,.payment-opt").forEach(btn=>{
     if(!isOpen){
       btn.disabled = true;
       btn.style.opacity = ".55";
@@ -3201,15 +3183,6 @@ function updateBusinessUI(){
 document.addEventListener("change",(e)=>{
   if(e.target && e.target.id === "businessToggle"){
     localStorage.setItem(STORAGE_KEY, e.target.checked ? "true" : "false");
-    updateBusinessUI();
-  }
-});
-
-const businessStatusObserver = new MutationObserver(() => updateBusinessUI());
-businessStatusObserver.observe(document.body, { childList: true, subtree: true });
-
-window.addEventListener("storage", (event) => {
-  if (event.key === STORAGE_KEY) {
     updateBusinessUI();
   }
 });
@@ -5663,7 +5636,6 @@ waitFor(
 })();
 </script>
 
-</html>
 <!-- ===== MOBILE ENHANCEMENTS JS ===== -->
 <script>
 (function() {

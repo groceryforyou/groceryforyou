@@ -3303,14 +3303,14 @@ window.addEventListener("touchend",()=>{
 function updateBusinessUI(){
   const settings = typeof getDeliverySettings === 'function' ? getDeliverySettings() : null;
   const isOpen = settings
-    ? (settings.businessOpen !== undefined ? settings.businessOpen : localStorage.getItem(STORAGE_KEY) !== "false")
+    ? (typeof isStoreOpen === 'function' ? isStoreOpen(settings) : (settings.businessOpen !== undefined ? settings.businessOpen : localStorage.getItem(STORAGE_KEY) !== "false"))
     : localStorage.getItem(STORAGE_KEY) !== "false";
 
   const badge = document.getElementById("business-status-badge");
   const text = document.getElementById("business-status-text");
   const toggle = document.getElementById("businessToggle");
 
-  if(toggle) toggle.checked = isOpen;
+  if(toggle) toggle.checked = settings && settings.businessOpen !== undefined ? !!settings.businessOpen : isOpen;
 
   if(badge && text){
     badge.style.display = "inline-flex";
@@ -3360,6 +3360,13 @@ document.addEventListener("change",(e)=>{
       updateBusinessUI();
       if (typeof updateBusinessHours === 'function') updateBusinessHours();
     }
+  }
+});
+
+window.addEventListener('storage', (e) => {
+  if (e.key === STORAGE_KEY || e.key === 'deliverySettings' || e.key === 'business_open_status_v2') {
+    if (typeof updateBusinessUI === 'function') updateBusinessUI();
+    if (typeof updateBusinessHours === 'function') updateBusinessHours();
   }
 });
 
@@ -3419,7 +3426,8 @@ document.addEventListener('change', (e) => {
 });
 
 window.addEventListener('storage', (e) => {
-  if (e.key === 'business_open_status_v2' || e.key === 'delivery_settings_v2' || e.key === 'delivery_settings') {
+  if (e.key === 'business_open_status_v2' || e.key === 'deliverySettings' || e.key === 'delivery_settings_v2' || e.key === 'delivery_settings') {
+    if (typeof updateBusinessUI === 'function') updateBusinessUI();
     if (typeof updateBusinessHours === 'function') updateBusinessHours();
   }
 });

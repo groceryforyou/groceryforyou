@@ -3161,6 +3161,7 @@ function updateBusinessUI(){
   if(toggle) toggle.checked = isOpen;
 
   if(badge && text){
+    badge.style.display = "inline-flex";
     badge.classList.remove("open","closed");
     badge.classList.add(isOpen ? "open" : "closed");
     text.textContent = isOpen ? "OPEN NOW" : "CLOSED NOW";

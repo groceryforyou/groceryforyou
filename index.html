@@ -1427,13 +1427,7 @@ animation:spinRefresh .7s linear infinite;
     <span class="badge">🚴 Fast Delivery Sircilla</span>
     <span class="badge">⭐ 4.8 Rating · 50+ Reviews</span>
     <span class="badge">💳 UPI · COD Accepted</span>
-    <span class="badge">🕘 Open 6AM–8PM Daily</span>
-  </div>
-  <div class="business-status-wrap">
-    <div id="business-status-badge" class="business-status-badge open">
-      <span class="business-status-dot"></span>
-      <span id="business-status-text">OPEN NOW</span>
-    </div>
+    <span class="badge">🕘 Open 9AM–10PM Daily</span>
   </div>
 </div>
 
@@ -1656,7 +1650,7 @@ animation:spinRefresh .7s linear infinite;
         <li style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:.85rem;color:var(--brown)">🚴 <strong>Fast Delivery</strong> within Sircilla town limits</li>
         <li style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:.85rem;color:var(--brown)">💳 <strong>COD &amp; UPI</strong> — PhonePe, GPay, Paytm accepted</li>
         <li style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:.85rem;color:var(--brown)">⭐ <strong>4.8 ★ Rating</strong> from happy customers in Sircilla</li>
-        <li style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:.85rem;color:var(--brown)">🕘 <strong>Open 6AM–8PM</strong> daily — no holidays!</li>
+        <li style="background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:.85rem;color:var(--brown)">🕘 <strong>Open 9AM–10PM</strong> daily — no holidays!</li>
       </ul>
 
       <h3 style="font-family:'Yeseva One',serif;font-size:1.1rem;color:var(--brown);margin-bottom:10px">Frequently Asked Questions — Grocery Delivery Sircilla</h3>
@@ -1676,7 +1670,7 @@ animation:spinRefresh .7s linear infinite;
       </div>
 
       <div style="margin-top:20px;padding:14px 18px;background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border:2px solid var(--green);border-radius:14px;text-align:center">
-        <p style="font-size:.9rem;color:var(--brown);margin:0">📍 <strong>GroceryForYou</strong> · Town Center, Sircilla, Telangana 505301 · Open <strong>6AM–8PM</strong> · ⭐ 4.8/5 Rating<br>
+        <p style="font-size:.9rem;color:var(--brown);margin:0">📍 <strong>GroceryForYou</strong> · Town Center, Sircilla, Telangana 505301 · Open <strong>9AM–10PM</strong> · ⭐ 4.8/5 Rating<br>
         <span style="font-size:.8rem;color:#666">Serving Sircilla &amp; Rajanna Sircilla District for fast grocery home delivery</span></p>
       </div>
     </section>
@@ -3159,7 +3153,7 @@ function updateBusinessUI(){
     text.textContent = isOpen ? "OPEN NOW" : "CLOSED NOW";
   }
 
-  document.querySelectorAll(".add-btn,.checkout-btn,.place-order-btn,.om-place,.upi-app-btn,.payment-opt").forEach(btn=>{
+  document.querySelectorAll(".add-btn,.checkout-btn,.om-place,.upi-app-btn,.payment-opt").forEach(btn=>{
     if(!isOpen){
       btn.disabled = true;
       btn.style.opacity = ".55";
@@ -3189,15 +3183,6 @@ function updateBusinessUI(){
 document.addEventListener("change",(e)=>{
   if(e.target && e.target.id === "businessToggle"){
     localStorage.setItem(STORAGE_KEY, e.target.checked ? "true" : "false");
-    updateBusinessUI();
-  }
-});
-
-const businessStatusObserver = new MutationObserver(() => updateBusinessUI());
-businessStatusObserver.observe(document.body, { childList: true, subtree: true });
-
-window.addEventListener("storage", (event) => {
-  if (event.key === STORAGE_KEY) {
     updateBusinessUI();
   }
 });

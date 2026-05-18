@@ -3273,8 +3273,92 @@ document.body.appendChild(spinner);
 
 let startY = 0;
 let pulling = false;
+let manualClosedOverride = false;
+let businessHoursStatusUnsub = null;
+let deliverySettingsStatusUnsub = null;
+let _businessHoursDoc = null;
+let _deliverySettingsDoc = null;
 
-window.addEventListener("touchstart",(e)=>{
+function normalizeBoolean(value) {
+  return value === true || value === 'true' || value === 1 || value === '1';
+}
+
+function getFirestoreInstance() {
+  return (typeof db !== 'undefined' && db) ? db : (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+}
+
+function applyBusinessHoursSnapshot(data) {
+  manualClosedOverride = normalizeBoolean(data?.manualClosed);
+  if (typeof updateBusinessUI === 'function') updateBusinessUI();
+  if (typeof updateBusinessHours === 'function') updateBusinessHours();
+}
+
+function startBusinessHoursRealtimeListener() {
+  const firestore = getFirestoreInstance();
+  if (!firestore || !firestore.collection) {
+    setTimeout(startBusinessHoursRealtimeListener, 500);
+    return;
+  }
+
+  // Unsubscribe previous listeners if present
+  try {
+    if (businessHoursStatusUnsub) { businessHoursStatusUnsub(); businessHoursStatusUnsub = null; }
+    if (deliverySettingsStatusUnsub) { deliverySettingsStatusUnsub(); deliverySettingsStatusUnsub = null; }
+  } catch (err) { /* ignore */ }
+
+  try {
+    // Listen to explicit manual override document
+    businessHoursStatusUnsub = firestore.collection('settings').doc('businessHours')
+      .onSnapshot(doc => {
+        _businessHoursDoc = doc.exists ? (doc.data() || {}) : null;
+        const bhManual = _businessHoursDoc ? normalizeBoolean(_businessHoursDoc.manualClosed) : false;
+        const deliveryDocClosed = _deliverySettingsDoc ? (_deliverySettingsDoc.businessOpen === false || _deliverySettingsDoc.businessOpen === 'false') : false;
+        manualClosedOverride = bhManual || deliveryDocClosed;
+        if (typeof updateBusinessUI === 'function') updateBusinessUI();
+        if (typeof updateBusinessHours === 'function') updateBusinessHours();
+      }, err => console.error('[BusinessHours] realtime listener error:', err));
+
+    // Also listen to primary delivery settings where admin may save businessOpen
+    deliverySettingsStatusUnsub = firestore.collection('app_settings').doc('delivery_settings')
+      .onSnapshot(doc => {
+        _deliverySettingsDoc = doc.exists ? (doc.data() || {}) : null;
+        const bhManual = _businessHoursDoc ? normalizeBoolean(_businessHoursDoc.manualClosed) : false;
+        const deliveryDocClosed = _deliverySettingsDoc ? (_deliverySettingsDoc.businessOpen === false || _deliverySettingsDoc.businessOpen === 'false') : false;
+        manualClosedOverride = bhManual || deliveryDocClosed;
+        if (typeof updateBusinessUI === 'function') updateBusinessUI();
+        if (typeof updateBusinessHours === 'function') updateBusinessHours();
+      }, err => console.error('[DeliverySettings] realtime listener error:', err));
+
+  } catch (err) {
+    console.error('[BusinessHours] failed to subscribe combined listeners:', err);
+  }
+}
+
+async function setManualClosedStatus(isClosed) {
+  manualClosedOverride = !!isClosed;
+  if (typeof updateBusinessUI === 'function') updateBusinessUI();
+  if (typeof updateBusinessHours === 'function') updateBusinessHours();
+
+  const firestore = getFirestoreInstance();
+  if (!firestore || !firestore.collection) return;
+
+  try {
+    await firestore.collection('settings').doc('businessHours').set({
+      manualClosed: manualClosedOverride,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      savedBy: (typeof currentUser !== 'undefined' && currentUser?.email) ? currentUser.email : 'unknown'
+    }, { merge: true });
+  } catch (err) {
+    console.error('[BusinessHours] write failed:', err);
+  }
+}
+
+window.addEventListener('focus', () => {
+  if (typeof updateBusinessUI === 'function') updateBusinessUI();
+  if (typeof updateBusinessHours === 'function') updateBusinessHours();
+});
+
+window.addEventListener('touchstart',(e)=>{
   if(window.scrollY <= 0){
     startY = e.touches[0].clientY;
   }
@@ -3302,15 +3386,16 @@ window.addEventListener("touchend",()=>{
 
 function updateBusinessUI(){
   const settings = typeof getDeliverySettings === 'function' ? getDeliverySettings() : null;
-  const isOpen = settings
+  const businessOpenBySettings = settings
     ? (typeof isStoreOpen === 'function' ? isStoreOpen(settings) : (settings.businessOpen !== undefined ? settings.businessOpen : localStorage.getItem(STORAGE_KEY) !== "false"))
     : localStorage.getItem(STORAGE_KEY) !== "false";
+  const isOpen = !manualClosedOverride && businessOpenBySettings;
 
   const badge = document.getElementById("business-status-badge");
   const text = document.getElementById("business-status-text");
   const toggle = document.getElementById("businessToggle");
 
-  if(toggle) toggle.checked = settings && settings.businessOpen !== undefined ? !!settings.businessOpen : isOpen;
+  if(toggle) toggle.checked = !manualClosedOverride;
 
   if(badge && text){
     badge.style.display = "inline-flex";
@@ -3319,7 +3404,7 @@ function updateBusinessUI(){
     text.textContent = isOpen ? "OPEN NOW" : "CLOSED NOW";
   }
 
-  document.querySelectorAll(".add-btn,.checkout-btn,.om-place,.upi-app-btn,.payment-opt").forEach(btn=>{
+  document.querySelectorAll(".add-btn,.checkout-btn,.cart-btn,.om-place,.upi-app-btn,.payment-opt,.add-to-cart,.place-order-btn,.order-now-btn").forEach(btn=>{
     if(!isOpen){
       btn.disabled = true;
       btn.style.opacity = ".55";
@@ -3375,7 +3460,17 @@ window.addEventListener('focus', () => {
   if (typeof updateBusinessHours === 'function') updateBusinessHours();
 });
 
-window.addEventListener("DOMContentLoaded", updateBusinessUI);
+window.addEventListener("DOMContentLoaded", () => {
+  updateBusinessUI();
+  startBusinessHoursRealtimeListener();
+  const svcBusinessOpenEl = document.getElementById('svc-business-open');
+  if (svcBusinessOpenEl) {
+    svcBusinessOpenEl.addEventListener('change', (e) => {
+      const isOpen = !!e.target.checked;
+      setManualClosedStatus(!isOpen);
+    });
+  }
+});
 })();
 </script>
 
@@ -3384,6 +3479,10 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
 /* ===== BUSINESS HOURS STATUS ===== */
 
 function getBusinessHoursOpenStatus(){
+  if (manualClosedOverride) {
+    return false;
+  }
+
   const settings = typeof getDeliverySettings === 'function' ? getDeliverySettings() : null;
   const stored = localStorage.getItem('business_open_status_v2');
 
@@ -4079,6 +4178,7 @@ setInterval(updateBusinessHours,60000);
 
     localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
     localStorage.setItem('business_open_status_v2', settings.businessOpen ? 'true' : 'false');
+    setManualClosedStatus(!isOpen);
     if (typeof updateBusinessUI === 'function') updateBusinessUI();
     if (typeof updateBusinessHoursStatus === 'function') updateBusinessHoursStatus();
 

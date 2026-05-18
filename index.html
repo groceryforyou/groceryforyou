@@ -2827,6 +2827,64 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 })();
 </script>
+
+<script>
+(function(){
+function getNum(v){return Number(String(v||'0').replace(/[^0-9.]/g,''))||0;}
+function calculateFinalTotal(){
+  const cartEl=document.getElementById('om-subtotal') || document.getElementById('cart-total') || document.querySelector('.cart-total');
+  const deliveryEl=document.getElementById('delivery-fee') || document.getElementById('om-delivery-fee');
+  const grandEl=document.getElementById('om-total') || document.getElementById('grand-total');
+  const cartAmount=getNum(cartEl ? cartEl.innerText : 0);
+  const deliveryAmount=getNum(deliveryEl ? deliveryEl.innerText : (window.currentDeliveryFee||0));
+  const finalTotal=cartAmount + deliveryAmount;
+
+  if(grandEl){
+    grandEl.innerText='₹'+finalTotal.toFixed(0);
+  }
+
+  window.finalGrandTotal=finalTotal;
+  return finalTotal;
+}
+
+function patchUPIPayment(){
+  const total=calculateFinalTotal();
+  if(!total || total<=0) return;
+
+  document.querySelectorAll('a[href*="upi://pay"]').forEach(function(link){
+    try{
+      let href=link.getAttribute('href') || '';
+      if(href.includes('am=')){
+        href=href.replace(/am=([0-9.]+)/,'am='+total);
+      }else{
+        href += (href.includes('?') ? '&':'?') + 'am='+total;
+      }
+      link.setAttribute('href',href);
+    }catch(e){}
+  });
+
+  if(window.Razorpay){
+    const originalOpen=window.Razorpay;
+    window.Razorpay=function(options){
+      try{
+        options.amount=Math.round(total*100);
+      }catch(e){}
+      return new originalOpen(options);
+    }
+  }
+}
+
+setInterval(function(){
+  calculateFinalTotal();
+  patchUPIPayment();
+},1000);
+
+window.addEventListener('load',function(){
+  calculateFinalTotal();
+  patchUPIPayment();
+});
+})();
+</script>
 </body>
 <script>
   document.addEventListener('contextmenu', event => event.preventDefault());

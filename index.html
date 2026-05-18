@@ -3122,7 +3122,7 @@ window.addEventListener("touchmove",(e)=>{
   const currentY = e.touches[0].clientY;
   const diff = currentY - startY;
 
-  if(window.scrollY <= 0 && diff > 140){
+  if(window.scrollY <= 0 && diff > 55){
     pulling = true;
     spinner.classList.add("show");
   }
@@ -3150,7 +3150,7 @@ function updateBusinessUI(){
   if(badge && text){
     badge.classList.remove("open","closed");
     badge.classList.add(isOpen ? "open" : "closed");
-    text.textContent = isOpen ? "STORE OPEN" : "STORE CLOSED";
+    text.textContent = isOpen ? "OPEN NOW" : "CLOSED NOW";
   }
 
   document.querySelectorAll(".add-btn,.checkout-btn,.om-place,.upi-app-btn,.payment-opt").forEach(btn=>{
@@ -3189,38 +3189,6 @@ document.addEventListener("change",(e)=>{
 
 window.addEventListener("DOMContentLoaded", updateBusinessUI);
 })();
-</script>
-
-
-<script>
-document.addEventListener("DOMContentLoaded", function(){
-
-  const toggle = document.getElementById("businessToggle");
-
-  function applyStoreState(){
-    const isOpen = localStorage.getItem("business_open_status_v2") !== "false";
-
-    document.querySelectorAll(".add-btn,.checkout-btn,.om-place,.upi-app-btn,.payment-opt").forEach(btn=>{
-      btn.disabled = !isOpen;
-      btn.style.pointerEvents = isOpen ? "auto" : "none";
-      btn.style.opacity = isOpen ? "1" : ".5";
-    });
-
-    const badgeText = document.getElementById("business-status-text");
-    if(badgeText){
-      badgeText.textContent = isOpen ? "STORE OPEN" : "STORE CLOSED";
-    }
-  }
-
-  if(toggle){
-    toggle.addEventListener("change", function(){
-      localStorage.setItem("business_open_status_v2", this.checked ? "true" : "false");
-      applyStoreState();
-    });
-  }
-
-  applyStoreState();
-});
 </script>
 
 </body>
@@ -5757,7 +5725,7 @@ waitFor(
       var dy = e.touches[0].clientY - startY;
       if (dy > 10 && window.scrollY === 0) {
         indicator.classList.add('ptr-visible');
-        if (ptrText) ptrText.textContent = dy > threshold ? 'Release to refresh' : 'Pull to refresh';
+        if (ptrText) ptrText.textContent = dy > threshold ? 'Release to refresh' : '';
       } else {
         indicator.classList.remove('ptr-visible');
       }
@@ -5769,7 +5737,7 @@ waitFor(
       var dy = e.changedTouches[0].clientY - startY;
       if (dy > threshold && window.scrollY === 0) {
         indicator.classList.add('ptr-refreshing');
-        if (ptrText) ptrText.textContent = 'Refreshing…';
+        if (ptrText) ptrText.textContent = '';
         setTimeout(function() {
           indicator.classList.remove('ptr-visible');
           indicator.classList.remove('ptr-refreshing');

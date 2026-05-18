@@ -2013,6 +2013,7 @@ animation:spinRefresh .7s linear infinite;
     <div class="section-title">🕐 Business Hours</div>
     <div class="form-grid" style="margin-top:12px;">
       <div class="form-group" style="grid-column: span 2;"><label>Enable Business Hours</label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="svc-business-hours-enabled" onchange="saveDeliverySettings()"/> Enabled</label></div>
+      <div class="form-group" style="grid-column: span 2;"><label>Business Status</label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="svc-business-open" onchange="saveDeliverySettings()"/> Open</label></div>
       <div class="form-group"><label>Open Hour</label><input type="number" id="svc-open-hour" min="0" max="23" onchange="saveDeliverySettings()"/></div>
       <div class="form-group"><label>Close Hour</label><input type="number" id="svc-close-hour" min="0" max="23" onchange="saveDeliverySettings()"/></div>
       <div class="form-group full"><label>Out-of-service Message</label><textarea id="svc-outofservice-msg" rows="3" placeholder="Orders can only be placed during business hours. Please try again between the configured hours." onchange="saveDeliverySettings()"></textarea></div>
@@ -3144,7 +3145,10 @@ window.addEventListener("touchend",()=>{
 },{passive:true});
 
 function updateBusinessUI(){
-  const isOpen = localStorage.getItem(STORAGE_KEY) !== "false";
+  const settings = typeof getDeliverySettings === 'function' ? getDeliverySettings() : null;
+  const isOpen = settings
+    ? (settings.businessOpen !== undefined ? settings.businessOpen : localStorage.getItem(STORAGE_KEY) !== "false")
+    : localStorage.getItem(STORAGE_KEY) !== "false";
 
   const badge = document.getElementById("business-status-badge");
   const text = document.getElementById("business-status-text");
@@ -3187,8 +3191,13 @@ function updateBusinessUI(){
 
 document.addEventListener("change",(e)=>{
   if(e.target && e.target.id === "businessToggle"){
-    localStorage.setItem(STORAGE_KEY, e.target.checked ? "true" : "false");
-    updateBusinessUI();
+    const isOpen = !!e.target.checked;
+    if (typeof window.setBusinessOpenStatus === 'function') {
+      window.setBusinessOpenStatus(isOpen);
+    } else {
+      localStorage.setItem(STORAGE_KEY, isOpen ? "true" : "false");
+      updateBusinessUI();
+    }
   }
 });
 
@@ -3554,6 +3563,7 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
     openHour: 6,
     closeHour: 20,
     outOfServiceMessage: 'Orders are only accepted during business hours. Please try again later.',
+    businessOpen: true,
     updatedAt: ''
   };
   
@@ -3577,6 +3587,7 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
         openHour: parsed.openHour !== undefined ? parsed.openHour : DEFAULT_DELIVERY_SETTINGS.openHour,
         closeHour: parsed.closeHour !== undefined ? parsed.closeHour : DEFAULT_DELIVERY_SETTINGS.closeHour,
         outOfServiceMessage: parsed.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage,
+        businessOpen: parsed.businessOpen !== undefined ? parsed.businessOpen : DEFAULT_DELIVERY_SETTINGS.businessOpen,
         updatedAt: parsed.updatedAt || ''
       };
     } catch (_err) {
@@ -3589,10 +3600,11 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
     // ── Business Hours branch ──────────────────────────────────────────────
     // When called from the Business Hours page the delivery-fee fields don't
     // exist.  Detect that and save only the business-hours settings.
-    const bhEnabledEl  = document.getElementById('svc-business-hours-enabled');
-    const openHourEl   = document.getElementById('svc-open-hour');
-    const closeHourEl  = document.getElementById('svc-close-hour');
-    const outMsgEl     = document.getElementById('svc-outofservice-msg');
+    const bhEnabledEl    = document.getElementById('svc-business-hours-enabled');
+    const businessOpenEl = document.getElementById('svc-business-open');
+    const openHourEl     = document.getElementById('svc-open-hour');
+    const closeHourEl    = document.getElementById('svc-close-hour');
+    const outMsgEl       = document.getElementById('svc-outofservice-msg');
 
     if (bhEnabledEl && openHourEl && closeHourEl) {
       // ── We're on the Business Hours page ──────────────────────────────
@@ -3606,6 +3618,7 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
       }
 
       const bhEnabled     = !!bhEnabledEl.checked;
+      const businessOpen  = businessOpenEl ? !!businessOpenEl.checked : (existing.businessOpen !== undefined ? existing.businessOpen : true);
       const openHour      = Math.min(23, Math.max(0, parseInt(openHourEl.value, 10) || 6));
       const closeHour     = Math.min(23, Math.max(0, parseInt(closeHourEl.value, 10) || 20));
       const outOfSvcMsg   = outMsgEl ? outMsgEl.value.trim() : '';
@@ -3615,6 +3628,7 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
       const merged = {
         ...existing,
         businessHoursEnabled: bhEnabled,
+        businessOpen,
         openHour,
         closeHour,
         outOfServiceMessage: outOfSvcMsg || existing.outOfServiceMessage,
@@ -3629,6 +3643,7 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
       if (firestore) {
         const payload = {
           businessHoursEnabled: bhEnabled,
+          businessOpen,
           openHour,
           closeHour,
           outOfServiceMessage: merged.outOfServiceMessage,
@@ -3727,6 +3742,7 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
       const checkoutSettings = {
         fee: feeAmount,
         enabled: feeEnabled,
+        businessOpen: settings.businessOpen !== undefined ? settings.businessOpen : DEFAULT_DELIVERY_SETTINGS.businessOpen,
         updatedAt: new Date().toISOString(),
         savedBy: currentUser?.email || 'unknown'
       };
@@ -3800,8 +3816,40 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
     }
   }
   
+  function setBusinessOpenStatus(isOpen) {
+    if (typeof currentRole !== 'undefined' && currentRole !== 'admin') {
+      showToast('⚠️ Only admin can change store status', 3000);
+      return;
+    }
+    if (!currentUser) {
+      showToast('⚠️ Please sign in as admin first', 3000);
+      return;
+    }
+
+    const existing = getDeliverySettings();
+    const settings = {
+      ...existing,
+      businessOpen: !!isOpen,
+      updatedAt: new Date().toISOString()
+    };
+
+    localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
+    localStorage.setItem('business_open_status_v2', settings.businessOpen ? 'true' : 'false');
+    if (typeof updateBusinessUI === 'function') updateBusinessUI();
+    if (typeof updateBusinessHoursStatus === 'function') updateBusinessHoursStatus();
+
+    const firestore = (typeof db !== 'undefined' && db) ? db : (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+    if (firestore) {
+      firestore.collection('app_settings').doc('delivery_settings')
+        .set({ businessOpen: settings.businessOpen, updatedAt: settings.updatedAt, savedBy: currentUser?.email || 'unknown' }, { merge: true })
+        .then(() => console.log('[DeliverySettings] ✓ Business open status saved'))
+        .catch(err => console.error('[DeliverySettings] Business open status Firestore error:', err.code || err.message));
+    }
+  }
+
   // Expose saveDeliverySettings to global scope for HTML onclick handlers
   window.saveDeliverySettings = saveDeliverySettings;
+  window.setBusinessOpenStatus = setBusinessOpenStatus;
 
   async function renderDeliverySettings() {
     console.log('[DeliverySettings] renderDeliverySettings called');
@@ -3834,6 +3882,7 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
           feeEnabled: firestoreData.feeEnabled !== undefined ? firestoreData.feeEnabled : false,
           feeAmount: firestoreData.feeAmount !== undefined ? firestoreData.feeAmount : 0,
           businessHoursEnabled: firestoreData.businessHoursEnabled !== undefined ? firestoreData.businessHoursEnabled : false,
+          businessOpen: firestoreData.businessOpen !== undefined ? firestoreData.businessOpen : DEFAULT_DELIVERY_SETTINGS.businessOpen,
           openHour: firestoreData.openHour !== undefined ? firestoreData.openHour : 6,
           closeHour: firestoreData.closeHour !== undefined ? firestoreData.closeHour : 20,
           outOfServiceMessage: firestoreData.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage,
@@ -3843,6 +3892,7 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
         localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
         console.log('[DeliverySettings] Updated localStorage with Firestore data');
         loadDeliverySettingsToUI(settings);
+        if (typeof updateBusinessUI === 'function') updateBusinessUI();
       } else {
         // Try fallback collection (settings/delivery)
         console.log('[DeliverySettings] Primary doc not found, trying fallback...');
@@ -3856,12 +3906,14 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
               ...getDeliverySettings(),
               feeEnabled: fallbackData.enabled === true,
               feeAmount: Number(fallbackData.fee) || 0,
+              businessOpen: fallbackData.businessOpen !== undefined ? fallbackData.businessOpen : DEFAULT_DELIVERY_SETTINGS.businessOpen,
               updatedAt: fallbackData.updatedAt || new Date().toISOString()
             };
             
             localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
             console.log('[DeliverySettings] Updated localStorage with fallback data');
             loadDeliverySettingsToUI(settings);
+            if (typeof updateBusinessUI === 'function') updateBusinessUI();
           } else {
             // Use localStorage as last resort
             console.log('[DeliverySettings] No Firestore data found, using localStorage');
@@ -3925,6 +3977,13 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
       outMsgEl.value = settings.outOfServiceMessage || '';
       console.log('[DeliverySettings] Set out-of-service message');
     }
+    const businessOpenEl = document.getElementById('svc-business-open');
+    if (businessOpenEl) {
+      businessOpenEl.checked = settings.businessOpen !== undefined
+        ? !!settings.businessOpen
+        : DEFAULT_DELIVERY_SETTINGS.businessOpen;
+      console.log('[DeliverySettings] Set business open status to:', businessOpenEl.checked);
+    }
 
     // Apply fee to the delivery fee system
     if (settings.feeEnabled && settings.feeAmount > 0) {
@@ -3941,6 +4000,9 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
     // Update UI components
     if (typeof dsUpdateUI === 'function') {
       dsUpdateUI();
+    }
+    if (typeof updateBusinessUI === 'function') {
+      updateBusinessUI();
     }
   }
   
@@ -3966,6 +4028,7 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
               feeEnabled: firestoreData.feeEnabled !== undefined ? firestoreData.feeEnabled : false,
               feeAmount: firestoreData.feeAmount !== undefined ? firestoreData.feeAmount : 0,
               businessHoursEnabled: firestoreData.businessHoursEnabled !== undefined ? firestoreData.businessHoursEnabled : false,
+              businessOpen: firestoreData.businessOpen !== undefined ? firestoreData.businessOpen : DEFAULT_DELIVERY_SETTINGS.businessOpen,
               openHour: firestoreData.openHour !== undefined ? firestoreData.openHour : 6,
               closeHour: firestoreData.closeHour !== undefined ? firestoreData.closeHour : 20,
               outOfServiceMessage: firestoreData.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage,
@@ -3975,6 +4038,7 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
             localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
             console.log('[DeliverySettings] Real-time: Updated UI');
             loadDeliverySettingsToUI(settings);
+            if (typeof updateBusinessUI === 'function') updateBusinessUI();
           }
         },
         (err) => {
@@ -4073,6 +4137,11 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
     return currentHour >= openHour || currentHour < closeHour;
   }
 
+  function isStoreOpen(settings) {
+    if (settings?.businessOpen === false) return false;
+    return isWithinBusinessHours(settings);
+  }
+
   function getBusinessHoursText(settings) {
     const formatHour = h => String(h).padStart(2, '0') + ':00';
     const openHour = Number(settings.openHour ?? 0);
@@ -4093,12 +4162,20 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
 
     // Always hidden by default — only reveal after Firestore confirms
     const applySettings = (settings) => {
+      const businessOpen = settings.businessOpen !== undefined ? settings.businessOpen : DEFAULT_DELIVERY_SETTINGS.businessOpen;
+      const hoursText = getBusinessHoursText(settings);
+      if (!businessOpen) {
+        statusIndicator.style.display = '';
+        statusIndicator.style.background = '#ffcdd2';
+        statusIndicator.style.color = '#c62828';
+        statusIndicator.innerHTML = `🔴 Store is CLOSED${settings.businessHoursEnabled ? ` (Opens at ${hoursText})` : ''}`;
+        return;
+      }
       if (!settings.businessHoursEnabled) {
         statusIndicator.style.display = 'none';
         return;
       }
       const isOpen = isWithinBusinessHours(settings);
-      const hoursText = getBusinessHoursText(settings);
       if (isOpen) {
         statusIndicator.style.display = '';
         statusIndicator.style.background = '#c8e6c9';
@@ -4142,9 +4219,11 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
       // Fetch fresh delivery settings from Firestore before opening modal
       const showModal = () => {
         const settings = getDeliverySettings();
-        if (!isWithinBusinessHours(settings)) {
+        if (!isStoreOpen(settings)) {
           const range = getBusinessHoursText(settings);
-          const message = settings.outOfServiceMessage || `Orders are only accepted between ${range}. Please try again later.`;
+          const message = settings.businessOpen === false
+            ? (settings.outOfServiceMessage || 'Orders are temporarily disabled by the owner.')
+            : (settings.outOfServiceMessage || `Orders are only accepted between ${range}. Please try again later.`);
           showToast(`⚠️ ${message}`, 5000);
           return;
         }
@@ -4191,6 +4270,15 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
       return;
     }
     window.submitOrder = function(...args) {
+      const settings = getDeliverySettings();
+      if (!isStoreOpen(settings)) {
+        const range = getBusinessHoursText(settings);
+        const message = settings.businessOpen === false
+          ? (settings.outOfServiceMessage || 'Orders are temporarily disabled by the owner.')
+          : (settings.outOfServiceMessage || `Orders are only accepted between ${range}. Please try again later.`);
+        showToast(`⚠️ ${message}`, 5000);
+        return;
+      }
       // Read subtotal from om-total, add delivery fees, patch om-total so
       // the obfuscated submitOrder saves the correct grand total.
       const omTotalEl = document.getElementById('om-total');
@@ -4240,6 +4328,9 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
             // Update business hours status display
             if (typeof updateBusinessHoursStatus === 'function') {
               updateBusinessHoursStatus();
+            }
+            if (typeof updateBusinessUI === 'function') {
+              updateBusinessUI();
             }
           }
         }, err => console.warn('Delivery settings listener error:', err));
@@ -5530,6 +5621,7 @@ waitFor(
               highDemandEnabled: data.highDemandEnabled === true,
               highDemandAmount: Number(data.highDemandAmount) || 0,
               businessHoursEnabled: data.businessHoursEnabled === true,
+              businessOpen: data.businessOpen !== undefined ? data.businessOpen : DEFAULT_DELIVERY_SETTINGS.businessOpen,
               openHour: Number(data.openHour) || 6,
               closeHour: Number(data.closeHour) || 20,
               outOfServiceMessage: data.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage,
@@ -5576,6 +5668,7 @@ waitFor(
             highDemandEnabled: freshSettings.highDemandEnabled || false,
             highDemandAmount: freshSettings.highDemandAmount || 0,
             businessHoursEnabled: freshSettings.businessHoursEnabled || false,
+            businessOpen: freshSettings.businessOpen !== undefined ? freshSettings.businessOpen : DEFAULT_DELIVERY_SETTINGS.businessOpen,
             openHour: freshSettings.openHour || 6,
             closeHour: freshSettings.closeHour || 20,
             outOfServiceMessage: freshSettings.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage,
@@ -5593,7 +5686,8 @@ waitFor(
             || checkoutData.freeAbove !== desiredSettings.freeAbove
             || checkoutData.freeOffer !== desiredSettings.freeOffer
             || checkoutData.highDemandEnabled !== desiredSettings.highDemandEnabled
-            || checkoutData.highDemandAmount !== desiredSettings.highDemandAmount;
+            || checkoutData.highDemandAmount !== desiredSettings.highDemandAmount
+            || checkoutData.businessOpen !== desiredSettings.businessOpen;
 
           const shouldSyncApp = !appData
             || appData.feeEnabled !== freshSettings.feeEnabled
@@ -5601,7 +5695,8 @@ waitFor(
             || appData.freeAbove !== freshSettings.freeAbove
             || appData.freeOffer !== freshSettings.freeOffer
             || appData.highDemandEnabled !== freshSettings.highDemandEnabled
-            || appData.highDemandAmount !== freshSettings.highDemandAmount;
+            || appData.highDemandAmount !== freshSettings.highDemandAmount
+            || appData.businessOpen !== freshSettings.businessOpen;
 
           if (shouldSyncCheckout || shouldSyncApp) {
             console.log('[DeliveryFee] Settings mismatch detected at bootstrap, syncing collections...');

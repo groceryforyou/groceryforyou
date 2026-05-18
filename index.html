@@ -1161,92 +1161,94 @@
       body.admin-mode #admin-mob-menu-btn{display:flex}
     }
   
-/* ==== MODERN PULL TO REFRESH + STORE STATUS FIX ==== */
+/* ===== MODERN PULL TO REFRESH + STORE STATUS PATCH ===== */
 html,body{
-  overscroll-behavior-y:none!important;
+  overscroll-behavior-y:none;
 }
-.ptr-container{
+.custom-ptr{
   position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  pointer-events:none;
-  z-index:99999;
-  transform:translateY(-80px);
-  transition:transform .25s ease;
-}
-.ptr-container.active{
-  transform:translateY(14px);
-}
-.ptr-spinner{
-  width:42px;
-  height:42px;
+  top:calc(env(safe-area-inset-top,0px) + 10px);
+  left:50%;
+  transform:translate(-50%,-120%);
+  width:52px;
+  height:52px;
   border-radius:50%;
-  border:3px solid rgba(0,176,78,.15);
+  background:rgba(255,255,255,0.96);
+  box-shadow:0 10px 30px rgba(0,0,0,.16);
+  z-index:99999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:transform .22s ease,opacity .22s ease;
+  opacity:0;
+  pointer-events:none;
+  backdrop-filter:blur(10px);
+}
+.custom-ptr.visible{
+  transform:translate(-50%,0);
+  opacity:1;
+}
+.custom-ptr-spinner{
+  width:26px;
+  height:26px;
+  border-radius:50%;
+  border:3px solid rgba(0,176,78,.18);
   border-top-color:var(--saffron);
-  background:#fff;
-  box-shadow:0 8px 25px rgba(0,0,0,.12);
   animation:ptrSpin .7s linear infinite;
 }
 @keyframes ptrSpin{
-  to{transform:rotate(360deg)}
+  to{transform:rotate(360deg);}
 }
-.business-status-badge{
+.store-status-badge{
   display:inline-flex;
   align-items:center;
+  justify-content:center;
   gap:6px;
   padding:6px 14px;
   border-radius:999px;
-  color:#fff;
-  font-weight:800;
   font-size:.78rem;
+  font-weight:800;
   letter-spacing:.4px;
+  text-transform:uppercase;
+  border:2px solid transparent;
 }
-.business-status-badge.open{
-  background:linear-gradient(135deg,#1b8f3d,#2ecc71);
+.store-status-badge.open{
+  background:#e8f5e9;
+  color:#1b5e20;
+  border-color:#2e7d32;
 }
-.business-status-badge.closed{
-  background:linear-gradient(135deg,#b71c1c,#ef5350);
+.store-status-badge.closed{
+  background:#ffebee;
+  color:#b71c1c;
+  border-color:#c62828;
 }
-.store-closed-overlay{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.55);
-  z-index:9998;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-  backdrop-filter:blur(4px);
-}
-.store-closed-overlay.show{
-  display:flex;
-}
-.store-closed-card{
-  background:#fff;
-  border-radius:24px;
-  padding:26px;
-  max-width:420px;
+.store-closed-banner{
+  position:sticky;
+  top:64px;
+  z-index:500;
+  background:linear-gradient(90deg,#b71c1c,#e53935);
+  color:#fff;
+  padding:12px 16px;
   text-align:center;
-  box-shadow:0 20px 60px rgba(0,0,0,.25);
+  font-weight:700;
+  display:none;
+  box-shadow:0 6px 20px rgba(0,0,0,.15);
 }
-.store-closed-card h2{
-  color:#c62828;
-  margin-bottom:12px;
+.store-closed-banner.visible{
+  display:block;
 }
-.business-toggle-wrap{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:14px;
-  padding:16px;
+.business-toggle-card{
   background:#fff;
   border:2px solid var(--border);
   border-radius:18px;
-  margin:14px 0;
+  padding:16px;
+  margin:16px 0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
+  box-shadow:var(--shadow);
 }
 .business-toggle-switch{
   position:relative;
@@ -1254,32 +1256,39 @@ html,body{
   height:34px;
 }
 .business-toggle-switch input{
-  display:none;
+  opacity:0;
+  width:0;
+  height:0;
 }
 .business-toggle-slider{
   position:absolute;
   inset:0;
-  background:#d32f2f;
-  border-radius:999px;
-  transition:.25s ease;
   cursor:pointer;
+  background:#c62828;
+  border-radius:999px;
+  transition:.25s;
 }
 .business-toggle-slider::before{
   content:'';
   position:absolute;
-  width:26px;
-  height:26px;
+  width:28px;
+  height:28px;
+  left:3px;
+  top:3px;
   background:#fff;
   border-radius:50%;
-  left:4px;
-  top:4px;
-  transition:.25s ease;
+  transition:.25s;
 }
 .business-toggle-switch input:checked + .business-toggle-slider{
   background:#2e7d32;
 }
 .business-toggle-switch input:checked + .business-toggle-slider::before{
   transform:translateX(30px);
+}
+.store-disabled{
+  opacity:.55 !important;
+  pointer-events:none !important;
+  filter:grayscale(.15);
 }
 
 </style>
@@ -3066,206 +3075,229 @@ window.addEventListener('load',function(){
 </script>
 
 
-<div class="ptr-container" id="ptr-container">
-  <div class="ptr-spinner"></div>
-</div>
-
-<div class="store-closed-overlay" id="store-closed-overlay">
-  <div class="store-closed-card">
-    <div style="font-size:58px;margin-bottom:12px;">🔒</div>
-    <h2>Store Currently Closed</h2>
-    <p style="line-height:1.6;color:#555;">
-      Store is currently closed. Orders are unavailable.
-    </p>
-  </div>
-</div>
-
 <script>
 (function(){
 'use strict';
 
-const STORE_KEY = 'business_open_status';
+const STORE_KEY = 'gfy_business_open_status_v2';
+const REFRESH_DISTANCE = 72;
 let isRefreshing = false;
 let startY = 0;
-let currentY = 0;
-let pullDistance = 0;
-const threshold = 65;
-const ptr = document.getElementById('ptr-container');
+let currentPull = 0;
+let pulling = false;
 
-function getBusinessStatus(){
-  const saved = localStorage.getItem(STORE_KEY);
-  return saved === null ? true : saved === 'true';
-}
+document.querySelectorAll('[data-native-refresh], .pull-refresh-text, .ptr-text').forEach(el=>el.remove());
 
-function setBusinessStatus(status){
-  localStorage.setItem(STORE_KEY, status);
-  updateBusinessUI(status);
-}
+const ptr = document.createElement('div');
+ptr.className = 'custom-ptr';
+ptr.innerHTML = '<div class="custom-ptr-spinner"></div>';
+document.body.appendChild(ptr);
 
-function updateBusinessUI(isOpen){
-  document.body.dataset.storeOpen = isOpen ? 'true' : 'false';
-
-  document.querySelectorAll('.business-status-badge').forEach(el=>{
-    el.className = 'business-status-badge ' + (isOpen ? 'open' : 'closed');
-    el.textContent = isOpen ? '🟢 OPEN' : '🔴 CLOSED';
-  });
-
-  const overlay = document.getElementById('store-closed-overlay');
-  if(overlay){
-    overlay.classList.toggle('show', !isOpen);
-  }
-
-  const selectors = [
-    '.add-btn',
-    '.checkout-btn',
-    '.om-place',
-    '[data-payment]',
-    '.upi-app-btn'
-  ];
-
-  selectors.forEach(sel=>{
-    document.querySelectorAll(sel).forEach(btn=>{
-      btn.disabled = !isOpen;
-      btn.style.opacity = !isOpen ? '.5' : '';
-      btn.style.pointerEvents = !isOpen ? 'none' : '';
-    });
-  });
-
-  document.querySelectorAll('.store-status-text').forEach(el=>{
-    el.textContent = isOpen
-      ? 'Store is OPEN. Ordering available.'
-      : 'Store is currently closed. Orders are unavailable.';
-  });
-}
-
-function createStatusBadges(){
-  const targets = [
-    document.querySelector('header'),
-    document.querySelector('.hero-badges'),
-    document.querySelector('.cart-footer'),
-    document.querySelector('.om-summary')
-  ];
-
-  targets.forEach(target=>{
-    if(target && !target.querySelector('.business-status-badge')){
-      const badge = document.createElement('div');
-      badge.className = 'business-status-badge';
-      target.appendChild(badge);
-    }
-  });
-}
-
-function injectAdminToggle(){
-  if(document.getElementById('business-toggle-container')) return;
-
-  const adminPanel =
-    document.querySelector('.add-item-panel') ||
-    document.querySelector('.manage-banner') ||
-    document.querySelector('.dashboard-grid');
-
-  if(!adminPanel) return;
-
-  const wrap = document.createElement('div');
-  wrap.className = 'business-toggle-wrap';
-  wrap.id = 'business-toggle-container';
-
-  wrap.innerHTML = `
-    <div>
-      <div style="font-weight:800;color:var(--brown);font-size:1rem;">
-        Business Status
-      </div>
-      <div class="store-status-text" style="margin-top:4px;color:#666;font-size:.82rem;"></div>
-    </div>
-
-    <label class="business-toggle-switch">
-      <input type="checkbox" id="business-status-toggle">
-      <span class="business-toggle-slider"></span>
-    </label>
-  `;
-
-  adminPanel.parentNode.insertBefore(wrap, adminPanel);
-
-  const toggle = wrap.querySelector('#business-status-toggle');
-  toggle.checked = getBusinessStatus();
-
-  toggle.addEventListener('change', ()=>{
-    setBusinessStatus(toggle.checked);
-  });
-}
-
-function blockClosedActions(e){
-  if(getBusinessStatus()) return;
-
-  const blocked = e.target.closest(
-    '.add-btn,.checkout-btn,.om-place,.upi-app-btn,[data-payment]'
-  );
-
-  if(blocked){
-    e.preventDefault();
-    e.stopPropagation();
-
-    const overlay = document.getElementById('store-closed-overlay');
-    if(overlay){
-      overlay.classList.add('show');
-      setTimeout(()=>overlay.classList.remove('show'), 2200);
-    }
-  }
-}
-
-document.addEventListener('click', blockClosedActions, true);
-
-function refreshPageData(){
+function smoothReload(){
   if(isRefreshing) return;
-
   isRefreshing = true;
-  ptr.classList.add('active');
-
+  ptr.classList.add('visible');
   requestAnimationFrame(()=>{
     setTimeout(()=>{
-      window.dispatchEvent(new Event('businessStatusRefresh'));
-      updateBusinessUI(getBusinessStatus());
-      ptr.classList.remove('active');
-      isRefreshing = false;
-    }, 900);
+      window.location.reload();
+    }, 450);
   });
 }
 
 window.addEventListener('touchstart', (e)=>{
-  if(window.scrollY > 5 || isRefreshing) return;
+  if(window.scrollY > 0 || isRefreshing) return;
   startY = e.touches[0].clientY;
-}, {passive:true});
+  pulling = true;
+},{passive:true});
 
 window.addEventListener('touchmove', (e)=>{
-  if(window.scrollY > 5 || isRefreshing) return;
+  if(!pulling || isRefreshing) return;
+  currentPull = e.touches[0].clientY - startY;
 
-  currentY = e.touches[0].clientY;
-  pullDistance = currentY - startY;
-
-  if(pullDistance > 0 && pullDistance < 140){
-    ptr.style.transform = `translateY(${Math.min(16, pullDistance / 4)}px)`;
+  if(currentPull > 0 && window.scrollY <= 0){
+    const damp = Math.min(currentPull * 0.45, 90);
+    if(damp > 8){
+      ptr.classList.add('visible');
+      ptr.style.transform = `translate(-50%, ${Math.min(damp - 70, 12)}px)`;
+    }
+    if(currentPull > REFRESH_DISTANCE){
+      smoothReload();
+    }
   }
-}, {passive:true});
+},{passive:true});
 
 window.addEventListener('touchend', ()=>{
-  if(pullDistance > threshold){
-    refreshPageData();
+  pulling = false;
+  currentPull = 0;
+  if(!isRefreshing){
+    ptr.classList.remove('visible');
+    ptr.style.transform = 'translate(-50%,-120%)';
   }
+},{passive:true});
 
-  pullDistance = 0;
-  ptr.style.transform = '';
-}, {passive:true});
+const state = {
+  isOpen: localStorage.getItem(STORE_KEY) !== 'false'
+};
 
-document.addEventListener('DOMContentLoaded', ()=>{
-  createStatusBadges();
-  injectAdminToggle();
-  updateBusinessUI(getBusinessStatus());
+function saveState(){
+  localStorage.setItem(STORE_KEY, String(state.isOpen));
+}
 
-  const overlay = document.getElementById('store-closed-overlay');
-  if(overlay){
-    overlay.addEventListener('click', ()=>{
-      overlay.classList.remove('show');
+function ensureBadge(container){
+  if(!container) return null;
+  let badge = container.querySelector('.store-status-badge');
+  if(!badge){
+    badge = document.createElement('div');
+    badge.className = 'store-status-badge';
+    container.appendChild(badge);
+  }
+  return badge;
+}
+
+function updateBadges(){
+  document.querySelectorAll('.store-status-badge').forEach(badge=>{
+    badge.className = 'store-status-badge ' + (state.isOpen ? 'open' : 'closed');
+    badge.innerHTML = state.isOpen ? '🟢 OPEN' : '🔴 CLOSED';
+  });
+}
+
+function disableOrdering(disabled){
+  const selectors = [
+    '.add-btn',
+    '.checkout-btn',
+    '.om-place',
+    '.upi-app-btn',
+    '.payment-opt',
+    '.cart-btn',
+    '[onclick*="cart"]',
+    '[onclick*="checkout"]'
+  ];
+
+  selectors.forEach(sel=>{
+    document.querySelectorAll(sel).forEach(btn=>{
+      if(disabled){
+        btn.classList.add('store-disabled');
+        btn.setAttribute('disabled','disabled');
+      }else{
+        btn.classList.remove('store-disabled');
+        btn.removeAttribute('disabled');
+      }
     });
+  });
+}
+
+function ensureClosedBanner(){
+  let banner = document.querySelector('.store-closed-banner');
+  if(!banner){
+    banner = document.createElement('div');
+    banner.className = 'store-closed-banner';
+    banner.innerHTML = '🚫 Store is currently closed. Orders are unavailable.';
+    document.body.appendChild(banner);
   }
+  banner.classList.toggle('visible', !state.isOpen);
+}
+
+function applyBusinessState(){
+  updateBadges();
+  ensureClosedBanner();
+  disableOrdering(!state.isOpen);
+
+  const checkoutNotice = document.querySelector('.payment-section') || document.querySelector('.cart-footer');
+  if(checkoutNotice){
+    let msg = document.getElementById('storeClosedCheckoutMsg');
+    if(!msg){
+      msg = document.createElement('div');
+      msg.id = 'storeClosedCheckoutMsg';
+      msg.style.cssText = 'margin-top:10px;padding:12px;border-radius:12px;font-weight:700;';
+      checkoutNotice.prepend(msg);
+    }
+    msg.style.display = state.isOpen ? 'none' : 'block';
+    msg.style.background = '#ffebee';
+    msg.style.color = '#b71c1c';
+    msg.textContent = 'Store is currently closed. Orders are unavailable.';
+  }
+}
+
+function createBusinessToggle(){
+  const adminSection = Array.from(document.querySelectorAll('*')).find(el =>
+    (el.textContent || '').includes('Business Hours')
+  ) || document.querySelector('.manage-banner') || document.body;
+
+  if(document.getElementById('businessToggleCard')) return;
+
+  const card = document.createElement('div');
+  card.className = 'business-toggle-card';
+  card.id = 'businessToggleCard';
+
+  card.innerHTML = `
+    <div>
+      <div style="font-weight:900;font-size:1rem;color:var(--brown);margin-bottom:4px;">
+        Business Open / Close
+      </div>
+      <div style="font-size:.82rem;color:#666;">
+        Control customer ordering availability instantly.
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="store-status-badge ${state.isOpen ? 'open' : 'closed'}">
+        ${state.isOpen ? '🟢 OPEN' : '🔴 CLOSED'}
+      </div>
+
+      <label class="business-toggle-switch">
+        <input type="checkbox" id="businessStatusToggle" ${state.isOpen ? 'checked' : ''}>
+        <span class="business-toggle-slider"></span>
+      </label>
+    </div>
+  `;
+
+  adminSection.prepend(card);
+
+  card.querySelector('#businessStatusToggle').addEventListener('change', (e)=>{
+    state.isOpen = e.target.checked;
+    saveState();
+    applyBusinessState();
+    updateBadges();
+  });
+}
+
+function injectGlobalBadges(){
+  const header = document.querySelector('.header-right') || document.querySelector('header');
+  const heroBadges = document.querySelector('.hero-badges');
+  const checkout = document.querySelector('.cart-footer') || document.querySelector('.payment-section');
+
+  [header, heroBadges, checkout].forEach(target=>{
+    if(target){
+      ensureBadge(target);
+    }
+  });
+}
+
+document.addEventListener('click', (e)=>{
+  if(!state.isOpen){
+    const blocked = e.target.closest('.add-btn,.checkout-btn,.om-place,.upi-app-btn,.payment-opt');
+    if(blocked){
+      e.preventDefault();
+      e.stopPropagation();
+      alert('Store is currently closed. Orders are unavailable.');
+    }
+  }
+}, true);
+
+window.addEventListener('load', ()=>{
+  injectGlobalBadges();
+  createBusinessToggle();
+  applyBusinessState();
+
+  const observer = new MutationObserver(()=>{
+    injectGlobalBadges();
+    applyBusinessState();
+  });
+
+  observer.observe(document.body,{
+    childList:true,
+    subtree:true
+  });
 });
 
 })();

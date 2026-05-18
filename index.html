@@ -1160,7 +1160,129 @@
     @media(max-width:768px){
       body.admin-mode #admin-mob-menu-btn{display:flex}
     }
-  </style>
+  
+/* ==== MODERN PULL TO REFRESH + STORE STATUS FIX ==== */
+html,body{
+  overscroll-behavior-y:none!important;
+}
+.ptr-container{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  pointer-events:none;
+  z-index:99999;
+  transform:translateY(-80px);
+  transition:transform .25s ease;
+}
+.ptr-container.active{
+  transform:translateY(14px);
+}
+.ptr-spinner{
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  border:3px solid rgba(0,176,78,.15);
+  border-top-color:var(--saffron);
+  background:#fff;
+  box-shadow:0 8px 25px rgba(0,0,0,.12);
+  animation:ptrSpin .7s linear infinite;
+}
+@keyframes ptrSpin{
+  to{transform:rotate(360deg)}
+}
+.business-status-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 14px;
+  border-radius:999px;
+  color:#fff;
+  font-weight:800;
+  font-size:.78rem;
+  letter-spacing:.4px;
+}
+.business-status-badge.open{
+  background:linear-gradient(135deg,#1b8f3d,#2ecc71);
+}
+.business-status-badge.closed{
+  background:linear-gradient(135deg,#b71c1c,#ef5350);
+}
+.store-closed-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  z-index:9998;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  backdrop-filter:blur(4px);
+}
+.store-closed-overlay.show{
+  display:flex;
+}
+.store-closed-card{
+  background:#fff;
+  border-radius:24px;
+  padding:26px;
+  max-width:420px;
+  text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,.25);
+}
+.store-closed-card h2{
+  color:#c62828;
+  margin-bottom:12px;
+}
+.business-toggle-wrap{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:16px;
+  background:#fff;
+  border:2px solid var(--border);
+  border-radius:18px;
+  margin:14px 0;
+}
+.business-toggle-switch{
+  position:relative;
+  width:64px;
+  height:34px;
+}
+.business-toggle-switch input{
+  display:none;
+}
+.business-toggle-slider{
+  position:absolute;
+  inset:0;
+  background:#d32f2f;
+  border-radius:999px;
+  transition:.25s ease;
+  cursor:pointer;
+}
+.business-toggle-slider::before{
+  content:'';
+  position:absolute;
+  width:26px;
+  height:26px;
+  background:#fff;
+  border-radius:50%;
+  left:4px;
+  top:4px;
+  transition:.25s ease;
+}
+.business-toggle-switch input:checked + .business-toggle-slider{
+  background:#2e7d32;
+}
+.business-toggle-switch input:checked + .business-toggle-slider::before{
+  transform:translateX(30px);
+}
+
+</style>
 </head>
 <body>
 <!-- Offline Banner -->
@@ -2940,6 +3062,212 @@ window.addEventListener('load',function(){
       return new oldRazorpay(options);
     }
   }
+})();
+</script>
+
+
+<div class="ptr-container" id="ptr-container">
+  <div class="ptr-spinner"></div>
+</div>
+
+<div class="store-closed-overlay" id="store-closed-overlay">
+  <div class="store-closed-card">
+    <div style="font-size:58px;margin-bottom:12px;">🔒</div>
+    <h2>Store Currently Closed</h2>
+    <p style="line-height:1.6;color:#555;">
+      Store is currently closed. Orders are unavailable.
+    </p>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+const STORE_KEY = 'business_open_status';
+let isRefreshing = false;
+let startY = 0;
+let currentY = 0;
+let pullDistance = 0;
+const threshold = 65;
+const ptr = document.getElementById('ptr-container');
+
+function getBusinessStatus(){
+  const saved = localStorage.getItem(STORE_KEY);
+  return saved === null ? true : saved === 'true';
+}
+
+function setBusinessStatus(status){
+  localStorage.setItem(STORE_KEY, status);
+  updateBusinessUI(status);
+}
+
+function updateBusinessUI(isOpen){
+  document.body.dataset.storeOpen = isOpen ? 'true' : 'false';
+
+  document.querySelectorAll('.business-status-badge').forEach(el=>{
+    el.className = 'business-status-badge ' + (isOpen ? 'open' : 'closed');
+    el.textContent = isOpen ? '🟢 OPEN' : '🔴 CLOSED';
+  });
+
+  const overlay = document.getElementById('store-closed-overlay');
+  if(overlay){
+    overlay.classList.toggle('show', !isOpen);
+  }
+
+  const selectors = [
+    '.add-btn',
+    '.checkout-btn',
+    '.om-place',
+    '[data-payment]',
+    '.upi-app-btn'
+  ];
+
+  selectors.forEach(sel=>{
+    document.querySelectorAll(sel).forEach(btn=>{
+      btn.disabled = !isOpen;
+      btn.style.opacity = !isOpen ? '.5' : '';
+      btn.style.pointerEvents = !isOpen ? 'none' : '';
+    });
+  });
+
+  document.querySelectorAll('.store-status-text').forEach(el=>{
+    el.textContent = isOpen
+      ? 'Store is OPEN. Ordering available.'
+      : 'Store is currently closed. Orders are unavailable.';
+  });
+}
+
+function createStatusBadges(){
+  const targets = [
+    document.querySelector('header'),
+    document.querySelector('.hero-badges'),
+    document.querySelector('.cart-footer'),
+    document.querySelector('.om-summary')
+  ];
+
+  targets.forEach(target=>{
+    if(target && !target.querySelector('.business-status-badge')){
+      const badge = document.createElement('div');
+      badge.className = 'business-status-badge';
+      target.appendChild(badge);
+    }
+  });
+}
+
+function injectAdminToggle(){
+  if(document.getElementById('business-toggle-container')) return;
+
+  const adminPanel =
+    document.querySelector('.add-item-panel') ||
+    document.querySelector('.manage-banner') ||
+    document.querySelector('.dashboard-grid');
+
+  if(!adminPanel) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'business-toggle-wrap';
+  wrap.id = 'business-toggle-container';
+
+  wrap.innerHTML = `
+    <div>
+      <div style="font-weight:800;color:var(--brown);font-size:1rem;">
+        Business Status
+      </div>
+      <div class="store-status-text" style="margin-top:4px;color:#666;font-size:.82rem;"></div>
+    </div>
+
+    <label class="business-toggle-switch">
+      <input type="checkbox" id="business-status-toggle">
+      <span class="business-toggle-slider"></span>
+    </label>
+  `;
+
+  adminPanel.parentNode.insertBefore(wrap, adminPanel);
+
+  const toggle = wrap.querySelector('#business-status-toggle');
+  toggle.checked = getBusinessStatus();
+
+  toggle.addEventListener('change', ()=>{
+    setBusinessStatus(toggle.checked);
+  });
+}
+
+function blockClosedActions(e){
+  if(getBusinessStatus()) return;
+
+  const blocked = e.target.closest(
+    '.add-btn,.checkout-btn,.om-place,.upi-app-btn,[data-payment]'
+  );
+
+  if(blocked){
+    e.preventDefault();
+    e.stopPropagation();
+
+    const overlay = document.getElementById('store-closed-overlay');
+    if(overlay){
+      overlay.classList.add('show');
+      setTimeout(()=>overlay.classList.remove('show'), 2200);
+    }
+  }
+}
+
+document.addEventListener('click', blockClosedActions, true);
+
+function refreshPageData(){
+  if(isRefreshing) return;
+
+  isRefreshing = true;
+  ptr.classList.add('active');
+
+  requestAnimationFrame(()=>{
+    setTimeout(()=>{
+      window.dispatchEvent(new Event('businessStatusRefresh'));
+      updateBusinessUI(getBusinessStatus());
+      ptr.classList.remove('active');
+      isRefreshing = false;
+    }, 900);
+  });
+}
+
+window.addEventListener('touchstart', (e)=>{
+  if(window.scrollY > 5 || isRefreshing) return;
+  startY = e.touches[0].clientY;
+}, {passive:true});
+
+window.addEventListener('touchmove', (e)=>{
+  if(window.scrollY > 5 || isRefreshing) return;
+
+  currentY = e.touches[0].clientY;
+  pullDistance = currentY - startY;
+
+  if(pullDistance > 0 && pullDistance < 140){
+    ptr.style.transform = `translateY(${Math.min(16, pullDistance / 4)}px)`;
+  }
+}, {passive:true});
+
+window.addEventListener('touchend', ()=>{
+  if(pullDistance > threshold){
+    refreshPageData();
+  }
+
+  pullDistance = 0;
+  ptr.style.transform = '';
+}, {passive:true});
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  createStatusBadges();
+  injectAdminToggle();
+  updateBusinessUI(getBusinessStatus());
+
+  const overlay = document.getElementById('store-closed-overlay');
+  if(overlay){
+    overlay.addEventListener('click', ()=>{
+      overlay.classList.remove('show');
+    });
+  }
+});
+
 })();
 </script>
 

@@ -3815,11 +3815,11 @@ setInterval(updateBusinessHours,60000);
         highDemandEnabled: parsed.highDemandEnabled !== undefined ? parsed.highDemandEnabled : DEFAULT_DELIVERY_SETTINGS.highDemandEnabled,
         highDemandAmount: parsed.highDemandAmount !== undefined ? parsed.highDemandAmount : DEFAULT_DELIVERY_SETTINGS.highDemandAmount,
         highDemandMessage: parsed.highDemandMessage || DEFAULT_DELIVERY_SETTINGS.highDemandMessage,
-        businessHoursEnabled: parsed.businessHoursEnabled !== undefined ? parsed.businessHoursEnabled : DEFAULT_DELIVERY_SETTINGS.businessHoursEnabled,
+        businessHoursEnabled: parsed.businessHoursEnabled !== undefined ? (parsed.businessHoursEnabled === true || parsed.businessHoursEnabled === 'true') : DEFAULT_DELIVERY_SETTINGS.businessHoursEnabled,
         openHour: parsed.openHour !== undefined ? parsed.openHour : DEFAULT_DELIVERY_SETTINGS.openHour,
         closeHour: parsed.closeHour !== undefined ? parsed.closeHour : DEFAULT_DELIVERY_SETTINGS.closeHour,
         outOfServiceMessage: parsed.outOfServiceMessage || DEFAULT_DELIVERY_SETTINGS.outOfServiceMessage,
-        businessOpen: parsed.businessOpen !== undefined ? parsed.businessOpen : DEFAULT_DELIVERY_SETTINGS.businessOpen,
+        businessOpen: parsed.businessOpen !== undefined ? (parsed.businessOpen === true || parsed.businessOpen === 'true') : DEFAULT_DELIVERY_SETTINGS.businessOpen,
         updatedAt: parsed.updatedAt || ''
       };
     } catch (_err) {
@@ -4372,7 +4372,7 @@ setInterval(updateBusinessHours,60000);
   }
 
   function isStoreOpen(settings) {
-    if (settings?.businessOpen === false) return false;
+    if (settings?.businessOpen === false || settings?.businessOpen === 'false') return false;
     return isWithinBusinessHours(settings);
   }
 

@@ -5533,29 +5533,3 @@ waitFor(
 })();
 </script>
 </html>
-
-<!-- Added features -->
-<script>
-// Long swipe down refresh: hide text if any
-document.addEventListener('DOMContentLoaded', ()=>{
-  // no-op; PWA handles refresh; ensure no extra text shown
-});
-
-// Admin toggle for Business Hours
-let adminToggle=document.getElementById('admin-store-toggle');
-function updateStoreStatus(){
-  let on=adminToggle && adminToggle.checked;
-  const statusEl=document.getElementById('store-status');
-  if(statusEl){
-    statusEl.textContent= on ? '🟢 OPEN NOW' : '🔴 CLOSE NOW';
-  }
-  // disable order buttons
-  document.querySelectorAll('.checkout-btn, .order-btn').forEach(btn=>{
-    btn.disabled=!on;
-  });
-}
-if(adminToggle){
-  adminToggle.addEventListener('change', updateStoreStatus);
-  updateStoreStatus();
-}
-</script>

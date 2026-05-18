@@ -1187,6 +1187,8 @@ letter-spacing:.4px;
 backdrop-filter:blur(10px);
 box-shadow:0 6px 24px rgba(0,0,0,0.18);
 transition:all .25s ease;
+position:relative;
+z-index:101;
 }
 .business-status-badge.open{
 background:rgba(46,125,50,.18);
@@ -1387,6 +1389,10 @@ animation:spinRefresh .7s linear infinite;
         <div class="logo-sub">Fresh · Hot · Delivered</div>
       </div>
     </div>
+    <div id="business-status-badge" class="business-status-badge closed" style="display:none;white-space:nowrap;">
+      <span class="business-status-dot"></span>
+      <span id="business-status-text">CLOSED NOW</span>
+    </div>
     <div class="header-right">
       <div class="search-bar-wrap" id="search-wrap">
         <span class="search-icon">🔍</span>
@@ -1395,10 +1401,6 @@ animation:spinRefresh .7s linear infinite;
       </div>
       <button class="mob-search-btn" onclick="openMobSearch()">🔍</button>
       <button id="admin-mob-menu-btn" onclick="toggleMobileAdminSidebar()" title="Admin Menu">☰</button>
-      <div id="business-status-badge" class="business-status-badge closed" style="display:none;margin-left:12px;white-space:nowrap;">
-        <span class="business-status-dot"></span>
-        <span id="business-status-text">CLOSED NOW</span>
-      </div>
 
       <div class="user-menu">
         <button id="signin-top-btn" class="signin-top-btn" onclick="signInWithGoogle()" style="display:none">Sign in</button>

@@ -2167,6 +2167,13 @@ function onDsToggleChange() {
   updateDsPreview();
 }
 
+  // Sync business open controls (admin page checkbox and manage page toggle)
+  const businessOpenEl = document.getElementById('svc-business-open');
+  const businessToggle = document.getElementById('businessToggle');
+  const bOpen = _dsSettings.businessOpen !== undefined ? !!_dsSettings.businessOpen : true;
+  if (businessOpenEl) businessOpenEl.checked = bOpen;
+  if (businessToggle) businessToggle.checked = bOpen;
+
 async function saveDsSettings() {
 
   const enabled =
@@ -2229,14 +2236,32 @@ function startDeliverySettingsListener() {
         _dsSettings = {
           enabled: data.enabled || false,
           fee: data.fee || 0,
-          freeAbove: data.freeAbove || 0
+          freeAbove: data.freeAbove || 0,
+          businessOpen: data.businessOpen !== undefined ? data.businessOpen : undefined
         };
+
+        // Merge delivery settings into localStorage so non-admin customers pick up the change
+        try {
+          const local = typeof getDeliverySettings === 'function' ? getDeliverySettings() : {};
+          const mergedDeliverySettings = {
+            ...local,
+            feeEnabled: data.enabled !== undefined ? data.enabled : (local.feeEnabled !== undefined ? local.feeEnabled : false),
+            feeAmount: data.fee !== undefined ? data.fee : (local.feeAmount !== undefined ? local.feeAmount : 0),
+            freeAbove: data.freeAbove !== undefined ? data.freeAbove : (local.freeAbove !== undefined ? local.freeAbove : 0),
+            businessOpen: data.businessOpen !== undefined ? data.businessOpen : (local.businessOpen !== undefined ? local.businessOpen : true),
+            updatedAt: data.updatedAt && data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : (data.updatedAt || new Date().toISOString())
+          };
+          localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(mergedDeliverySettings));
+        } catch (e) {
+          console.warn('[DeliverySettings] Could not persist merged settings to localStorage', e);
+        }
 
         if (typeof applyDsToAdminPage === 'function') {
           applyDsToAdminPage();
         }
 
         updateCartDeliveryFee();
+        if (typeof updateBusinessUI === 'function') updateBusinessUI();
       }
     });
 }
@@ -2255,6 +2280,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 400);
 
 });
+
+
 </script>
 
 <footer style="background:var(--brown);color:#c8e6c9;text-align:center;padding:22px 16px 80px;font-size:.82rem">
@@ -3849,8 +3876,9 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
 
     const firestore = (typeof db !== 'undefined' && db) ? db : (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
     if (firestore) {
-      firestore.collection('app_settings').doc('delivery_settings')
-        .set({ businessOpen: settings.businessOpen, updatedAt: settings.updatedAt, savedBy: currentUser?.email || 'unknown' }, { merge: true })
+      // Persist to the same settings document watched by the listener
+      firestore.collection('settings').doc('deliverySettings')
+        .set({ businessOpen: settings.businessOpen, updatedAt: firebase && firebase.firestore && firebase.firestore.FieldValue ? firebase.firestore.FieldValue.serverTimestamp() : settings.updatedAt, savedBy: currentUser?.email || 'unknown' }, { merge: true })
         .then(() => console.log('[DeliverySettings] ✓ Business open status saved'))
         .catch(err => console.error('[DeliverySettings] Business open status Firestore error:', err.code || err.message));
     }

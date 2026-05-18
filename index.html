@@ -2252,6 +2252,7 @@ function startDeliverySettingsListener() {
             updatedAt: data.updatedAt && data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : (data.updatedAt || new Date().toISOString())
           };
           localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(mergedDeliverySettings));
+          if (typeof loadDeliverySettingsToUI === 'function') loadDeliverySettingsToUI(mergedDeliverySettings);
         } catch (e) {
           console.warn('[DeliverySettings] Could not persist merged settings to localStorage', e);
         }
@@ -2266,11 +2267,51 @@ function startDeliverySettingsListener() {
     });
 }
 
+function startAppSettingsDeliveryListener() {
+  if (typeof db === 'undefined' || !db) {
+    console.log('[DeliverySettings] Firestore not available for app_settings listener');
+    return;
+  }
+
+  try {
+    db.collection('app_settings')
+      .doc('delivery_settings')
+      .onSnapshot((snap) => {
+        if (!snap.exists) return;
+
+        const data = snap.data();
+        const local = typeof getDeliverySettings === 'function' ? getDeliverySettings() : {};
+        const merged = {
+          ...local,
+          feeEnabled: data.feeEnabled !== undefined ? data.feeEnabled : local.feeEnabled,
+          feeAmount: data.feeAmount !== undefined ? data.feeAmount : local.feeAmount,
+          freeAbove: data.freeAbove !== undefined ? data.freeAbove : local.freeAbove,
+          businessHoursEnabled: data.businessHoursEnabled !== undefined ? data.businessHoursEnabled : local.businessHoursEnabled,
+          businessOpen: data.businessOpen !== undefined ? data.businessOpen : local.businessOpen,
+          openHour: data.openHour !== undefined ? data.openHour : local.openHour,
+          closeHour: data.closeHour !== undefined ? data.closeHour : local.closeHour,
+          outOfServiceMessage: data.outOfServiceMessage !== undefined ? data.outOfServiceMessage : local.outOfServiceMessage,
+          updatedAt: data.updatedAt && data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : (data.updatedAt || new Date().toISOString())
+        };
+
+        localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(merged));
+        if (typeof loadDeliverySettingsToUI === 'function') loadDeliverySettingsToUI(merged);
+        if (typeof updateBusinessUI === 'function') updateBusinessUI();
+        if (typeof updateBusinessHoursStatus === 'function') updateBusinessHoursStatus();
+      }, (err) => {
+        console.error('[DeliverySettings] app_settings listener error:', err);
+      });
+  } catch (err) {
+    console.error('[DeliverySettings] Failed to start app_settings listener:', err);
+  }
+}
+
 function initDeliverySettingsListener(){
   const waitForDb = setInterval(() => {
     if (typeof db !== 'undefined' && db) {
       clearInterval(waitForDb);
       startDeliverySettingsListener();
+      startAppSettingsDeliveryListener();
     }
   }, 400);
 }
@@ -3885,6 +3926,9 @@ if (document.readyState === 'loading') {
     };
 
     localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
+    if (typeof STORAGE_KEY !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, settings.businessOpen ? 'true' : 'false');
+    }
     if (typeof updateBusinessUI === 'function') updateBusinessUI();
     if (typeof updateBusinessHoursStatus === 'function') updateBusinessHoursStatus();
 

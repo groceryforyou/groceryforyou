@@ -3344,6 +3344,10 @@ function updateBusinessUI(){
   }else{
     if(closedMsg) closedMsg.remove();
   }
+
+  if (typeof updateBusinessHours === 'function') {
+    updateBusinessHours();
+  }
 }
 
 document.addEventListener("change",(e)=>{
@@ -3354,6 +3358,7 @@ document.addEventListener("change",(e)=>{
     } else {
       localStorage.setItem(STORAGE_KEY, isOpen ? "true" : "false");
       updateBusinessUI();
+      if (typeof updateBusinessHours === 'function') updateBusinessHours();
     }
   }
 });
@@ -3366,39 +3371,60 @@ window.addEventListener("DOMContentLoaded", updateBusinessUI);
 
 /* ===== BUSINESS HOURS STATUS ===== */
 
-function updateBusinessHours(){
+function getBusinessHoursOpenStatus(){
+  const settings = typeof getDeliverySettings === 'function' ? getDeliverySettings() : null;
+  const stored = localStorage.getItem('business_open_status_v2');
 
+  if(settings && settings.businessOpen !== undefined){
+    return settings.businessOpen;
+  }
+  if(stored !== null){
+    return stored !== 'false';
+  }
+  return true;
+}
+
+function updateBusinessHours(){
   const statusBox = document.getElementById("business-status");
   const statusText = document.getElementById("status-text");
+  if(!statusBox || !statusText) return;
 
   const now = new Date();
-
   const currentHour = now.getHours();
   const currentMinute = now.getMinutes();
-
   const currentTime = currentHour + currentMinute / 60;
-
   const openTime = 9;
   const closeTime = 22;
 
-  if(currentTime >= openTime && currentTime < closeTime){
+  const manualOpen = getBusinessHoursOpenStatus();
+  const openByTime = currentTime >= openTime && currentTime < closeTime;
+  const isOpen = manualOpen && openByTime;
 
-    statusBox.classList.remove("closed");
-    statusBox.classList.add("open");
+  statusBox.classList.remove('open','closed');
+  statusBox.classList.add(isOpen ? 'open' : 'closed');
 
+  if(isOpen){
     statusText.innerText = "Open Now • Closes 10:00 PM";
-
-  }else{
-
-    statusBox.classList.remove("open");
-    statusBox.classList.add("closed");
-
+  } else if (!manualOpen) {
+    statusText.innerText = "Closed Now • Admin closed store";
+  } else {
     statusText.innerText = "Closed Now • Opens 9:00 AM";
   }
 }
 
-updateBusinessHours();
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.id === 'businessToggle') {
+    if (typeof updateBusinessHours === 'function') updateBusinessHours();
+  }
+});
 
+window.addEventListener('storage', (e) => {
+  if (e.key === 'business_open_status_v2' || e.key === 'delivery_settings_v2' || e.key === 'delivery_settings') {
+    if (typeof updateBusinessHours === 'function') updateBusinessHours();
+  }
+});
+
+window.addEventListener('DOMContentLoaded', updateBusinessHours);
 setInterval(updateBusinessHours,60000);
 
 </script>

@@ -3139,7 +3139,6 @@ window.addEventListener("touchend",()=>{
     pulling = false;
     setTimeout(()=>{
       spinner.classList.remove("show");
-      location.reload();
     },700);
   }
 },{passive:true});
@@ -5492,9 +5491,10 @@ waitFor(
 
   /* ── Wait for Firestore to be ready ── */
   function waitForDB(cb) {
-    var t = 0;
-    var iv = setInterval(function() {
-      t += 300;
+    let tries = 0;
+    const iv  = setInterval(() => {
+      tries++;
+      
       if (typeof firebase !== 'undefined'
           && firebase.apps && firebase.apps.length
           && typeof firebase.firestore === 'function') {
@@ -5502,11 +5502,11 @@ waitFor(
         var db = firebase.firestore();
         _db = db;
         cb(db);
-      } else if (t > 15000) {
+      } else if (tries > 20) {
         clearInterval(iv);
-        console.error('[DeliveryFee] Timed out waiting for Firebase');
+        console.error('Firebase timeout');
       }
-    }, 300);
+    }, 500);
   }
 
   /* ── Bootstrap ── */

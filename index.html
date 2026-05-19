@@ -3384,56 +3384,49 @@ window.addEventListener("touchend",()=>{
   }
 },{passive:true});
 
-function updateBusinessUI(){
-  const settings = typeof getDeliverySettings === 'function' ? getDeliverySettings() : null;
-  const businessOpenBySettings = settings
-    ? (typeof isStoreOpen === 'function' ? isStoreOpen(settings) : (settings.businessOpen !== undefined ? settings.businessOpen : localStorage.getItem(STORAGE_KEY) !== "false"))
-    : localStorage.getItem(STORAGE_KEY) !== "false";
-  const isOpen = !manualClosedOverride && businessOpenBySettings;
+
+function updateBusinessUI() {
+  const STORAGE_KEY = "business_open_status_v2";
+
+  const isOpen = localStorage.getItem(STORAGE_KEY) !== "false";
 
   const badge = document.getElementById("business-status-badge");
   const text = document.getElementById("business-status-text");
   const toggle = document.getElementById("businessToggle");
 
-  if(toggle) toggle.checked = !manualClosedOverride;
+  if (toggle) {
+    toggle.checked = isOpen;
+  }
 
-  if(badge && text){
+  if (badge && text) {
     badge.style.display = "inline-flex";
-    badge.classList.remove("open","closed");
+    badge.classList.remove("open", "closed");
     badge.classList.add(isOpen ? "open" : "closed");
     text.textContent = isOpen ? "OPEN NOW" : "CLOSED NOW";
   }
 
-  document.querySelectorAll(".add-btn,.checkout-btn,.cart-btn,.om-place,.upi-app-btn,.payment-opt,.add-to-cart,.place-order-btn,.order-now-btn").forEach(btn=>{
-    if(!isOpen){
-      btn.disabled = true;
-      btn.style.opacity = ".55";
-      btn.style.pointerEvents = "none";
-    }else{
-      btn.disabled = false;
-      btn.style.opacity = "1";
-      btn.style.pointerEvents = "auto";
-    }
+  document.querySelectorAll(".add-btn,.checkout-btn").forEach(btn => {
+    btn.disabled = !isOpen;
+    btn.style.opacity = isOpen ? "1" : "0.5";
+    btn.style.pointerEvents = isOpen ? "auto" : "none";
   });
 
-  let closedMsg = document.getElementById("storeClosedNotice");
+  let closedMsg = document.getElementById("business-closed-message");
 
-  if(!isOpen){
-    if(!closedMsg){
+  if (!isOpen) {
+    if (!closedMsg) {
       closedMsg = document.createElement("div");
-      closedMsg.id = "storeClosedNotice";
-      closedMsg.innerHTML = "⚠️ Store is currently closed. Orders are unavailable.";
-      closedMsg.style.cssText = "position:sticky;top:70px;z-index:999;background:#c62828;color:#fff;padding:12px 16px;text-align:center;font-weight:800;font-size:.9rem;";
+      closedMsg.id = "business-closed-message";
+      closedMsg.innerHTML = "🔴 STORE IS CURRENTLY CLOSED";
+      closedMsg.style.cssText =
+        "position:fixed;top:0;left:0;right:0;z-index:9999;background:#c62828;color:#fff;padding:12px;text-align:center;font-weight:800;font-size:15px;";
       document.body.prepend(closedMsg);
     }
-  }else{
-    if(closedMsg) closedMsg.remove();
-  }
-
-  if (typeof updateBusinessHours === 'function') {
-    updateBusinessHours();
+  } else {
+    if (closedMsg) closedMsg.remove();
   }
 }
+
 
 document.addEventListener("change",(e)=>{
   if(e.target && e.target.id === "businessToggle"){
@@ -3476,98 +3469,56 @@ window.addEventListener("DOMContentLoaded", () => {
 
 <script>
 
-/* ===== BUSINESS HOURS STATUS ===== */
 
-function getBusinessHoursOpenStatus() {
-  const settings = typeof getDeliverySettings === 'function'
-    ? getDeliverySettings()
-    : null;
 
-  if (settings && settings.businessOpen !== undefined) {
-    return !!settings.businessOpen;
-  }
+</script>
 
-  const stored = localStorage.getItem('business_open_status_v2');
 
-  if (stored !== null) {
-    return stored === 'true';
-  }
-
-  return true;
-}
-
-function updateBusinessHours() {
-  const statusBox = document.getElementById("business-status");
-  const statusText = document.getElementById("status-text");
-  const badge = document.getElementById("business-status-badge");
-  const badgeText = document.getElementById("business-status-text");
+<script>
+document.addEventListener("DOMContentLoaded", () => {
   const toggle = document.getElementById("businessToggle");
 
-  const isOpen = getBusinessHoursOpenStatus();
+  function syncBusinessStatus() {
+    const isOpen = localStorage.getItem("business_open_status_v2") !== "false";
 
-  if (toggle) {
-    toggle.checked = isOpen;
-  }
+    if (toggle) {
+      toggle.checked = isOpen;
+    }
 
-  if (statusBox && statusText) {
-    statusBox.classList.remove('open', 'closed');
-    statusBox.classList.add(isOpen ? 'open' : 'closed');
-    statusText.innerText = isOpen
-      ? "Open Now"
-      : "Closed Now";
-  }
+    const statusText = document.getElementById("status-text");
+    if (statusText) {
+      statusText.textContent = isOpen ? "Open Now" : "Closed Now";
+    }
 
-  if (badge && badgeText) {
-    badge.style.display = "inline-flex";
-    badge.classList.remove("open", "closed");
-    badge.classList.add(isOpen ? "open" : "closed");
-    badgeText.textContent = isOpen
-      ? "OPEN NOW"
-      : "CLOSED NOW";
-  }
-}
+    const badgeText = document.getElementById("business-status-text");
+    if (badgeText) {
+      badgeText.textContent = isOpen ? "OPEN NOW" : "CLOSED NOW";
+    }
 
-document.addEventListener('change', (e) => {
-  if (e.target && e.target.id === 'businessToggle') {
-    const isOpen = !!e.target.checked;
-
-    localStorage.setItem(
-      'business_open_status_v2',
-      isOpen ? 'true' : 'false'
-    );
-
-    if (typeof window.setBusinessOpenStatus === 'function') {
-      window.setBusinessOpenStatus(isOpen);
+    const badge = document.getElementById("business-status-badge");
+    if (badge) {
+      badge.classList.remove("open", "closed");
+      badge.classList.add(isOpen ? "open" : "closed");
     }
 
     updateBusinessUI();
-    updateBusinessHours();
   }
-});
 
-window.addEventListener('storage', (e) => {
-  if (
-    !e.key ||
-    e.key === 'business_open_status_v2' ||
-    e.key === 'deliverySettings' ||
-    e.key === 'delivery_settings_v2' ||
-    e.key === 'delivery_settings'
-  ) {
-    updateBusinessUI();
-    updateBusinessHours();
+  if (toggle) {
+    toggle.addEventListener("change", () => {
+      localStorage.setItem(
+        "business_open_status_v2",
+        toggle.checked ? "true" : "false"
+      );
+
+      syncBusinessStatus();
+    });
   }
-});
 
-window.addEventListener('focus', () => {
-  updateBusinessUI();
-  updateBusinessHours();
-});
+  window.addEventListener("storage", syncBusinessStatus);
 
-window.addEventListener('DOMContentLoaded', () => {
-  updateBusinessUI();
-  updateBusinessHours();
+  syncBusinessStatus();
 });
-
 </script>
 
 </body>

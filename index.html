@@ -3266,283 +3266,66 @@ window.addEventListener('load',function(){
 
 <script>
 (function(){
-const STORAGE_KEY = "business_open_status_v2";
-const spinner = document.createElement("div");
-spinner.className = "custom-refresh-spinner";
-document.body.appendChild(spinner);
-
-let startY = 0;
-let pulling = false;
-let manualClosedOverride = false;
-let businessHoursStatusUnsub = null;
-let deliverySettingsStatusUnsub = null;
-let _businessHoursDoc = null;
-let _deliverySettingsDoc = null;
-
-function normalizeBoolean(value) {
-  return value === true || value === 'true' || value === 1 || value === '1';
-}
-
-function getFirestoreInstance() {
-  return (typeof db !== 'undefined' && db) ? db : (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
-}
-
-function applyBusinessHoursSnapshot(data) {
-  manualClosedOverride = normalizeBoolean(data?.manualClosed);
-  if (typeof updateBusinessUI === 'function') updateBusinessUI();
-  if (typeof updateBusinessHours === 'function') updateBusinessHours();
-}
-
-function startBusinessHoursRealtimeListener() {
-  const firestore = getFirestoreInstance();
-  if (!firestore || !firestore.collection) {
-    setTimeout(startBusinessHoursRealtimeListener, 500);
-    return;
-  }
-
-  // Unsubscribe previous listeners if present
-  try {
-    if (businessHoursStatusUnsub) { businessHoursStatusUnsub(); businessHoursStatusUnsub = null; }
-    if (deliverySettingsStatusUnsub) { deliverySettingsStatusUnsub(); deliverySettingsStatusUnsub = null; }
-  } catch (err) { /* ignore */ }
-
-  try {
-    // Listen to explicit manual override document
-    businessHoursStatusUnsub = firestore.collection('settings').doc('businessHours')
-      .onSnapshot(doc => {
-        _businessHoursDoc = doc.exists ? (doc.data() || {}) : null;
-        const bhManual = _businessHoursDoc ? normalizeBoolean(_businessHoursDoc.manualClosed) : false;
-        const deliveryDocClosed = _deliverySettingsDoc ? (_deliverySettingsDoc.businessOpen === false || _deliverySettingsDoc.businessOpen === 'false') : false;
-        manualClosedOverride = bhManual || deliveryDocClosed;
-        if (typeof updateBusinessUI === 'function') updateBusinessUI();
-        if (typeof updateBusinessHours === 'function') updateBusinessHours();
-      }, err => console.error('[BusinessHours] realtime listener error:', err));
-
-    // Also listen to primary delivery settings where admin may save businessOpen
-    deliverySettingsStatusUnsub = firestore.collection('app_settings').doc('delivery_settings')
-      .onSnapshot(doc => {
-        _deliverySettingsDoc = doc.exists ? (doc.data() || {}) : null;
-        const bhManual = _businessHoursDoc ? normalizeBoolean(_businessHoursDoc.manualClosed) : false;
-        const deliveryDocClosed = _deliverySettingsDoc ? (_deliverySettingsDoc.businessOpen === false || _deliverySettingsDoc.businessOpen === 'false') : false;
-        manualClosedOverride = bhManual || deliveryDocClosed;
-        if (typeof updateBusinessUI === 'function') updateBusinessUI();
-        if (typeof updateBusinessHours === 'function') updateBusinessHours();
-      }, err => console.error('[DeliverySettings] realtime listener error:', err));
-
-  } catch (err) {
-    console.error('[BusinessHours] failed to subscribe combined listeners:', err);
-  }
-}
-
-async function setManualClosedStatus(isClosed) {
-  manualClosedOverride = !!isClosed;
-  if (typeof updateBusinessUI === 'function') updateBusinessUI();
-  if (typeof updateBusinessHours === 'function') updateBusinessHours();
-
-  const firestore = getFirestoreInstance();
-  if (!firestore || !firestore.collection) return;
-
-  try {
-    await firestore.collection('settings').doc('businessHours').set({
-      manualClosed: manualClosedOverride,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      savedBy: (typeof currentUser !== 'undefined' && currentUser?.email) ? currentUser.email : 'unknown'
-    }, { merge: true });
-  } catch (err) {
-    console.error('[BusinessHours] write failed:', err);
-  }
-}
-
-window.addEventListener('focus', () => {
-  if (typeof updateBusinessUI === 'function') updateBusinessUI();
-  if (typeof updateBusinessHours === 'function') updateBusinessHours();
-});
-
-window.addEventListener('touchstart',(e)=>{
-  if(window.scrollY <= 0){
-    startY = e.touches[0].clientY;
-  }
-},{passive:true});
-
-window.addEventListener("touchmove",(e)=>{
-  const currentY = e.touches[0].clientY;
-  const diff = currentY - startY;
-
-  if(window.scrollY <= 0 && diff > 55){
-    pulling = true;
-    spinner.classList.add("show");
-  }
-},{passive:true});
-
-window.addEventListener("touchend",()=>{
-  if(pulling){
-    pulling = false;
-    setTimeout(()=>{
-      spinner.classList.remove("show");
-      location.reload();
-    },700);
-  }
-},{passive:true});
-
-
-function updateBusinessUI() {
-  const STORAGE_KEY = "business_open_status_v2";
-
-  const isOpen = localStorage.getItem(STORAGE_KEY) !== "false";
-
-  const badge = document.getElementById("business-status-badge");
-  const text = document.getElementById("business-status-text");
-  const toggle = document.getElementById("businessToggle");
-
-  if (toggle) {
-    toggle.checked = isOpen;
-  }
-
-  if (badge && text) {
-    badge.style.display = "inline-flex";
-    badge.classList.remove("open", "closed");
-    badge.classList.add(isOpen ? "open" : "closed");
-    text.textContent = isOpen ? "OPEN NOW" : "CLOSED NOW";
-  }
-
-  document.querySelectorAll(".add-btn,.checkout-btn").forEach(btn => {
-    btn.disabled = !isOpen;
-    btn.style.opacity = isOpen ? "1" : "0.5";
-    btn.style.pointerEvents = isOpen ? "auto" : "none";
-  });
-
-  let closedMsg = document.getElementById("business-closed-message");
-
-  if (!isOpen) {
-    if (!closedMsg) {
-      closedMsg = document.createElement("div");
-      closedMsg.id = "business-closed-message";
-      closedMsg.innerHTML = "🔴 STORE IS CURRENTLY CLOSED";
-      closedMsg.style.cssText =
-        "position:fixed;top:0;left:0;right:0;z-index:9999;background:#c62828;color:#fff;padding:12px;text-align:center;font-weight:800;font-size:15px;";
-      document.body.prepend(closedMsg);
-    }
-  } else {
-    if (closedMsg) closedMsg.remove();
-  }
-}
-
-
-document.addEventListener("change",(e)=>{
-  if(e.target && e.target.id === "businessToggle"){
-    const isOpen = !!e.target.checked;
-    if (typeof window.setBusinessOpenStatus === 'function') {
-      window.setBusinessOpenStatus(isOpen);
-    } else {
-      localStorage.setItem(STORAGE_KEY, isOpen ? "true" : "false");
-      updateBusinessUI();
-      if (typeof updateBusinessHours === 'function') updateBusinessHours();
-    }
-  }
-});
-
-window.addEventListener('storage', (e) => {
-  if (!e.key || e.key === STORAGE_KEY || e.key === 'deliverySettings' || e.key === 'business_open_status_v2' || e.key === 'delivery_settings' || e.key === 'delivery_settings_v2') {
-    if (typeof updateBusinessUI === 'function') updateBusinessUI();
-    if (typeof updateBusinessHours === 'function') updateBusinessHours();
-  }
-});
-
-window.addEventListener('focus', () => {
-  if (typeof updateBusinessUI === 'function') updateBusinessUI();
-  if (typeof updateBusinessHours === 'function') updateBusinessHours();
-});
-
-window.addEventListener("DOMContentLoaded", () => {
-  updateBusinessUI();
-  startBusinessHoursRealtimeListener();
-  const svcBusinessOpenEl = document.getElementById('svc-business-open');
-  if (svcBusinessOpenEl) {
-    svcBusinessOpenEl.addEventListener('change', (e) => {
-      const isOpen = !!e.target.checked;
-      setManualClosedStatus(!isOpen);
-    });
-  }
-});
-})();
-</script>
-
-<script>
-
-
-
-</script>
-
-
 
 
 
 <script>
-(function(){
+document.addEventListener("DOMContentLoaded", function () {
 
-const STORAGE_KEY = "business_open_status_v2";
+    const STORAGE_KEY = "shop_open";
 
-function getBusinessOpenStatus(){
-    return localStorage.getItem(STORAGE_KEY) !== "false";
-}
+    function updateStatus() {
 
-function applyBusinessStatus(){
-    const isOpen = getBusinessOpenStatus();
+        const isOpen = localStorage.getItem(STORAGE_KEY) !== "false";
 
-    // CUSTOMER OPEN/CLOSED TEXT
-    document.querySelectorAll(
-      '#business-status-text, #status-text, .business-status-text'
-    ).forEach(el=>{
-        el.textContent = isOpen ? 'OPEN NOW' : 'CLOSED NOW';
-    });
+        // CUSTOMER STATUS TEXT
+        document.querySelectorAll("#business-status-text,#status-text").forEach(el => {
+            el.innerText = isOpen ? "OPEN NOW" : "CLOSED NOW";
+        });
 
-    // BADGES
-    document.querySelectorAll(
-      '#business-status-badge, .business-status-badge'
-    ).forEach(el=>{
-        el.classList.remove('open','closed');
-        el.classList.add(isOpen ? 'open' : 'closed');
-    });
+        // CUSTOMER STATUS BADGE
+        document.querySelectorAll("#business-status-badge").forEach(el => {
+            el.classList.remove("open","closed");
+            el.classList.add(isOpen ? "open" : "closed");
+        });
 
-    // ADMIN TOGGLE
-    const toggle = document.getElementById('businessToggle');
-    if(toggle){
-        toggle.checked = isOpen;
+        // ADMIN TOGGLE
+        const toggle = document.getElementById("businessToggle");
+
+        if(toggle){
+            toggle.checked = isOpen;
+        }
+
+        // DISABLE BUTTONS WHEN CLOSED
+        document.querySelectorAll(".add-btn,.checkout-btn,.fob-btn").forEach(btn=>{
+            btn.disabled = !isOpen;
+            btn.style.opacity = isOpen ? "1" : "0.5";
+        });
+
     }
 
-    // DISABLE ORDER BUTTONS WHEN CLOSED
-    document.querySelectorAll('.add-btn,.checkout-btn,.fob-btn').forEach(btn=>{
-        btn.disabled = !isOpen;
-        btn.style.opacity = isOpen ? '1' : '0.5';
-        btn.style.pointerEvents = isOpen ? 'auto' : 'none';
+    // ADMIN TOGGLE CHANGE
+    document.addEventListener("change", function(e){
+
+        if(e.target && e.target.id === "businessToggle"){
+
+            localStorage.setItem(
+                STORAGE_KEY,
+                e.target.checked ? "true" : "false"
+            );
+
+            updateStatus();
+        }
+
     });
-}
 
-// ADMIN TOGGLE LIVE SYNC
-document.addEventListener('change', function(e){
-    if(e.target && e.target.id === 'businessToggle'){
-        const isOpen = !!e.target.checked;
+    // LIVE CUSTOMER SYNC
+    setInterval(updateStatus, 500);
 
-        localStorage.setItem(
-            STORAGE_KEY,
-            isOpen ? 'true' : 'false'
-        );
+    // FIRST LOAD
+    updateStatus();
 
-        applyBusinessStatus();
-    }
 });
-
-// LIVE UPDATE SAME TAB
-window.addEventListener('storage', applyBusinessStatus);
-
-// RUN EVERY SECOND FOR INSTANT CUSTOMER SYNC
-setInterval(applyBusinessStatus, 1000);
-
-document.addEventListener('DOMContentLoaded', applyBusinessStatus);
-
-applyBusinessStatus();
-
-})();
 </script>
 
 </body>

@@ -1559,7 +1559,6 @@ animation:spinRefresh .7s linear infinite;
   <p style="color:#a5d6a7;font-size:.85rem;margin-top:4px">Fresh Vegetables · Fruits · Dairy · Staples — Delivered to your door!</p>
   <div id="business-status-badge" class="business-status-badge closed" style="display:none;white-space:nowrap;margin:18px auto 0;">
     <span class="business-status-dot"></span>
-    <span id="business-status-text">CLOSED NOW</span>
   </div>
   <div class="hero-badges">
     <span class="badge">🥦 Vegetables &amp; Fruits</span>
@@ -2151,7 +2150,6 @@ animation:spinRefresh .7s linear infinite;
       <div class="bh-toggle-row">
         <div class="bh-toggle-label">Manual business hours toggle</div>
         <label class="toggle-switch">
-          <input type="checkbox" id="businessToggle">
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -3269,61 +3267,56 @@ window.addEventListener('load',function(){
 
 
 
+
+
+
 <script>
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", function(){
 
-    const STORAGE_KEY = "shop_open";
+const STORAGE_KEY = "perfect_business_status";
 
-    function updateStatus() {
+const toggle = document.getElementById("newBusinessToggle");
+const status = document.getElementById("customerBusinessStatus");
 
-        const isOpen = localStorage.getItem(STORAGE_KEY) !== "false";
+function updateBusiness(){
 
-        // CUSTOMER STATUS TEXT
-        document.querySelectorAll("#business-status-text,#status-text").forEach(el => {
-            el.innerText = isOpen ? "OPEN NOW" : "CLOSED NOW";
-        });
+const isOpen = localStorage.getItem(STORAGE_KEY) !== "false";
 
-        // CUSTOMER STATUS BADGE
-        document.querySelectorAll("#business-status-badge").forEach(el => {
-            el.classList.remove("open","closed");
-            el.classList.add(isOpen ? "open" : "closed");
-        });
+if(toggle){
+toggle.checked = isOpen;
+}
 
-        // ADMIN TOGGLE
-        const toggle = document.getElementById("businessToggle");
+if(status){
+status.innerText = isOpen ? "🟢 OPEN NOW" : "🔴 CLOSED NOW";
+status.style.color = isOpen ? "#2e7d32" : "#c62828";
+}
 
-        if(toggle){
-            toggle.checked = isOpen;
-        }
+document.querySelectorAll(".add-btn,.checkout-btn,.fob-btn").forEach(btn=>{
+btn.disabled = !isOpen;
+btn.style.opacity = isOpen ? "1" : "0.5";
+btn.style.pointerEvents = isOpen ? "auto" : "none";
+});
 
-        // DISABLE BUTTONS WHEN CLOSED
-        document.querySelectorAll(".add-btn,.checkout-btn,.fob-btn").forEach(btn=>{
-            btn.disabled = !isOpen;
-            btn.style.opacity = isOpen ? "1" : "0.5";
-        });
+}
 
-    }
+if(toggle){
+toggle.addEventListener("change", function(){
 
-    // ADMIN TOGGLE CHANGE
-    document.addEventListener("change", function(e){
+localStorage.setItem(
+STORAGE_KEY,
+toggle.checked ? "true" : "false"
+);
 
-        if(e.target && e.target.id === "businessToggle"){
+updateBusiness();
 
-            localStorage.setItem(
-                STORAGE_KEY,
-                e.target.checked ? "true" : "false"
-            );
+});
+}
 
-            updateStatus();
-        }
+window.addEventListener("storage", updateBusiness);
 
-    });
+setInterval(updateBusiness, 500);
 
-    // LIVE CUSTOMER SYNC
-    setInterval(updateStatus, 500);
-
-    // FIRST LOAD
-    updateStatus();
+updateBusiness();
 
 });
 </script>

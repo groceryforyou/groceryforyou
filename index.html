@@ -3478,71 +3478,95 @@ window.addEventListener("DOMContentLoaded", () => {
 
 /* ===== BUSINESS HOURS STATUS ===== */
 
-function getBusinessHoursOpenStatus(){
-  if (manualClosedOverride) {
-    return false;
+function getBusinessHoursOpenStatus() {
+  const settings = typeof getDeliverySettings === 'function'
+    ? getDeliverySettings()
+    : null;
+
+  if (settings && settings.businessOpen !== undefined) {
+    return !!settings.businessOpen;
   }
 
-  const settings = typeof getDeliverySettings === 'function' ? getDeliverySettings() : null;
   const stored = localStorage.getItem('business_open_status_v2');
 
-  if(settings && settings.businessOpen !== undefined){
-    return settings.businessOpen;
+  if (stored !== null) {
+    return stored === 'true';
   }
-  if(stored !== null){
-    return stored !== 'false';
-  }
+
   return true;
 }
 
-function updateBusinessHours(){
+function updateBusinessHours() {
   const statusBox = document.getElementById("business-status");
   const statusText = document.getElementById("status-text");
-  if(!statusBox || !statusText) return;
+  const badge = document.getElementById("business-status-badge");
+  const badgeText = document.getElementById("business-status-text");
+  const toggle = document.getElementById("businessToggle");
 
-  const now = new Date();
-  const currentHour = now.getHours();
-  const currentMinute = now.getMinutes();
-  const currentTime = currentHour + currentMinute / 60;
-  const openTime = 9;
-  const closeTime = 22;
+  const isOpen = getBusinessHoursOpenStatus();
 
-  const manualOpen = getBusinessHoursOpenStatus();
-  const openByTime = currentTime >= openTime && currentTime < closeTime;
-  const isOpen = manualOpen && openByTime;
+  if (toggle) {
+    toggle.checked = isOpen;
+  }
 
-  statusBox.classList.remove('open','closed');
-  statusBox.classList.add(isOpen ? 'open' : 'closed');
+  if (statusBox && statusText) {
+    statusBox.classList.remove('open', 'closed');
+    statusBox.classList.add(isOpen ? 'open' : 'closed');
+    statusText.innerText = isOpen
+      ? "Open Now"
+      : "Closed Now";
+  }
 
-  if(isOpen){
-    statusText.innerText = "Open Now • Closes 10:00 PM";
-  } else if (!manualOpen) {
-    statusText.innerText = "Closed Now • Admin closed store";
-  } else {
-    statusText.innerText = "Closed Now • Opens 9:00 AM";
+  if (badge && badgeText) {
+    badge.style.display = "inline-flex";
+    badge.classList.remove("open", "closed");
+    badge.classList.add(isOpen ? "open" : "closed");
+    badgeText.textContent = isOpen
+      ? "OPEN NOW"
+      : "CLOSED NOW";
   }
 }
 
 document.addEventListener('change', (e) => {
   if (e.target && e.target.id === 'businessToggle') {
-    if (typeof updateBusinessHours === 'function') updateBusinessHours();
+    const isOpen = !!e.target.checked;
+
+    localStorage.setItem(
+      'business_open_status_v2',
+      isOpen ? 'true' : 'false'
+    );
+
+    if (typeof window.setBusinessOpenStatus === 'function') {
+      window.setBusinessOpenStatus(isOpen);
+    }
+
+    updateBusinessUI();
+    updateBusinessHours();
   }
 });
 
 window.addEventListener('storage', (e) => {
-  if (!e.key || e.key === 'business_open_status_v2' || e.key === 'deliverySettings' || e.key === 'delivery_settings_v2' || e.key === 'delivery_settings') {
-    if (typeof updateBusinessUI === 'function') updateBusinessUI();
-    if (typeof updateBusinessHours === 'function') updateBusinessHours();
+  if (
+    !e.key ||
+    e.key === 'business_open_status_v2' ||
+    e.key === 'deliverySettings' ||
+    e.key === 'delivery_settings_v2' ||
+    e.key === 'delivery_settings'
+  ) {
+    updateBusinessUI();
+    updateBusinessHours();
   }
 });
 
 window.addEventListener('focus', () => {
-  if (typeof updateBusinessUI === 'function') updateBusinessUI();
-  if (typeof updateBusinessHours === 'function') updateBusinessHours();
+  updateBusinessUI();
+  updateBusinessHours();
 });
 
-window.addEventListener('DOMContentLoaded', updateBusinessHours);
-setInterval(updateBusinessHours,60000);
+window.addEventListener('DOMContentLoaded', () => {
+  updateBusinessUI();
+  updateBusinessHours();
+});
 
 </script>
 

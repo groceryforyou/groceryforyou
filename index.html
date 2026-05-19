@@ -3474,51 +3474,75 @@ window.addEventListener("DOMContentLoaded", () => {
 </script>
 
 
+
+
+
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  const toggle = document.getElementById("businessToggle");
+(function(){
 
-  function syncBusinessStatus() {
-    const isOpen = localStorage.getItem("business_open_status_v2") !== "false";
+const STORAGE_KEY = "business_open_status_v2";
 
-    if (toggle) {
-      toggle.checked = isOpen;
-    }
+function getBusinessOpenStatus(){
+    return localStorage.getItem(STORAGE_KEY) !== "false";
+}
 
-    const statusText = document.getElementById("status-text");
-    if (statusText) {
-      statusText.textContent = isOpen ? "Open Now" : "Closed Now";
-    }
+function applyBusinessStatus(){
+    const isOpen = getBusinessOpenStatus();
 
-    const badgeText = document.getElementById("business-status-text");
-    if (badgeText) {
-      badgeText.textContent = isOpen ? "OPEN NOW" : "CLOSED NOW";
-    }
-
-    const badge = document.getElementById("business-status-badge");
-    if (badge) {
-      badge.classList.remove("open", "closed");
-      badge.classList.add(isOpen ? "open" : "closed");
-    }
-
-    updateBusinessUI();
-  }
-
-  if (toggle) {
-    toggle.addEventListener("change", () => {
-      localStorage.setItem(
-        "business_open_status_v2",
-        toggle.checked ? "true" : "false"
-      );
-
-      syncBusinessStatus();
+    // CUSTOMER OPEN/CLOSED TEXT
+    document.querySelectorAll(
+      '#business-status-text, #status-text, .business-status-text'
+    ).forEach(el=>{
+        el.textContent = isOpen ? 'OPEN NOW' : 'CLOSED NOW';
     });
-  }
 
-  window.addEventListener("storage", syncBusinessStatus);
+    // BADGES
+    document.querySelectorAll(
+      '#business-status-badge, .business-status-badge'
+    ).forEach(el=>{
+        el.classList.remove('open','closed');
+        el.classList.add(isOpen ? 'open' : 'closed');
+    });
 
-  syncBusinessStatus();
+    // ADMIN TOGGLE
+    const toggle = document.getElementById('businessToggle');
+    if(toggle){
+        toggle.checked = isOpen;
+    }
+
+    // DISABLE ORDER BUTTONS WHEN CLOSED
+    document.querySelectorAll('.add-btn,.checkout-btn,.fob-btn').forEach(btn=>{
+        btn.disabled = !isOpen;
+        btn.style.opacity = isOpen ? '1' : '0.5';
+        btn.style.pointerEvents = isOpen ? 'auto' : 'none';
+    });
+}
+
+// ADMIN TOGGLE LIVE SYNC
+document.addEventListener('change', function(e){
+    if(e.target && e.target.id === 'businessToggle'){
+        const isOpen = !!e.target.checked;
+
+        localStorage.setItem(
+            STORAGE_KEY,
+            isOpen ? 'true' : 'false'
+        );
+
+        applyBusinessStatus();
+    }
 });
+
+// LIVE UPDATE SAME TAB
+window.addEventListener('storage', applyBusinessStatus);
+
+// RUN EVERY SECOND FOR INSTANT CUSTOMER SYNC
+setInterval(applyBusinessStatus, 1000);
+
+document.addEventListener('DOMContentLoaded', applyBusinessStatus);
+
+applyBusinessStatus();
+
+})();
 </script>
 
 </body>

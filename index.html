@@ -3535,132 +3535,149 @@ updateBusiness();
   function hookSubmitTicket() {
     window.submitSupportTicket = async function(...args) {
       console.log('[TicketSubmit] 📝 Support ticket submission initiated');
-      console.log('[TicketSubmit] Form data:', {
-        type: document.getElementById('support-type')?.value,
-        orderId: document.getElementById('support-order-id')?.value,
-        email: document.getElementById('support-email')?.value
-      });
-
-      const result = await submitSupportTicketInternal(...args);
-      console.log('[TicketSubmit] ✅ Submission completed successfully');
-
-      // Reload after a short delay to let Firestore write settle
-      setTimeout(() => {
-        console.log('[TicketSubmit] 🔄 Reloading ticket list');
-        loadTickets();
-      }, 800);
-
-      return result;
+      try {
+        const result = await submitSupportTicketInternal(...args);
+        console.log('[TicketSubmit] ✅ Submission completed successfully');
+        // Reload after a short delay to let Firestore write settle
+        setTimeout(() => { loadTickets(); }, 800);
+        return result;
+      } catch (err) {
+        // Only show a toast for unexpected errors (validation already shows its own)
+        const msg = err && (err.message || err.code || String(err));
+        console.error('[TicketSubmit] ❌ Error:', msg, err);
+        const knownErrors = ['Missing support description','Missing order ID','Firestore not ready',
+          'Not a valid order ID','Order does not belong to current customer',
+          'Active support ticket already exists for this order'];
+        if (!knownErrors.includes(msg)) {
+          showToast('⚠️ Could not submit ticket. Please try again.', 4000);
+        }
+      }
     };
   }
 
   async function submitSupportTicketInternal() {
-    const type = document.getElementById('support-type')?.value || 'Other';
-    const desc = document.getElementById('support-desc')?.value.trim() || '';
-    const orderId = document.getElementById('support-order-id')?.value.trim() || '';
+    // Safe access to currentUser (may be defined in obfuscated global scope)
+    const _cu = (typeof currentUser !== 'undefined') ? currentUser : null;
+
+    const type    = document.getElementById('support-type')?.value || 'Other';
+    const desc    = (document.getElementById('support-desc')?.value || '').trim();
+    const orderId = (document.getElementById('support-order-id')?.value || '').trim();
 
     if (!desc) {
-      showToast('⚠️ Please enter a description');
+      showToast('⚠️ Please describe your issue');
       throw new Error('Missing support description');
     }
     if (!orderId) {
-      showToast('⚠️ Please enter Order ID');
+      showToast('⚠️ Please enter your Order ID (e.g. CE-XXXXXX)');
       throw new Error('Missing order ID');
     }
+
+    // Wait for Firestore (db comes from obfuscated code)
     if (typeof db === 'undefined' || !db) {
-      showToast('⚠️ Firestore is not ready. Please refresh the page.', 4000);
+      showToast('⚠️ Not connected. Please refresh the page and try again.', 4000);
       throw new Error('Firestore not ready');
     }
 
-    let customerEmail = '';
-    let customerUid = null;
-    if (currentUser) {
-      customerEmail = currentUser.email || '';
-      customerUid = currentUser.uid || null;
-    } else {
-      const savedOrder = localStorage.getItem('lastOrder');
-      if (savedOrder) {
-        try {
-          const lastOrder = JSON.parse(savedOrder);
-          if (lastOrder?.email) customerEmail = lastOrder.email;
-        } catch (_err) {}
+    // Gather customer identity
+    let customerEmail = _cu ? (_cu.email || '') : '';
+    let customerUid   = _cu ? (_cu.uid   || null) : null;
+    if (!customerEmail) {
+      try {
+        const lastOrder = JSON.parse(localStorage.getItem('lastOrder') || 'null');
+        if (lastOrder && lastOrder.email) customerEmail = lastOrder.email;
+      } catch (_e) {}
+    }
+
+    // Validate order exists in Firestore
+    let orderDoc = null;
+    try {
+      const orderSnap = await db.collection('orders').where('orderId', '==', orderId).get();
+      if (!orderSnap || orderSnap.empty || !orderSnap.docs.length) {
+        showToast('⚠️ Order ID not found. Please check and try again.');
+        throw new Error('Not a valid order ID');
+      }
+      orderDoc = orderSnap.docs[0].data();
+    } catch (err) {
+      if (err.message === 'Not a valid order ID') throw err;
+      // Firestore query itself failed (rules / network) — still allow submit
+      console.warn('[TicketSubmit] Order lookup failed (Firestore rules?):', err.code || err.message);
+    }
+
+    // Only verify ownership when we got the order doc
+    if (orderDoc) {
+      const orderEmail = (orderDoc.customerEmail || '').toLowerCase();
+      const orderUid   = orderDoc.customerUid || null;
+      const matches = _cu
+        ? (orderUid === _cu.uid || orderEmail === (_cu.email || '').toLowerCase())
+        : (customerEmail && orderEmail && orderEmail === customerEmail.toLowerCase());
+      if (!matches) {
+        showToast('⚠️ This Order ID does not belong to your account.');
+        throw new Error('Order does not belong to current customer');
       }
     }
 
-    const orderQuery = db.collection('orders').where('orderId', '==', orderId);
-    const orderSnap = await orderQuery.get();
-    if (!orderSnap?.docs?.length) {
-      showToast('⚠️ Not a valid order ID');
-      throw new Error('Not a valid order ID');
+    // Check for duplicate open ticket
+    try {
+      const supportSnap = await db.collection('support').where('orderId', '==', orderId).get();
+      const hasOpen = supportSnap && supportSnap.docs.some(d => {
+        return (d.data().status || '').toLowerCase() !== 'resolved';
+      });
+      if (hasOpen) {
+        showToast('⚠️ A ticket for this order is already open. Please wait for a response.');
+        throw new Error('Active support ticket already exists for this order');
+      }
+    } catch (err) {
+      if (err.message === 'Active support ticket already exists for this order') throw err;
+      // Duplicate check failed — proceed anyway
+      console.warn('[TicketSubmit] Duplicate check failed:', err.code || err.message);
     }
 
-    const orderDoc = orderSnap.docs[0].data();
-    const orderEmail = orderDoc.customerEmail || '';
-    const orderUid = orderDoc.customerUid || null;
-    const userMatchesOrder = currentUser
-      ? orderUid === currentUser.uid || orderEmail === currentUser.email
-      : (customerEmail && orderEmail && orderEmail.toLowerCase() === customerEmail.toLowerCase());
-
-    if (!userMatchesOrder) {
-      showToast('⚠️ Not a valid order ID');
-      throw new Error('Order does not belong to current customer');
-    }
-
-    const supportSnap = await db.collection('support').where('orderId', '==', orderId).get();
-    const openTicketExists = supportSnap.docs.some(doc => {
-      const status = (doc.data().status || '').toLowerCase();
-      return status !== 'resolved';
-    });
-
-    if (openTicketExists) {
-      showToast('⚠️ A ticket for this order is already open. Please wait for it to be resolved.');
-      throw new Error('Active support ticket already exists for this order');
-    }
-
-    const _serverTs = (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
+    // Build server timestamp with safe fallback
+    const _ts = () => (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
       ? firebase.firestore.FieldValue.serverTimestamp()
       : new Date();
 
+    // Write ticket to Firestore
     const ticketData = {
       type,
       desc,
       orderId,
       customerEmail,
       customerUid,
-      createdAt: _serverTs,
+      createdAt: _ts(),
       status: 'open'
     };
-
     const supportDoc = await db.collection('support').add(ticketData);
 
-    const _notifTs = (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
-      ? firebase.firestore.FieldValue.serverTimestamp()
-      : new Date();
-
-    const notificationData = {
-      title: 'New Support Ticket',
-      message: `Support ticket for order ${orderId} has been submitted.`,
-      ticketId: supportDoc.id,
-      orderId,
-      customerEmail,
-      customerUid,
-      type: 'support',
-      createdAt: _notifTs,
-      read: false
-    };
-    await db.collection('admin_notifications').add(notificationData);
-
-    showToast('✅ Support ticket submitted successfully', 4000);
-
-    const descField = document.getElementById('support-desc');
-    const orderField = document.getElementById('support-order-id');
-    if (descField) descField.value = '';
-    if (orderField) orderField.value = '';
-    if (currentUser || localStorage.getItem('lastOrder')) {
-      // Close the form and show the ticket list (renderSupportPage doesn't exist — use loadTickets instead)
-      if (typeof window.closeSupportForm === 'function') window.closeSupportForm();
-      showTicketList();
+    // Write admin notification (best-effort)
+    try {
+      await db.collection('admin_notifications').add({
+        title: 'New Support Ticket',
+        message: `Support ticket for order ${orderId} has been submitted.`,
+        ticketId: supportDoc.id,
+        orderId,
+        customerEmail,
+        customerUid,
+        type: 'support',
+        createdAt: _ts(),
+        read: false
+      });
+    } catch (notifErr) {
+      console.warn('[TicketSubmit] Admin notification failed:', notifErr.code || notifErr.message);
     }
+
+    // Success feedback
+    showToast('✅ Ticket submitted! We\'ll get back to you soon.', 4000);
+
+    // Clear form
+    const descEl    = document.getElementById('support-desc');
+    const orderEl   = document.getElementById('support-order-id');
+    if (descEl)  descEl.value  = '';
+    if (orderEl) orderEl.value = '';
+
+    // Switch to ticket list view
+    if (typeof window.closeSupportForm === 'function') window.closeSupportForm();
+    showTicketList();
 
     return supportDoc;
   }

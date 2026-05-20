@@ -4824,142 +4824,96 @@ updateBusiness();
 (function supportTicketBadge() {
   'use strict';
 
-  var _unsub = null;
-  var _seenOpenIds = new Set(); // tickets admin has "seen" by opening the page
+  var _unsub       = null;
+  var _openCount   = 0;
+  var _seenCount   = parseInt(localStorage.getItem('_sbSeen') || '0', 10);
 
-  /* ── Update the badge element ── */
-  function setBadge(count) {
+  /* ── Show / hide badge ── */
+  function setBadge(n) {
     var el = document.getElementById('asb-support-badge');
     if (!el) return;
-    if (count > 0) {
-      el.textContent = count > 99 ? '99+' : String(count);
-      el.style.display = '';
-      // Pulse animation to draw attention
-      el.style.background = '#e53935';
-      el.style.color = '#fff';
-      el.style.borderRadius = '50px';
-      el.style.padding = '2px 7px';
-      el.style.fontSize = '.65rem';
-      el.style.fontWeight = '900';
-      el.style.animation = 'badgePop .35s cubic-bezier(.34,1.56,.64,1)';
+    var unseen = Math.max(0, n - _seenCount);
+    if (unseen > 0) {
+      el.textContent = unseen > 99 ? '99+' : String(unseen);
+      el.style.cssText = 'display:inline-block;background:#e53935;color:#fff;border-radius:50px;padding:2px 7px;font-size:.62rem;font-weight:900;min-width:18px;text-align:center;animation:sbPop .35s cubic-bezier(.34,1.56,.64,1)';
     } else {
       el.style.display = 'none';
     }
   }
 
-  /* ── Start real-time listener on the support collection ── */
+  /* ── Start Firestore listener — retries until db is ready ── */
   function startListener() {
-    if (_unsub) return; // already listening
-    if (typeof db === 'undefined' || !db) return;
-
-    try {
-      _unsub = db.collection('support')
-        .where('status', 'in', ['open', 'pending'])
-        .onSnapshot(function(snap) {
-          if (!snap) return;
-          // Count tickets not yet "seen" by admin
-          var unseen = 0;
-          snap.forEach(function(doc) {
-            if (!_seenOpenIds.has(doc.id)) unseen++;
-          });
-          setBadge(unseen);
-        }, function(err) {
-          console.warn('[SupportBadge] Listener error:', err.code || err.message);
-          // Fallback: try without the 'in' filter (older SDK compatibility)
-          startListenerFallback();
-        });
-    } catch (e) {
-      startListenerFallback();
-    }
-  }
-
-  /* ── Fallback for SDKs that don't support 'in' operator ── */
-  function startListenerFallback() {
     if (_unsub) return;
-    if (typeof db === 'undefined' || !db) return;
+    if (typeof db === 'undefined' || !db) { setTimeout(startListener, 700); return; }
+    console.log('[SupportBadge] Starting listener...');
     try {
       _unsub = db.collection('support')
         .where('status', '==', 'open')
         .onSnapshot(function(snap) {
-          if (!snap) return;
-          var unseen = 0;
-          snap.forEach(function(doc) {
-            if (!_seenOpenIds.has(doc.id)) unseen++;
-          });
-          setBadge(unseen);
+          _openCount = snap ? snap.size : 0;
+          console.log('[SupportBadge] Open:', _openCount, '| Seen:', _seenCount);
+          setBadge(_openCount);
         }, function(err) {
-          console.warn('[SupportBadge] Fallback listener error:', err.code || err.message);
+          console.warn('[SupportBadge] Error:', err.code, err.message);
         });
     } catch (e) {
-      console.warn('[SupportBadge] Could not start listener:', e);
+      console.warn('[SupportBadge] threw:', e);
     }
   }
 
-  /* ── Mark all currently visible open tickets as "seen" ── */
-  function markAllSeen() {
-    if (typeof db === 'undefined' || !db) return;
-    db.collection('support')
-      .where('status', 'in', ['open', 'pending'])
-      .get()
-      .then(function(snap) {
-        if (!snap) return;
-        snap.forEach(function(doc) { _seenOpenIds.add(doc.id); });
-        setBadge(0);
-      })
-      .catch(function() {
-        // Fallback without 'in'
-        db.collection('support').where('status', '==', 'open').get()
-          .then(function(snap) {
-            if (!snap) return;
-            snap.forEach(function(doc) { _seenOpenIds.add(doc.id); });
-            setBadge(0);
-          }).catch(function() {});
-      });
+  /* ── Mark all as "seen" when admin opens support page ── */
+  function markSeen() {
+    _seenCount = _openCount;
+    localStorage.setItem('_sbSeen', String(_seenCount));
+    setBadge(_openCount);
+    console.log('[SupportBadge] Marked', _seenCount, 'as seen');
   }
 
-  /* ── Hook showPage so we clear the badge when admin opens support ── */
-  function hookShowPage() {
-    var orig = window.showPage;
-    if (typeof orig !== 'function') {
-      setTimeout(hookShowPage, 400);
-      return;
-    }
-    window.showPage = function(page) {
+  /* ── Hook the sidebar button directly ── */
+  function hookButton() {
+    var btn = document.getElementById('asb-support');
+    if (!btn) { setTimeout(hookButton, 400); return; }
+    btn.addEventListener('click', function() { setTimeout(markSeen, 350); });
+    console.log('[SupportBadge] Button hooked');
+  }
+
+  /* ── Also hook adminSidebarGo for programmatic navigation ── */
+  function hookSidebarGo() {
+    var orig = window.adminSidebarGo;
+    if (typeof orig !== 'function') { setTimeout(hookSidebarGo, 400); return; }
+    window.adminSidebarGo = function(page) {
       orig.apply(this, arguments);
-      if (page === 'admin-support') {
-        // Admin is viewing tickets — mark all as seen
-        setTimeout(markAllSeen, 300);
-      }
+      if (page === 'admin-support') setTimeout(markSeen, 350);
     };
+    console.log('[SupportBadge] adminSidebarGo hooked');
   }
 
-  /* ── Wait for Firestore then start ── */
-  function init() {
-    if (typeof db !== 'undefined' && db) {
-      startListener();
-      hookShowPage();
-    } else {
-      setTimeout(init, 600);
-    }
-  }
-
-  /* ── Inject keyframe animation if not present ── */
+  /* ── CSS for pop animation ── */
   function injectCSS() {
-    if (document.getElementById('support-badge-css')) return;
+    if (document.getElementById('_sb_css')) return;
     var s = document.createElement('style');
-    s.id = 'support-badge-css';
-    s.textContent = '@keyframes badgePop{from{transform:scale(0.5);opacity:0}to{transform:scale(1);opacity:1}}';
+    s.id = '_sb_css';
+    s.textContent = '@keyframes sbPop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}';
     document.head.appendChild(s);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() { injectCSS(); init(); });
-  } else {
+  function init() {
     injectCSS();
-    setTimeout(init, 200);
+    hookButton();
+    hookSidebarGo();
+    startListener();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    setTimeout(init, 300);
   }
 })();
+
 </script>
+
+
 
 <!-- ===== RAZORPAY LIVE PAYMENT INTEGRATION ===== -->
 <script>

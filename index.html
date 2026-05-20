@@ -3617,17 +3617,25 @@ updateBusiness();
       throw new Error('Active support ticket already exists for this order');
     }
 
+    const _serverTs = (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
+      ? firebase.firestore.FieldValue.serverTimestamp()
+      : new Date();
+
     const ticketData = {
       type,
       desc,
       orderId,
       customerEmail,
       customerUid,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: _serverTs,
       status: 'open'
     };
 
     const supportDoc = await db.collection('support').add(ticketData);
+
+    const _notifTs = (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
+      ? firebase.firestore.FieldValue.serverTimestamp()
+      : new Date();
 
     const notificationData = {
       title: 'New Support Ticket',
@@ -3637,7 +3645,7 @@ updateBusiness();
       customerEmail,
       customerUid,
       type: 'support',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: _notifTs,
       read: false
     };
     await db.collection('admin_notifications').add(notificationData);
@@ -3649,8 +3657,9 @@ updateBusiness();
     if (descField) descField.value = '';
     if (orderField) orderField.value = '';
     if (currentUser || localStorage.getItem('lastOrder')) {
-      closeSupportForm();
-      renderSupportPage();
+      // Close the form and show the ticket list (renderSupportPage doesn't exist — use loadTickets instead)
+      if (typeof window.closeSupportForm === 'function') window.closeSupportForm();
+      showTicketList();
     }
 
     return supportDoc;

@@ -3649,8 +3649,8 @@ updateBusiness();
     if (descField) descField.value = '';
     if (orderField) orderField.value = '';
     if (currentUser || localStorage.getItem('lastOrder')) {
-      if (typeof window.closeSupportForm === 'function') window.closeSupportForm();
-      setTimeout(loadTickets, 400);
+      closeSupportForm();
+      renderSupportPage();
     }
 
     return supportDoc;

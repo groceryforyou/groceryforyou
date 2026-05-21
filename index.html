@@ -6288,3 +6288,16 @@ waitFor(
 })();
 </script>
 </html>
+
+
+
+// FIX UPI PAYMENT TOTAL
+function getCorrectGrandTotal(){
+  try{
+    const subtotal = getCartTotal ? getCartTotal() : 0;
+    const deliveryFee = 40;
+    return Number(subtotal) + Number(deliveryFee);
+  }catch(e){
+    return 0;
+  }
+}

@@ -4363,34 +4363,38 @@ document.addEventListener("DOMContentLoaded", function(){
 
     const totalEl = document.getElementById('om-total');
 
-    const subtotal =
-      totalEl
-        ? parseInt(totalEl.textContent.replace(/[^\d]/g,'')) || 0
-        : 0;
+    // Clean subtotal value properly
+    let subtotal = 0;
 
-    const fee = calcDeliveryFee(subtotal);
+    if (totalEl) {
+      const cleanSubtotal = String(totalEl.textContent || '')
+        .replace(/[^\d.]/g, '')
+        .trim();
 
+      subtotal = Number(cleanSubtotal) || 0;
+    }
+
+    // Get delivery fee correctly
+    const fee = Number(calcDeliveryFee(subtotal)) || 0;
+
+    // Calculate final grand total
     const grand = subtotal + fee;
 
     const feeEl = document.getElementById('om-delivery-fee-display');
-
     const grandEl = document.getElementById('om-grand-total');
 
+    // Update delivery fee display
     if (feeEl) {
-
-      if (fee === 0) {
-
+      if (fee <= 0) {
         feeEl.textContent = '🎁 Free';
-
       } else {
-
         feeEl.textContent = '₹' + fee;
-
       }
     }
 
+    // Update grand total correctly
     if (grandEl) {
-      grandEl.textContent = '₹' + grand;
+      grandEl.textContent = '₹' + Math.round(grand);
     }
   }
 

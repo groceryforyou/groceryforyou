@@ -2149,11 +2149,40 @@ animation:spinRefresh .7s linear infinite;
       </div>
 
       <div class="bh-toggle-row">
-        <div class="bh-toggle-label">Manual business hours toggle</div>
+        <div class="bh-toggle-label">Store is open</div>
         <label class="toggle-switch">
+          <input type="checkbox" id="svc-business-open">
           <span class="toggle-slider"></span>
         </label>
       </div>
+
+      <div class="bh-toggle-row" style="margin-top:12px;">
+        <div class="bh-toggle-label">Enforce scheduled hours</div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="svc-business-hours-enabled">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="bh-form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:flex-end;margin-top:16px;">
+        <label style="display:flex;flex-direction:column;gap:6px;">
+          Open hour
+          <input type="number" id="svc-open-hour" min="0" max="23" step="1" class="aip-input" placeholder="6" />
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;">
+          Close hour
+          <input type="number" id="svc-close-hour" min="0" max="23" step="1" class="aip-input" placeholder="20" />
+        </label>
+      </div>
+
+      <label style="display:flex;flex-direction:column;gap:6px;margin-top:14px;">
+        Closed message
+        <input type="text" id="svc-outofservice-msg" class="aip-input" placeholder="Orders are currently closed. Please try later." />
+      </label>
+
+      <button class="aip-save" style="margin-top:18px;max-width:240px;" onclick="saveDeliverySettings()">
+        💾 Save Business Hours
+      </button>
 
       <table class="bh-table" aria-describedby="bh-desc" style="width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden">
         <caption id="bh-desc" style="text-align:left;padding:8px 12px;color:#666;font-size:.92rem">Regular weekly opening hours</caption>
@@ -3261,68 +3290,6 @@ window.addEventListener('load',function(){
   }
 })();
 </script>
-
-
-<script>
-(function(){
-
-
-
-
-
-
-<script>
-document.addEventListener("DOMContentLoaded", function(){
-
-const STORAGE_KEY = "perfect_business_status";
-
-const toggle = document.getElementById("newBusinessToggle");
-const status = document.getElementById("customerBusinessStatus");
-
-function updateBusiness(){
-
-const isOpen = localStorage.getItem(STORAGE_KEY) !== "false";
-
-if(toggle){
-toggle.checked = isOpen;
-}
-
-if(status){
-status.innerText = isOpen ? "🟢 OPEN NOW" : "🔴 CLOSED NOW";
-status.style.color = isOpen ? "#2e7d32" : "#c62828";
-}
-
-document.querySelectorAll(".add-btn,.checkout-btn,.fob-btn").forEach(btn=>{
-btn.disabled = !isOpen;
-btn.style.opacity = isOpen ? "1" : "0.5";
-btn.style.pointerEvents = isOpen ? "auto" : "none";
-});
-
-}
-
-if(toggle){
-toggle.addEventListener("change", function(){
-
-localStorage.setItem(
-STORAGE_KEY,
-toggle.checked ? "true" : "false"
-);
-
-updateBusiness();
-
-});
-}
-
-window.addEventListener("storage", updateBusiness);
-
-setInterval(updateBusiness, 500);
-
-updateBusiness();
-
-});
-</script>
-
-</body>
 <script>
   document.addEventListener('contextmenu', event => event.preventDefault());
   document.addEventListener('keydown', event => {
@@ -4129,6 +4096,20 @@ updateBusiness();
         ? !!settings.businessOpen
         : DEFAULT_DELIVERY_SETTINGS.businessOpen;
       console.log('[DeliverySettings] Set business open status to:', businessOpenEl.checked);
+    }
+
+    const pageStatusText = document.getElementById('status-text');
+    const pageStatusDot = document.querySelector('#business-status .status-dot');
+    if (pageStatusText) {
+      const isOpen = isStoreOpen(settings);
+      pageStatusText.textContent = isOpen ? 'Open now' : 'Closed';
+      if (pageStatusDot) {
+        pageStatusDot.style.background = isOpen ? '#2e7d32' : '#c62828';
+      }
+      const statusEl = document.getElementById('business-status');
+      if (statusEl) {
+        statusEl.style.color = isOpen ? '#2e7d32' : '#c62828';
+      }
     }
 
     // Apply fee to the delivery fee system
@@ -6134,4 +6115,6 @@ waitFor(
 
 })();
 </script>
+</body>
 </html>
+

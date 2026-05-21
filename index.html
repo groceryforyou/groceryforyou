@@ -1557,8 +1557,9 @@ animation:spinRefresh .7s linear infinite;
   <h2 style="font-family:'Yeseva One',serif;font-size:2.2rem;color:var(--turmeric);text-shadow:0 2px 12px rgba(0,0,0,0.5);margin-bottom:0">Grocery For You Sircilla 🛒</h2>
   <p style="color:#c8e6c9;font-size:1rem;margin-top:6px;font-style:italic">Online Grocery Delivery in Sircilla · Town Center, Sicsilla, Telangana</p>
   <p style="color:#a5d6a7;font-size:.85rem;margin-top:4px">Fresh Vegetables · Fruits · Dairy · Staples — Delivered to your door!</p>
-  <div id="business-status-badge" class="business-status-badge closed" style="display:none;white-space:nowrap;margin:18px auto 0;">
+  <div id="business-status-badge" class="business-status-badge closed" style="display:inline-flex;white-space:nowrap;margin:18px auto 0;">
     <span class="business-status-dot"></span>
+    <span id="customerBusinessStatus">Store is currently closed</span>
   </div>
   <div class="hero-badges">
     <span class="badge">🥦 Vegetables &amp; Fruits</span>
@@ -2151,6 +2152,7 @@ animation:spinRefresh .7s linear infinite;
       <div class="bh-toggle-row">
         <div class="bh-toggle-label">Manual business hours toggle</div>
         <label class="toggle-switch">
+          <input type="checkbox" id="newBusinessToggle">
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -3273,52 +3275,110 @@ window.addEventListener('load',function(){
 
 <script>
 document.addEventListener("DOMContentLoaded", function(){
+  const toggle = document.getElementById("newBusinessToggle");
+  const status = document.getElementById("customerBusinessStatus");
+  const badge = document.getElementById("business-status-badge");
 
-const STORAGE_KEY = "perfect_business_status";
+  // Main sync function called dynamically
+  window.updateBusinessUI = function() {
+    const settings = window.getDeliverySettings ? window.getDeliverySettings() : {};
+    const isOpen = window.isStoreOpen ? window.isStoreOpen(settings) : true;
 
-const toggle = document.getElementById("newBusinessToggle");
-const status = document.getElementById("customerBusinessStatus");
+    // 1. Sync admin toggle checked state
+    if (toggle) {
+      toggle.checked = settings.businessOpen !== false;
+    }
 
-function updateBusiness(){
+    // 2. Sync admin text display if it exists on page-business-hours
+    const adminStatusText = document.getElementById("status-text");
+    const adminStatusDot = document.querySelector(".bh-status .status-dot");
+    if (adminStatusText) {
+      adminStatusText.innerText = (settings.businessOpen !== false) ? "Open" : "Closed";
+    }
+    if (adminStatusDot) {
+      adminStatusDot.style.background = (settings.businessOpen !== false) ? "#2e7d32" : "#c62828";
+    }
 
-const isOpen = localStorage.getItem(STORAGE_KEY) !== "false";
+    // 3. Sync customer status badge
+    if (status) {
+      status.innerText = isOpen ? "🟢 OPEN NOW" : "🔴 CLOSED NOW";
+      status.style.color = isOpen ? "#2e7d32" : "#c62828";
+    }
+    if (badge) {
+      badge.style.display = "inline-flex";
+      if (isOpen) {
+        badge.classList.remove("closed");
+        badge.classList.add("open");
+      } else {
+        badge.classList.remove("open");
+        badge.classList.add("closed");
+      }
+    }
 
-if(toggle){
-toggle.checked = isOpen;
-}
+    // 4. Disable / Enable action buttons
+    document.querySelectorAll(".add-btn, .checkout-btn, .fob-btn").forEach(btn => {
+      btn.disabled = !isOpen;
+      btn.style.opacity = isOpen ? "1" : "0.5";
+      btn.style.pointerEvents = isOpen ? "auto" : "none";
+    });
+  };
 
-if(status){
-status.innerText = isOpen ? "🟢 OPEN NOW" : "🔴 CLOSED NOW";
-status.style.color = isOpen ? "#2e7d32" : "#c62828";
-}
+  // Handle Admin Toggle changes
+  if (toggle) {
+    toggle.addEventListener("change", function() {
+      const isOpen = toggle.checked;
 
-document.querySelectorAll(".add-btn,.checkout-btn,.fob-btn").forEach(btn=>{
-btn.disabled = !isOpen;
-btn.style.opacity = isOpen ? "1" : "0.5";
-btn.style.pointerEvents = isOpen ? "auto" : "none";
-});
+      // Sync to local storage
+      const existing = window.getDeliverySettings ? window.getDeliverySettings() : {};
+      const settings = {
+        ...existing,
+        businessOpen: isOpen,
+        updatedAt: new Date().toISOString()
+      };
+      if (window.DELIVERY_SETTINGS_KEY) {
+        localStorage.setItem(window.DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
+      }
+      localStorage.setItem("perfect_business_status", isOpen ? "true" : "false");
+      localStorage.setItem("business_open_status_v2", isOpen ? "true" : "false");
 
-}
+      // Sync UI locally
+      window.updateBusinessUI();
+      if (typeof window.updateBusinessHoursStatus === 'function') {
+        window.updateBusinessHoursStatus();
+      }
 
-if(toggle){
-toggle.addEventListener("change", function(){
+      // Save to Firestore in real-time
+      const firestore = (typeof db !== 'undefined' && db) ? db : (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+      if (firestore) {
+        firestore.collection('app_settings').doc('delivery_settings')
+          .set({ 
+            businessOpen: isOpen, 
+            updatedAt: settings.updatedAt, 
+            savedBy: window.currentUser?.email || 'admin-toggle' 
+          }, { merge: true })
+          .then(() => console.log('[DeliverySettings] ✓ Saved store status to Firestore'))
+          .catch(err => {
+            console.error('[DeliverySettings] Firestore toggle error:', err);
+            if (typeof showToast === 'function') {
+              showToast('⚠️ Saved locally. Connecting to Firestore...', 3000);
+            }
+          });
+      }
+    });
+  }
 
-localStorage.setItem(
-STORAGE_KEY,
-toggle.checked ? "true" : "false"
-);
+  // Listen to local storage updates across tabs
+  window.addEventListener("storage", function(e) {
+    if (e.key === "perfect_business_status" || e.key === "delivery_settings_v3" || e.key === "business_open_status_v2") {
+      window.updateBusinessUI();
+    }
+  });
 
-updateBusiness();
+  // Fallback interval to ensure dynamically generated products are styled correctly
+  setInterval(window.updateBusinessUI, 500);
 
-});
-}
-
-window.addEventListener("storage", updateBusiness);
-
-setInterval(updateBusiness, 500);
-
-updateBusiness();
-
+  // Initial run
+  window.updateBusinessUI();
 });
 </script>
 
@@ -4366,11 +4426,7 @@ updateBusiness();
       const showModal = () => {
         const settings = getDeliverySettings();
         if (!isStoreOpen(settings)) {
-          const range = getBusinessHoursText(settings);
-          const message = settings.businessOpen === false
-            ? (settings.outOfServiceMessage || 'Orders are temporarily disabled by the owner.')
-            : (settings.outOfServiceMessage || `Orders are only accepted between ${range}. Please try again later.`);
-          showToast(`⚠️ ${message}`, 5000);
+          showToast('⚠️ Store is currently closed.', 5000);
           return;
         }
         original.apply(this, args);
@@ -4418,11 +4474,7 @@ updateBusiness();
     window.submitOrder = function(...args) {
       const settings = getDeliverySettings();
       if (!isStoreOpen(settings)) {
-        const range = getBusinessHoursText(settings);
-        const message = settings.businessOpen === false
-          ? (settings.outOfServiceMessage || 'Orders are temporarily disabled by the owner.')
-          : (settings.outOfServiceMessage || `Orders are only accepted between ${range}. Please try again later.`);
-        showToast(`⚠️ ${message}`, 5000);
+        showToast('⚠️ Store is currently closed.', 5000);
         return;
       }
       // Read subtotal from om-total, add delivery fees, patch om-total so

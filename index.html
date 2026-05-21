@@ -3075,9 +3075,9 @@ function updateGrandTotalUI(){
   var fee = getDeliveryFee();
   var grand = subtotal + fee;
 
-  var omTotal = document.getElementById('om-total');
-  if(omTotal){
-    omTotal.innerText = '₹' + grand;
+  var omTotal = document.getElementById('om-grand-total');
+  if(omGrandTotal){
+    omGrandTotal.innerText = '₹' + grand;
   }
 
   var totalAmount = document.getElementById('totalAmount');
@@ -3163,7 +3163,7 @@ function getNum(v){return Number(String(v||'0').replace(/[^0-9.]/g,''))||0;}
 function calculateFinalTotal(){
   const cartEl=document.getElementById('om-subtotal') || document.getElementById('cart-total') || document.querySelector('.cart-total');
   const deliveryEl=document.getElementById('delivery-fee') || document.getElementById('om-delivery-fee');
-  const grandEl=document.getElementById('om-total') || document.getElementById('grand-total');
+  const grandEl=document.getElementById('om-grand-total') || document.getElementById('grand-total');
   const cartAmount=getNum(cartEl ? cartEl.innerText : 0);
   const deliveryAmount=getNum(deliveryEl ? deliveryEl.innerText : (window.currentDeliveryFee||0));
   const finalTotal=cartAmount + deliveryAmount;
@@ -3218,7 +3218,7 @@ window.addEventListener('load',function(){
 <script>
 (function(){
   function getGrandTotal(){
-    let el = document.getElementById('om-total') || document.querySelector('.grand-total') || document.querySelector('[data-grand-total]');
+    let el = document.getElementById('om-grand-total') || document.querySelector('.grand-total') || document.querySelector('[data-grand-total]');
     if(!el) return 0;
     let amt = parseFloat((el.innerText || el.textContent || '0').replace(/[^\d.]/g,''));
     return isNaN(amt) ? 0 : amt;
@@ -4361,7 +4361,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
   function updateCartDeliveryFee() {
 
-    const totalEl = document.getElementById('om-total');
+    const totalEl = document.getElementById('om-grand-total');
 
     const subtotal =
       totalEl
@@ -4547,7 +4547,7 @@ document.addEventListener("DOMContentLoaded", function(){
       }
       // Read subtotal from om-total, add delivery fees, patch om-total so
       // the obfuscated submitOrder saves the correct grand total.
-      const omTotalEl = document.getElementById('om-total');
+      const omTotalEl = document.getElementById('om-grand-total');
       const omOrderTotalEl = document.getElementById('om-order-total');
       if (omTotalEl) {
         const subtotal = parseInt((omTotalEl.innerText || '0').replace(/\D/g, ''), 10) || 0;
@@ -4614,7 +4614,7 @@ document.addEventListener("DOMContentLoaded", function(){
     }, 500);
 
     // MutationObserver: whenever obfuscated code updates om-total, recalculate our fees
-    const omTotalEl = document.getElementById('om-total');
+    const omTotalEl = document.getElementById('om-grand-total');
     if (omTotalEl && typeof MutationObserver !== 'undefined') {
       new MutationObserver(() => {
         setTimeout(updateDeliveryInfoDisplay, 50);
@@ -5610,7 +5610,7 @@ waitFor(
      if (totalAmountEl) totalAmountEl.innerText = "₹"+total;
 
      // Update order modal elements
-     const omTotalEl = document.getElementById('om-total');
+     const omTotalEl = document.getElementById('om-grand-total');
      if (omTotalEl) omTotalEl.innerText = "₹"+subtotal;
      updateCartDeliveryFee();
 
@@ -5863,7 +5863,7 @@ waitFor(
     if (typeof orig !== 'function') { setTimeout(patchSubmitOrder, 400); return; }
 
     window.submitOrder = function() {
-      var omTotal = document.getElementById('om-total');
+      var omTotal = document.getElementById('om-grand-total');
       if (omTotal) {
         var sub   = numFrom(omTotal);
         var fee   = window._gfyDeliveryFee !== undefined ? window._gfyDeliveryFee : _fee;
@@ -5906,7 +5906,7 @@ waitFor(
 
   /* ── MutationObserver: reapply whenever obfuscated code rewrites om-total ── */
   function watchOmTotal() {
-    var el = document.getElementById('om-total');
+    var el = document.getElementById('om-grand-total');
     if (!el) { setTimeout(watchOmTotal, 600); return; }
 
     new MutationObserver(function() {

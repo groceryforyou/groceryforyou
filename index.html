@@ -1179,33 +1179,41 @@ flex-wrap:wrap;
 display:inline-flex;
 align-items:center;
 gap:8px;
-padding:10px 18px;
+padding:8px 16px;
 border-radius:999px;
 font-weight:800;
-font-size:.9rem;
-letter-spacing:.4px;
+font-size:.85rem;
+letter-spacing:.5px;
 backdrop-filter:blur(10px);
-box-shadow:0 6px 24px rgba(0,0,0,0.18);
+box-shadow:0 4px 15px rgba(0,0,0,0.25);
 transition:all .25s ease;
 position:relative;
 z-index:101;
+text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 .business-status-badge.open{
-background:rgba(46,125,50,.18);
-border:1px solid rgba(76,175,80,.45);
-color:#b9ffbe;
+background: rgba(46, 125, 50, 0.95);
+border: 1px solid rgba(76, 175, 80, 0.9);
+color: #ffffff;
 }
 .business-status-badge.closed{
-background:rgba(198,40,40,.18);
-border:1px solid rgba(255,82,82,.45);
-color:#ffd0d0;
+background: rgba(198, 40, 40, 0.95);
+border: 1px solid rgba(255, 82, 82, 0.9);
+color: #ffffff;
 }
 .business-status-dot{
-width:10px;
-height:10px;
+width:8px;
+height:8px;
 border-radius:50%;
-background:currentColor;
 animation:pulseStatus 1.5s infinite;
+}
+.business-status-badge.open .business-status-dot{
+background: #39ff14;
+box-shadow: 0 0 6px #39ff14;
+}
+.business-status-badge.closed .business-status-dot{
+background: #ff3b30;
+box-shadow: 0 0 6px #ff3b30;
 }
 @keyframes pulseStatus{
 0%{transform:scale(1);opacity:1}
@@ -3293,7 +3301,6 @@ document.addEventListener("DOMContentLoaded", function(){
     // 3. Sync customer status badge
     if (status) {
       status.innerText = isOpen ? "OPEN NOW" : "CLOSED NOW";
-      status.style.color = isOpen ? "#2e7d32" : "#c62828";
     }
     if (badge) {
       badge.style.display = "inline-flex";
@@ -3338,25 +3345,88 @@ document.addEventListener("DOMContentLoaded", function(){
         window.updateBusinessHoursStatus();
       }
 
-      // Save to Firestore in real-time
+      // Save to Firestore in real-time (Write to BOTH primary and fallback documents for instant multi-listener trigger)
       const firestore = (typeof db !== 'undefined' && db) ? db : (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
       if (firestore) {
-        firestore.collection('app_settings').doc('delivery_settings')
-          .set({ 
-            businessOpen: isOpen, 
-            updatedAt: settings.updatedAt, 
-            savedBy: window.currentUser?.email || 'admin-toggle' 
-          }, { merge: true })
-          .then(() => console.log('[DeliverySettings] ✓ Saved store status to Firestore'))
-          .catch(err => {
-            console.error('[DeliverySettings] Firestore toggle error:', err);
-            if (typeof showToast === 'function') {
-              showToast('⚠️ Saved locally. Connecting to Firestore...', 3000);
-            }
-          });
+        const batch = firestore.batch ? firestore.batch() : null;
+        if (batch) {
+          const docRef1 = firestore.collection('app_settings').doc('delivery_settings');
+          const docRef2 = firestore.collection('settings').doc('delivery');
+          batch.set(docRef1, { businessOpen: isOpen, updatedAt: settings.updatedAt, savedBy: window.currentUser?.email || 'admin-toggle' }, { merge: true });
+          batch.set(docRef2, { businessOpen: isOpen, updatedAt: settings.updatedAt }, { merge: true });
+          batch.commit()
+            .then(() => console.log('[DeliverySettings] ✓ Store status saved to both Firestore locations'))
+            .catch(err => {
+              console.error('[DeliverySettings] Firestore batch toggle error:', err);
+              docRef1.set({ businessOpen: isOpen, updatedAt: settings.updatedAt }, { merge: true }).catch(()=>{});
+              docRef2.set({ businessOpen: isOpen, updatedAt: settings.updatedAt }, { merge: true }).catch(()=>{});
+            });
+        } else {
+          firestore.collection('app_settings').doc('delivery_settings').set({ businessOpen: isOpen, updatedAt: settings.updatedAt }, { merge: true }).catch(()=>{});
+          firestore.collection('settings').doc('delivery').set({ businessOpen: isOpen, updatedAt: settings.updatedAt }, { merge: true }).catch(()=>{});
+        }
       }
     });
   }
+
+  // Dedicated, super-robust Firestore real-time listener for instant sync on all pages
+  function startSyncListeners(dbInstance) {
+    console.log('[RealtimeSync] Starting dedicated listeners for status badge...');
+    
+    // 1. Listen to app_settings/delivery_settings
+    dbInstance.collection('app_settings').doc('delivery_settings').onSnapshot(snap => {
+      if (snap.exists) {
+        const data = snap.data();
+        if (data.businessOpen !== undefined) {
+          console.log('[RealtimeSync] app_settings/delivery_settings changed:', data.businessOpen);
+          syncToLocal(data.businessOpen, data);
+        }
+      }
+    }, err => {
+      console.warn('[RealtimeSync] Primary listener error:', err);
+    });
+
+    // 2. Listen to settings/delivery
+    dbInstance.collection('settings').doc('delivery').onSnapshot(snap => {
+      if (snap.exists) {
+        const data = snap.data();
+        if (data.businessOpen !== undefined) {
+          console.log('[RealtimeSync] settings/delivery changed:', data.businessOpen);
+          syncToLocal(data.businessOpen, data);
+        }
+      }
+    }, err => {
+      console.warn('[RealtimeSync] Fallback listener error:', err);
+    });
+  }
+
+  function syncToLocal(isOpen, data) {
+    const existing = window.getDeliverySettings ? window.getDeliverySettings() : {};
+    const settings = {
+      ...existing,
+      businessOpen: isOpen,
+      updatedAt: data.updatedAt || new Date().toISOString()
+    };
+    if (window.DELIVERY_SETTINGS_KEY) {
+      localStorage.setItem(window.DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
+    }
+    localStorage.setItem("perfect_business_status", isOpen ? "true" : "false");
+    localStorage.setItem("business_open_status_v2", isOpen ? "true" : "false");
+
+    window.updateBusinessUI();
+    if (typeof window.updateBusinessHoursStatus === 'function') {
+      window.updateBusinessHoursStatus();
+    }
+  }
+
+  // Wait for Firestore db to be ready and initialize listeners
+  var checkTimer = setInterval(function() {
+    const activeDb = (typeof db !== 'undefined' && db) ? db : (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && firebase.firestore ? firebase.firestore() : null);
+    if (activeDb) {
+      clearInterval(checkTimer);
+      startSyncListeners(activeDb);
+    }
+  }, 400);
 
   // Listen to local storage updates across tabs
   window.addEventListener("storage", function(e) {

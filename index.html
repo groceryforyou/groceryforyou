@@ -3264,15 +3264,6 @@ window.addEventListener('load',function(){
 })();
 </script>
 
-
-<script>
-(function(){
-
-
-
-
-
-
 <script>
 document.addEventListener("DOMContentLoaded", function(){
   const toggle = document.getElementById("newBusinessToggle");
@@ -3301,7 +3292,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
     // 3. Sync customer status badge
     if (status) {
-      status.innerText = isOpen ? "🟢 OPEN NOW" : "🔴 CLOSED NOW";
+      status.innerText = isOpen ? "OPEN NOW" : "CLOSED NOW";
       status.style.color = isOpen ? "#2e7d32" : "#c62828";
     }
     if (badge) {
@@ -4040,7 +4031,9 @@ document.addEventListener("DOMContentLoaded", function(){
 
     localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(settings));
     localStorage.setItem('business_open_status_v2', settings.businessOpen ? 'true' : 'false');
-    setManualClosedStatus(!isOpen);
+    if (typeof setManualClosedStatus === 'function') {
+      setManualClosedStatus(!isOpen);
+    }
     if (typeof updateBusinessUI === 'function') updateBusinessUI();
     if (typeof updateBusinessHoursStatus === 'function') updateBusinessHoursStatus();
 
@@ -4056,6 +4049,11 @@ document.addEventListener("DOMContentLoaded", function(){
   // Expose saveDeliverySettings to global scope for HTML onclick handlers
   window.saveDeliverySettings = saveDeliverySettings;
   window.setBusinessOpenStatus = setBusinessOpenStatus;
+  window.DELIVERY_SETTINGS_KEY = DELIVERY_SETTINGS_KEY;
+  window.getDeliverySettings = getDeliverySettings;
+  window.isStoreOpen = isStoreOpen;
+  window.DEFAULT_DELIVERY_SETTINGS = DEFAULT_DELIVERY_SETTINGS;
+  window.renderDeliverySettings = renderDeliverySettings;
 
   async function renderDeliverySettings() {
     console.log('[DeliverySettings] renderDeliverySettings called');
@@ -5475,6 +5473,31 @@ waitFor(
   var _unsub       = null; // onSnapshot unsubscriber
   var _db          = null; // Firestore instance
   let currentDeliveryFee = 0;
+
+  /* ── Global references from patchSupportTickets IIFE ── */
+  var getDeliverySettings = function() {
+    return typeof window.getDeliverySettings === 'function' ? window.getDeliverySettings() : {};
+  };
+  var DELIVERY_SETTINGS_KEY = window.DELIVERY_SETTINGS_KEY || 'deliverySettings';
+  var DEFAULT_DELIVERY_SETTINGS = window.DEFAULT_DELIVERY_SETTINGS || {
+    feeEnabled: false,
+    feeAmount: 0,
+    freeAbove: 200,
+    freeOffer: false,
+    highDemandEnabled: false,
+    highDemandAmount: 0,
+    highDemandMessage: 'Delivery partner demand is high due to heavy rain or hot weather. Extra fee applies.',
+    businessHoursEnabled: false,
+    openHour: 6,
+    closeHour: 20,
+    outOfServiceMessage: 'Orders are only accepted during business hours. Please try again later.',
+    businessOpen: true,
+  };
+  var renderDeliverySettings = function() {
+    if (typeof window.renderDeliverySettings === 'function') {
+      return window.renderDeliverySettings.apply(null, arguments);
+    }
+  };
 
   /* ── Helpers ── */
   function fmt(n) { return '\u20B9' + Math.max(0, Number(n) || 0); }

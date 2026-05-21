@@ -3077,7 +3077,14 @@ function updateGrandTotalUI(){
 
   var omTotal = document.getElementById('om-total');
   if(omTotal){
-    omTotal.innerText = '₹' + grand;
+    // FIX: show only items subtotal here
+    omTotal.innerText = '₹' + subtotal;
+  }
+
+  var omGrandTotal = document.getElementById('om-grand-total');
+  if(omGrandTotal){
+    // FIX: show final grand total separately
+    omGrandTotal.innerText = '₹' + grand;
   }
 
   var totalAmount = document.getElementById('totalAmount');
@@ -3107,7 +3114,7 @@ function updateGrandTotalUI(){
   console.log('[GFY FIX] subtotal=',subtotal,'delivery=',fee,'grand=',grand);
 }
 
-setInterval(updateGrandTotalUI,500);
+setInterval(updateGrandTotalUI,1500);
 
 var oldOpen = window.openRazorpayCheckout;
 window.openRazorpayCheckout = function(amount,name,phone){
@@ -4363,38 +4370,34 @@ document.addEventListener("DOMContentLoaded", function(){
 
     const totalEl = document.getElementById('om-total');
 
-    // Clean subtotal value properly
-    let subtotal = 0;
+    const subtotal =
+      totalEl
+        ? parseInt(totalEl.textContent.replace(/[^\d]/g,'')) || 0
+        : 0;
 
-    if (totalEl) {
-      const cleanSubtotal = String(totalEl.textContent || '')
-        .replace(/[^\d.]/g, '')
-        .trim();
+    const fee = calcDeliveryFee(subtotal);
 
-      subtotal = Number(cleanSubtotal) || 0;
-    }
-
-    // Get delivery fee correctly
-    const fee = Number(calcDeliveryFee(subtotal)) || 0;
-
-    // Calculate final grand total
     const grand = subtotal + fee;
 
     const feeEl = document.getElementById('om-delivery-fee-display');
+
     const grandEl = document.getElementById('om-grand-total');
 
-    // Update delivery fee display
     if (feeEl) {
-      if (fee <= 0) {
+
+      if (fee === 0) {
+
         feeEl.textContent = '🎁 Free';
+
       } else {
+
         feeEl.textContent = '₹' + fee;
+
       }
     }
 
-    // Update grand total correctly
     if (grandEl) {
-      grandEl.textContent = '₹' + Math.round(grand);
+      grandEl.textContent = '₹' + grand;
     }
   }
 
@@ -4558,9 +4561,10 @@ document.addEventListener("DOMContentLoaded", function(){
         const deliveryFee = calcDeliveryFee(subtotal);
         const highDemandFee = 0;
         const grandTotal = subtotal + deliveryFee + highDemandFee;
-        // Temporarily patch om-total so obfuscated code reads the grand total
-        if (grandTotal !== subtotal) {
-          omTotalEl.innerText = `₹${grandTotal}`;
+        // FIX: keep subtotal stable and update only grand total display
+        const omGrandTotalEl = document.getElementById('om-grand-total');
+        if (omGrandTotalEl) {
+          omGrandTotalEl.innerText = `₹${grandTotal}`;
         }
       }
       original.apply(this, args);

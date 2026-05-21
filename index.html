@@ -6361,7 +6361,18 @@ waitFor(
         subtotal = parseInt((subtotalEl.innerText || '').replace(/[^0-9]/g,'')) || 0;
       }
 
-      var grand = subtotal + 40;
+      
+      // FINAL DELIVERY FEE FIX
+      var deliveryFee = 40;
+
+      // Try reading delivery fee dynamically from UI
+      var feeMatch = document.body.innerText.match(/Delivery Fee\s*₹\s*(\d+)/i);
+      if(feeMatch && feeMatch[1]){
+        deliveryFee = parseInt(feeMatch[1]) || 40;
+      }
+
+      var grand = subtotal + deliveryFee;
+
 
       if(grandEl){
         grandEl.innerText = '₹' + grand;
@@ -6389,6 +6400,66 @@ waitFor(
       console.log('[UPI FINAL FIX] Payable amount:', amount);
 
       return originalOpen(amount, name, phone);
+    };
+  }
+
+})();
+</script>
+
+<script>
+(function(){
+
+  window.calculateFinalUPIAmount = function(){
+
+    try{
+
+      var subtotal = 0;
+      var deliveryFee = 40;
+
+      var subtotalEl = document.getElementById('om-total');
+      if(subtotalEl){
+        subtotal = parseInt((subtotalEl.innerText || '').replace(/[^0-9]/g,'')) || 0;
+      }
+
+      // Read delivery fee from page
+      var txt = document.body.innerText || '';
+      var feeMatch = txt.match(/Delivery Fee\s*₹\s*(\d+)/i);
+
+      if(feeMatch && feeMatch[1]){
+        deliveryFee = parseInt(feeMatch[1]) || 40;
+      }
+
+      var finalAmount = subtotal + deliveryFee;
+
+      // Sync UI
+      var grandEl = document.getElementById('om-grand-total');
+      if(grandEl){
+        grandEl.innerText = '₹' + finalAmount;
+      }
+
+      window.finalAmount = finalAmount;
+      window._gfyGrandTotal = finalAmount;
+
+      console.log('[DELIVERY FIX] subtotal=', subtotal, 'delivery=', deliveryFee, 'final=', finalAmount);
+
+      return finalAmount;
+
+    }catch(e){
+      console.error(e);
+      return 0;
+    }
+  };
+
+  // Hook Razorpay
+  if(window.openRazorpayCheckout){
+
+    const oldCheckout = window.openRazorpayCheckout;
+
+    window.openRazorpayCheckout = function(amount, name, phone){
+
+      amount = window.calculateFinalUPIAmount();
+
+      return oldCheckout(amount, name, phone);
     };
   }
 

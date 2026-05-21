@@ -6346,3 +6346,51 @@ waitFor(
 
 })();
 </script>
+
+<script>
+/* ===== HARDCODED GRAND TOTAL PAYMENT FIX ===== */
+(function(){
+
+  window.getFinalPayableAmount = function(){
+    try{
+      var subtotalEl = document.getElementById('om-total');
+      var grandEl = document.getElementById('om-grand-total');
+
+      var subtotal = 0;
+      if(subtotalEl){
+        subtotal = parseInt((subtotalEl.innerText || '').replace(/[^0-9]/g,'')) || 0;
+      }
+
+      var grand = subtotal + 40;
+
+      if(grandEl){
+        grandEl.innerText = '₹' + grand;
+      }
+
+      window.finalAmount = grand;
+      window._gfyGrandTotal = grand;
+
+      return grand;
+
+    }catch(e){
+      return 0;
+    }
+  };
+
+  // Override Razorpay open
+  var originalOpen = window.openRazorpayCheckout;
+
+  if(typeof originalOpen === 'function'){
+
+    window.openRazorpayCheckout = function(amount, name, phone){
+
+      amount = window.getFinalPayableAmount();
+
+      console.log('[UPI FINAL FIX] Payable amount:', amount);
+
+      return originalOpen(amount, name, phone);
+    };
+  }
+
+})();
+</script>

@@ -1577,6 +1577,74 @@ animation:spinRefresh .7s linear infinite;
 }
 
 </style>
+
+<style id="ultimate-mobile-menu-fix">
+@media (max-width:768px){
+
+  #user-menu-popup{
+    position:fixed !important;
+    top:70px !important;
+    left:10px !important;
+    right:10px !important;
+    width:auto !important;
+    max-width:none !important;
+    height:auto !important;
+    max-height:75vh !important;
+    overflow-y:auto !important;
+    z-index:999999 !important;
+    border-radius:22px !important;
+    padding-bottom:20px !important;
+    background:#ffffff !important;
+    box-shadow:0 20px 60px rgba(0,0,0,0.45) !important;
+  }
+
+  #user-menu-popup .user-menu-actions{
+    max-height:none !important;
+    overflow:visible !important;
+    padding-bottom:30px !important;
+  }
+
+  #user-menu-popup .user-menu-item{
+    min-height:60px !important;
+    font-size:18px !important;
+    margin-bottom:10px !important;
+  }
+
+  body.menu-open .hero,
+  body.menu-open .hero *{
+    z-index:1 !important;
+  }
+
+  body.menu-open .badge,
+  body.menu-open .hero-badges,
+  body.menu-open .float-order-bar,
+  body.menu-open .scroll-top-btn,
+  body.menu-open .promo-banner-wrap{
+    display:none !important;
+  }
+
+  body.menu-open{
+    overflow:hidden !important;
+  }
+
+  .bottom-nav,
+  .mobile-bottom-nav{
+    display:flex !important;
+    overflow-x:auto !important;
+    gap:6px !important;
+    justify-content:space-between !important;
+    padding-left:4px !important;
+    padding-right:4px !important;
+  }
+
+  .bottom-nav > *,
+  .mobile-bottom-nav > *{
+    min-width:58px !important;
+    font-size:12px !important;
+  }
+}
+</style>
+
 </head>
 <body>
 <!-- Offline Banner -->
@@ -3715,6 +3783,42 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 });
+</script>
+
+
+<script id="ultimate-mobile-menu-js-fix">
+(function(){
+
+  function syncMenuState(){
+    const popup = document.getElementById('user-menu-popup');
+
+    if(!popup) return;
+
+    if(popup.classList.contains('open')){
+      document.body.classList.add('menu-open');
+    } else {
+      document.body.classList.remove('menu-open');
+    }
+  }
+
+  const oldToggle = window.toggleUserMenu;
+  const oldClose = window.closeUserMenu;
+
+  window.toggleUserMenu = function(){
+    if(oldToggle) oldToggle();
+    setTimeout(syncMenuState, 10);
+  };
+
+  window.closeUserMenu = function(){
+    if(oldClose) oldClose();
+    setTimeout(syncMenuState, 10);
+  };
+
+  document.addEventListener('click', function(){
+    setTimeout(syncMenuState, 10);
+  });
+
+})();
 </script>
 
 </body>

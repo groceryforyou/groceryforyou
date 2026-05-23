@@ -3443,6 +3443,129 @@ document.addEventListener("DOMContentLoaded", function(){
 });
 </script>
 
+
+<script>
+(function(){
+  const ADMIN_WHATSAPP_NUMBER = '919154092906';
+  const CALLMEBOT_API_KEY = 'REPLACE_WITH_CALLMEBOT_API_KEY';
+  const processedOrders = new Set(JSON.parse(sessionStorage.getItem('processedOrders') || '[]'));
+  let adminOrderListenerAttached = false;
+
+  function isStoreOpenSafe(){
+    try{
+      if(typeof window.storeOpen !== 'undefined') return !!window.storeOpen;
+      const local = localStorage.getItem('storeOpen');
+      return local !== 'false';
+    }catch(e){ return true; }
+  }
+
+  window.playNotificationSound = function(){
+    try{
+      const audio = new Audio('notification.mp3');
+      audio.volume = 1;
+      audio.play().catch(()=>{
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 880;
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 1);
+        osc.stop(ctx.currentTime + 1);
+      });
+    }catch(err){console.log(err)}
+  };
+
+  window.showBrowserNotification = function(order){
+    try{
+      const body = `Order: ${order.orderId || order.id || 'N/A'}
+Customer: ${order.customerName || order.name || 'Customer'}
+Grand Total: ₹${order.grandTotal || order.total || 0}
+Payment: ${order.paymentMethod || 'N/A'}`;
+      const showNow = () => {
+        new Notification('🛒 New Order Received', { body, icon: './favicon.jpg' });
+      };
+      if ('Notification' in window) {
+        if (Notification.permission === 'granted') {
+          showNow();
+        } else if (Notification.permission !== 'denied') {
+          Notification.requestPermission().then(p => { if (p === 'granted') showNow(); });
+        }
+      }
+    } catch(err){ console.log(err); }
+  };
+
+  window.sendWhatsAppNotification = async function(order){
+    try{
+      if(!CALLMEBOT_API_KEY || CALLMEBOT_API_KEY === 'REPLACE_WITH_CALLMEBOT_API_KEY'){
+        console.warn('Add CallMeBot API key to enable WhatsApp notifications');
+        return;
+      }
+      const items = (order.items || []).map(i => `- ${i.name || i.title} x${i.qty || i.quantity || 1}`).join('%0A');
+      const msg = `🛒 New Order Received%0A%0AOrder ID: #${order.orderId || order.id || 'N/A'}%0ACustomer: ${order.customerName || order.name || ''}%0APhone: ${order.phone || ''}%0A%0AItems:%0A${items}%0A%0AGrand Total: ₹${order.grandTotal || order.total || 0}%0APayment: ${order.paymentMethod || 'N/A'}%0A%0AAddress:%0A${order.address || order.deliveryAddress || ''}%0A%0APlease check admin panel.`;
+      const url = `https://api.callmebot.com/whatsapp.php?phone=${ADMIN_WHATSAPP_NUMBER}&text=${msg}&apikey=${CALLMEBOT_API_KEY}`;
+      await fetch(url, {mode:'no-cors'});
+    }catch(err){ console.log('WhatsApp notification failed', err); }
+  };
+
+  window.notifyNewOrder = async function(order){
+    try{
+      if(!isStoreOpenSafe()) return;
+      const orderKey = order.orderId || order.id;
+      if(!orderKey || processedOrders.has(orderKey)) return;
+      processedOrders.add(orderKey);
+      sessionStorage.setItem('processedOrders', JSON.stringify(Array.from(processedOrders).slice(-100)));
+
+      playNotificationSound();
+      showBrowserNotification(order);
+      sendWhatsAppNotification(order);
+
+      const popup = document.getElementById('admin-order-popup');
+      if(popup){
+        popup.style.display = 'block';
+        const title = popup.querySelector('.popup-title');
+        if(title) title.textContent = `🛒 New Order #${orderKey}`;
+        setTimeout(()=>{ popup.style.display = 'none'; }, 15000);
+      }
+
+      if(typeof showToast === 'function'){
+        showToast(`🛒 New Order Received - ₹${order.grandTotal || order.total || 0}`, 6000, 'info');
+      }
+    }catch(err){ console.log(err); }
+  };
+
+  async function attachAdminOrderNotifications(){
+    try{
+      if(adminOrderListenerAttached) return;
+      const firestore = (typeof db !== 'undefined' && db) ? db : (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+      if(!firestore) return;
+      adminOrderListenerAttached = true;
+
+      firestore.collection('orders').orderBy('createdAt','desc').limit(20)
+      .onSnapshot((snapshot)=>{
+        snapshot.docChanges().forEach((change)=>{
+          if(change.type === 'added'){
+            const order = {id: change.doc.id, ...change.doc.data()};
+            const createdAt = order.createdAt && order.createdAt.toDate ? order.createdAt.toDate().getTime() : Date.now();
+            if(Date.now() - createdAt < 120000){
+              notifyNewOrder(order);
+            }
+          }
+        });
+      });
+    }catch(err){ console.log('Realtime admin notification error', err); }
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    if('Notification' in window && Notification.permission !== 'granted'){
+      Notification.requestPermission().catch(()=>{});
+    }
+    setTimeout(attachAdminOrderNotifications, 4000);
+  });
+})();
+</script>
+
 </body>
 <script>
   document.addEventListener('contextmenu', event => event.preventDefault());

@@ -705,6 +705,12 @@
         border-radius: 16px !important;
         box-shadow: 0 10px 30px rgba(0,0,0,0.2) !important;
       }
+      .user-menu-popup.open {
+        display: block !important;
+      }
+      body.menu-open {
+        overflow: hidden !important;
+      }
 
       /* Category tabs */
       .cat-tabs-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;scrollbar-width:none}
@@ -6440,7 +6446,7 @@ waitFor(
         }
       };
       
-      // Attach click and touchstart listeners
+      // Attach click and touchstart listeners to avatar
       avatar.addEventListener('click', window.toggleUserMenu);
       avatar.addEventListener('touchstart', window.toggleUserMenu, { passive: false });
       
@@ -6452,18 +6458,18 @@ waitFor(
         e.stopPropagation();
       }, { passive: true });
       
-      // MutationObserver to manage body scroll lock on mobile
+      // MutationObserver to manage body scroll lock on mobile without layout shift
       var observer = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
           if (mutation.attributeName === 'class') {
             var isOpen = popup.classList.contains('open');
             if (isOpen) {
               if (window.innerWidth <= 768) {
-                window.lockBodyScroll();
+                document.body.classList.add('menu-open');
               }
             } else {
               if (window.innerWidth <= 768) {
-                window.unlockBodyScroll();
+                document.body.classList.remove('menu-open');
               }
             }
           }
@@ -6471,14 +6477,16 @@ waitFor(
       });
       observer.observe(popup, { attributes: true });
       
-      // Global touchstart listener to close user menu when touching outside
-      document.addEventListener('touchstart', function(e) {
+      // Global touchstart and click listeners to close user menu when touching/clicking outside
+      var closeOutside = function(e) {
         if (popup.classList.contains('open')) {
           if (!popup.contains(e.target) && !avatar.contains(e.target)) {
             window.closeUserMenu();
           }
         }
-      }, { passive: true });
+      };
+      document.addEventListener('touchstart', closeOutside, { passive: true });
+      document.addEventListener('click', closeOutside);
     }
   })();
 

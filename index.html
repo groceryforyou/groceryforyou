@@ -136,13 +136,12 @@
 
 
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-    html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior-y:contain;overflow-x:hidden;max-width:100%}
-    body{background:var(--cream);font-family:"Lato",sans-serif;color:var(--deep);overflow-x:hidden;-webkit-overflow-scrolling:touch;min-height:100vh;min-height:100dvh;max-width:100%}
+    html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior-y:contain}
+    body{background:var(--cream);font-family:"Lato",sans-serif;color:var(--deep);overflow-x:hidden;-webkit-overflow-scrolling:touch;min-height:100vh;min-height:100dvh}
     img,video{max-width:100%;height:auto;display:block}
     input,select,textarea{font-size:16px!important;-webkit-appearance:none;appearance:none}
     button,a,[role="button"]{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
     button:focus-visible,a:focus-visible{outline:2px solid var(--saffron);outline-offset:2px}
-    .menu-toggle{display:none!important}
 
     /* ===== HEADER ===== */
     header{background:linear-gradient(135deg,var(--brown) 0%,#0d3b1a 60%,#1e7a3a 100%);color:#fff;padding:0;position:sticky;top:0;z-index:1000;box-shadow:0 4px 20px rgba(0,0,0,0.35)}
@@ -1520,9 +1519,7 @@ animation:spinRefresh .7s linear infinite;
 <!-- HEADER -->
 <header>
   <div class="header-inner">
-    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-
-        <div class="logo" onclick="showPage('menu')">
+    <div class="logo" onclick="showPage('menu')">
       <span class="logo-icon">🛒</span>
       <div>
         <div class="logo-text">Grocery For You</div>
@@ -3568,17 +3565,11 @@ Payment: ${order.paymentMethod || 'N/A'}`;
   });
 })();
 </script>
-  
-<script>
-function toggleSidebar() {
-    document.querySelector('.sidebar').classList.toggle('active');
-}
-</script>
-  
+
+</body>
 <script>
   document.addEventListener('contextmenu', event => event.preventDefault());
   document.addEventListener('keydown', event => {
-
       if (event.keyCode == 123) { // F12
           event.preventDefault();
           return false;
@@ -6411,9 +6402,4 @@ waitFor(
 
 })();
 </script>
-  // existing code
-});
-</script>
-
-</body>
 </html>

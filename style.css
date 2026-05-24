@@ -1305,3 +1305,16 @@ font-size:.82rem;font-weight:700;color:var(--mute);pointer-events:none;
         z-index:99999 !important;
     }
 }
+
+html, body {
+    width: 100%;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+    position: relative;
+}
+
+* {
+    box-sizing: border-box;
+    max-width: 100%;
+}

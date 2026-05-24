@@ -735,6 +735,27 @@
       body.admin-mode .main{margin-left:0}
       body.admin-mode .hero{margin-left:0}
       body.admin-mode .float-order-bar{left:0}
+
+      /* Fix order modal header wrapping and height cutting off on mobile */
+      .om-header {
+        padding: 12px 14px !important;
+        min-height: 56px;
+        align-items: center;
+      }
+      .om-header h2 {
+        font-size: 1.05rem !important;
+        text-align: center;
+        flex: 1;
+        line-height: 1.2 !important;
+      }
+      .back-btn {
+        white-space: nowrap !important;
+        flex-shrink: 0;
+      }
+      .cart-header h2, .orders-modal-header h2 {
+        font-size: 1.05rem !important;
+        line-height: 1.2 !important;
+      }
     }
 
     /* Small phones */

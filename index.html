@@ -694,7 +694,17 @@
       .section-title{font-size:1.15rem}
 
       /* User menu */
-      .user-menu-popup{right:-8px;top:46px;width:220px}
+      .user-menu-popup {
+        position: fixed !important;
+        top: 60px !important;
+        right: 12px !important;
+        width: 220px !important;
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+        z-index: 999999 !important;
+        border-radius: 16px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2) !important;
+      }
 
       /* Category tabs */
       .cat-tabs-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;scrollbar-width:none}
@@ -6399,6 +6409,78 @@ waitFor(
       window.closeMobileAdminSidebar();
     }
   });
+
+  /* ── 9. Mobile User Menu WebView Compatibility Fix ── */
+  (function initMobileUserMenu() {
+    var avatar = document.getElementById('user-avatar');
+    var popup = document.getElementById('user-menu-popup');
+    
+    if (avatar && popup) {
+      // Remove inline onclick to prevent conflicts
+      avatar.removeAttribute('onclick');
+      avatar.onclick = null;
+      
+      // Define toggle function
+      window.toggleUserMenu = function(e) {
+        if (e) {
+          e.stopPropagation();
+          e.preventDefault();
+        }
+        var isOpen = popup.classList.contains('open');
+        if (isOpen) {
+          window.closeUserMenu();
+        } else {
+          popup.classList.add('open');
+        }
+      };
+      
+      window.closeUserMenu = function() {
+        if (popup.classList.contains('open')) {
+          popup.classList.remove('open');
+        }
+      };
+      
+      // Attach click and touchstart listeners
+      avatar.addEventListener('click', window.toggleUserMenu);
+      avatar.addEventListener('touchstart', window.toggleUserMenu, { passive: false });
+      
+      // Prevent clicks/touches inside the popup from bubbling to document
+      popup.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+      popup.addEventListener('touchstart', function(e) {
+        e.stopPropagation();
+      }, { passive: true });
+      
+      // MutationObserver to manage body scroll lock on mobile
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          if (mutation.attributeName === 'class') {
+            var isOpen = popup.classList.contains('open');
+            if (isOpen) {
+              if (window.innerWidth <= 768) {
+                window.lockBodyScroll();
+              }
+            } else {
+              if (window.innerWidth <= 768) {
+                window.unlockBodyScroll();
+              }
+            }
+          }
+        });
+      });
+      observer.observe(popup, { attributes: true });
+      
+      // Global touchstart listener to close user menu when touching outside
+      document.addEventListener('touchstart', function(e) {
+        if (popup.classList.contains('open')) {
+          if (!popup.contains(e.target) && !avatar.contains(e.target)) {
+            window.closeUserMenu();
+          }
+        }
+      }, { passive: true });
+    }
+  })();
 
 })();
 </script>

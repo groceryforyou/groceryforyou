@@ -5451,7 +5451,8 @@ async function loadItemOverrides(db){
       if(ov.rating!==undefined)item.rating=ov.rating;
       if(ov.reviewsCount!==undefined)item.reviewsCount=ov.reviewsCount;
     });
-    if(typeof renderMenuPage==='function')renderMenuPage('all');
+    if(typeof window.refreshInventoryUI==='function')window.refreshInventoryUI();
+    else if(typeof window.renderMenuPage==='function')window.renderMenuPage('all');
   }catch(e){console.error('[GFY] Load overrides:',e);}
 }
 

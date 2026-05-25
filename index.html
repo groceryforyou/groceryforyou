@@ -5461,8 +5461,13 @@ async function loadItemOverrides(db){
       if(ov.rating!==undefined)item.rating=ov.rating;
       if(ov.reviewsCount!==undefined)item.reviewsCount=ov.reviewsCount;
     });
+    try {
+      localStorage.setItem('restaurant_menu_items_live', JSON.stringify(allItems));
+    } catch(e) {}
+    if(typeof window.refreshManageList==='function')window.refreshManageList();
     if(typeof window.refreshInventoryUI==='function')window.refreshInventoryUI();
-    else if(typeof window.renderMenuPage==='function')window.renderMenuPage('all');
+    if(typeof window.renderMenuPage==='function')window.renderMenuPage('all');
+    if(typeof window.updateCart==='function')window.updateCart();
   }catch(e){console.error('[GFY] Load overrides:',e);}
 }
 
@@ -6744,14 +6749,16 @@ Object.defineProperty(window, 'currentUser', {
       });
 
       if (updated) {
+        try {
+          localStorage.setItem('restaurant_menu_items_live', JSON.stringify(allItems));
+        } catch(e) {}
         // Redraw customer pages and inventory instantly
         if (typeof window.refreshInventoryUI === 'function') {
           window.refreshInventoryUI();
-        } else {
-          if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
-          if (typeof refreshManageList === 'function') refreshManageList();
-          if (typeof updateCart === 'function') updateCart();
         }
+        if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
+        if (typeof refreshManageList === 'function') refreshManageList();
+        if (typeof updateCart === 'function') updateCart();
       }
     }, err => {
       console.warn('[EditItem] menuItems sync listener error:', err);

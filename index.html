@@ -5441,11 +5441,13 @@ async function loadItemOverrides(db){
     const allItems=window.items||[];
     allItems.forEach(item=>{
       const ov=map[item.id];if(!ov)return;
+      if(ov.name)item.name=ov.name;
+      if(ov.catId)item.catId=ov.catId;
       if(ov.inStock!==undefined)item.inStock=ov.inStock;
       if(ov.price>0)item.price=ov.price;
-      if(ov.discount)item.discount=ov.discount;
-      if(ov.description)item.description=ov.description;
-      if(ov.image)item.image=ov.image;
+      if(ov.discount!==undefined)item.discount=ov.discount;
+      if(ov.description!==undefined) { item.description=ov.description; item.type=ov.description; }
+      if(ov.image!==undefined)item.image=ov.image;
       if(ov.rating!==undefined)item.rating=ov.rating;
       if(ov.reviewsCount!==undefined)item.reviewsCount=ov.reviewsCount;
     });
@@ -5579,6 +5581,7 @@ waitFor(
   ()=>typeof firebase!=='undefined'&&firebase.apps&&firebase.apps.length>0,
   ()=>{
     const db=firebase.firestore();
+    window.db=db; // Expose db to window.db
     firebase.auth().onAuthStateChanged(async user=>{
       if(!user){
         if(_custUnsub){_custUnsub();_custUnsub=null;}
@@ -5597,6 +5600,8 @@ waitFor(
   }
 );
 
+window.items = items;
+window.categories = categories;
 })();
 </script>
 
@@ -6467,11 +6472,11 @@ waitFor(
 
   // Helper safely getting global list
   function getGlobalItems() {
-    return (typeof items !== 'undefined') ? items : [];
+    return (typeof window.items !== 'undefined') ? window.items : [];
   }
 
   function getGlobalCategories() {
-    return (typeof categories !== 'undefined') ? categories : [];
+    return (typeof window.categories !== 'undefined') ? window.categories : [];
   }
 
   // 2. Open Modal and prefill choices dynamically
@@ -6723,8 +6728,9 @@ waitFor(
 
   // Poll for db ready to start listener
   function initRealtimeListener() {
-    if (typeof db !== 'undefined' && db) {
-      startMenuItemsListener(db);
+    const firestoreInstance = (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+    if (firestoreInstance) {
+      startMenuItemsListener(firestoreInstance);
     } else {
       setTimeout(initRealtimeListener, 500);
     }
@@ -6783,9 +6789,10 @@ waitFor(
     };
 
     // Save to Firestore
-    if (typeof db !== 'undefined' && db) {
+    const firestoreInstance = (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+    if (firestoreInstance) {
       try {
-        await db.collection('menuItems').doc(itemId).set(newItem);
+        await firestoreInstance.collection('menuItems').doc(itemId).set(newItem);
         if (typeof showToast === 'function') showToast(`🍕 ${name} added successfully!`, 3000);
       } catch (err) {
         console.error('[AddItem] Firestore write failed:', err);
@@ -6822,10 +6829,6 @@ waitFor(
 
   // 9. Bootstrap execution
   function init() {
-    // Expose global collections to window object for other integration modules
-    if (typeof items !== 'undefined') window.items = items;
-    if (typeof categories !== 'undefined') window.categories = categories;
-
     injectEditItemModal();
     setupFailsafeEnhancer();
     initRealtimeListener();

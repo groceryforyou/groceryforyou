@@ -6532,74 +6532,83 @@ waitFor(
     if (typeof showToast === 'function') showToast('🎉 Item updated successfully!', 3000);
   };
 
-  // 5. Intercept refreshManageList to inject edit buttons dynamically
-  function patchRefreshManageList() {
-    const original = window.refreshManageList;
-    if (typeof original !== 'function') {
-      setTimeout(patchRefreshManageList, 300);
+  // 5. Enhance the rendered cards with edit buttons
+  function enhanceManageListWithEditButtons() {
+    const container = document.getElementById('manage-items-list');
+    if (!container) return;
+
+    const cards = container.querySelectorAll('.mng-card');
+    cards.forEach(card => {
+      const delBtn = card.querySelector('.mng-del');
+      if (!delBtn) return;
+
+      const onclickStr = delBtn.getAttribute('onclick') || '';
+      const match = onclickStr.match(/deleteItem\(['"]([^'"]+)['"]\)/);
+      if (!match) return;
+      
+      const itemId = match[1];
+
+      // Skip if edit button already exists
+      if (card.querySelector('.mng-edit')) return;
+
+      const actions = card.querySelector('.mng-actions');
+      if (!actions) return;
+
+      // Create edit button
+      const editBtn = document.createElement('button');
+      editBtn.className = 'mng-edit';
+      editBtn.innerHTML = '✏️';
+      editBtn.title = 'Edit Item';
+      editBtn.setAttribute('style', 'background: #eef7f2; border: 1.5px solid #c8e6c9; color: var(--brown); width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: .8rem; display: flex; align-items: center; justify-content: center; transition: all .2s;');
+
+      // Add beautiful premium hover effect dynamically
+      editBtn.onmouseenter = function() {
+        editBtn.style.background = 'var(--saffron)';
+        editBtn.style.color = '#fff';
+        editBtn.style.transform = 'scale(1.05)';
+      };
+      editBtn.onmouseleave = function() {
+        editBtn.style.background = '#eef7f2';
+        editBtn.style.color = 'var(--brown)';
+        editBtn.style.transform = 'scale(1)';
+      };
+
+      // Click handler
+      editBtn.onclick = function(e) {
+        e.stopPropagation();
+        window.openEditItemModal(itemId);
+      };
+
+      // Insert before delete button
+      actions.insertBefore(editBtn, delBtn);
+    });
+  }
+
+  // 6. Setup MutationObserver and setInterval polling failsafe
+  function setupFailsafeEnhancer() {
+    const manageList = document.getElementById('manage-items-list');
+    if (!manageList) {
+      setTimeout(setupFailsafeEnhancer, 300);
       return;
     }
 
-    window.refreshManageList = function(...args) {
-      // Call original obfuscated code to render the cards
-      original.apply(this, args);
+    // A. Observer
+    const observer = new MutationObserver(function() {
+      enhanceManageListWithEditButtons();
+    });
+    observer.observe(manageList, { childList: true, subtree: true });
 
-      // Enhance the rendered cards with edit buttons
-      const container = document.getElementById('manage-items-list');
-      if (!container) return;
+    // B. Periodic poll check (every 500ms)
+    setInterval(enhanceManageListWithEditButtons, 500);
 
-      const cards = container.querySelectorAll('.mng-card');
-      cards.forEach(card => {
-        const delBtn = card.querySelector('.mng-del');
-        if (!delBtn) return;
-
-        const onclickStr = delBtn.getAttribute('onclick') || '';
-        const match = onclickStr.match(/deleteItem\(['"]([^'"]+)['"]\)/);
-        if (!match) return;
-        
-        const itemId = match[1];
-
-        // Skip if edit button already exists
-        if (card.querySelector('.mng-edit')) return;
-
-        const actions = card.querySelector('.mng-actions');
-        if (!actions) return;
-
-        // Create edit button
-        const editBtn = document.createElement('button');
-        editBtn.className = 'mng-edit';
-        editBtn.innerHTML = '✏️';
-        editBtn.title = 'Edit Item';
-        editBtn.setAttribute('style', 'background: #eef7f2; border: 1.5px solid #c8e6c9; color: var(--brown); width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: .8rem; display: flex; align-items: center; justify-content: center; transition: all .2s;');
-
-        // Add beautiful premium hover effect dynamically
-        editBtn.onmouseenter = function() {
-          editBtn.style.background = 'var(--saffron)';
-          editBtn.style.color = '#fff';
-          editBtn.style.transform = 'scale(1.05)';
-        };
-        editBtn.onmouseleave = function() {
-          editBtn.style.background = '#eef7f2';
-          editBtn.style.color = 'var(--brown)';
-          editBtn.style.transform = 'scale(1)';
-        };
-
-        // Click handler
-        editBtn.onclick = function(e) {
-          e.stopPropagation();
-          window.openEditItemModal(itemId);
-        };
-
-        // Insert before delete button
-        actions.insertBefore(editBtn, delBtn);
-      });
-    };
+    // Initial enhancement
+    enhanceManageListWithEditButtons();
   }
 
-  // 6. Bootstrap execution
+  // 7. Bootstrap execution
   function init() {
     injectEditItemModal();
-    patchRefreshManageList();
+    setupFailsafeEnhancer();
   }
 
   if (document.readyState === 'loading') {

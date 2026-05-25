@@ -5461,13 +5461,8 @@ async function loadItemOverrides(db){
       if(ov.rating!==undefined)item.rating=ov.rating;
       if(ov.reviewsCount!==undefined)item.reviewsCount=ov.reviewsCount;
     });
-    try {
-      localStorage.setItem('restaurant_menu_items_live', JSON.stringify(allItems));
-    } catch(e) {}
-    if(typeof window.refreshManageList==='function')window.refreshManageList();
     if(typeof window.refreshInventoryUI==='function')window.refreshInventoryUI();
-    if(typeof window.renderMenuPage==='function')window.renderMenuPage('all');
-    if(typeof window.updateCart==='function')window.updateCart();
+    else if(typeof window.renderMenuPage==='function')window.renderMenuPage('all');
   }catch(e){console.error('[GFY] Load overrides:',e);}
 }
 
@@ -6749,16 +6744,14 @@ Object.defineProperty(window, 'currentUser', {
       });
 
       if (updated) {
-        try {
-          localStorage.setItem('restaurant_menu_items_live', JSON.stringify(allItems));
-        } catch(e) {}
         // Redraw customer pages and inventory instantly
         if (typeof window.refreshInventoryUI === 'function') {
           window.refreshInventoryUI();
+        } else {
+          if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
+          if (typeof refreshManageList === 'function') refreshManageList();
+          if (typeof updateCart === 'function') updateCart();
         }
-        if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
-        if (typeof refreshManageList === 'function') refreshManageList();
-        if (typeof updateCart === 'function') updateCart();
       }
     }, err => {
       console.warn('[EditItem] menuItems sync listener error:', err);
@@ -6883,137 +6876,169 @@ Object.defineProperty(window, 'currentUser', {
 
 
 <script>
-
-
-
-<script>
-/* ===== FINAL CUSTOMER LIVE UPDATE FIX ===== */
+/* ===== FIRESTORE REALTIME MENU FIX ===== */
 (function(){
+'use strict';
 
-const STORAGE_KEY = "restaurant_menu_items_live";
+const CACHE_KEY = 'restaurant_live_menu_cache_v10';
 
-function getItems(){
+function getItemsArray(){
     if(Array.isArray(window.items)) return window.items;
     if(Array.isArray(window.menuItems)) return window.menuItems;
-    return [];
+    return null;
 }
 
-function saveItems(){
+function rerenderAll(){
+    try{ if(typeof renderMenu === 'function') renderMenu(); }catch(e){}
+    try{ if(typeof renderMenuPage === 'function') renderMenuPage(window.currentCategory || 'all'); }catch(e){}
+    try{ if(typeof refreshManageList === 'function') refreshManageList(); }catch(e){}
+    try{ if(typeof refreshInventoryUI === 'function') refreshInventoryUI(); }catch(e){}
+    try{ if(typeof updateCart === 'function') updateCart(); }catch(e){}
+}
+
+function saveLocal(data){
     try{
-        const items = getItems();
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    }catch(err){
-        console.error(err);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+    }catch(e){}
+}
+
+function loadLocal(){
+    try{
+        const raw = localStorage.getItem(CACHE_KEY);
+        if(!raw) return;
+
+        const parsed = JSON.parse(raw);
+        const arr = getItemsArray();
+
+        if(!arr || !Array.isArray(parsed)) return;
+
+        arr.length = 0;
+
+        parsed.forEach(item => arr.push(item));
+
+        rerenderAll();
+
+    }catch(e){
+        console.error(e);
     }
 }
 
-function loadItems(){
+function startFirestoreSync(){
+
     try{
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if(!saved) return;
 
-        const parsed = JSON.parse(saved);
-        const items = getItems();
+        if(typeof firebase === 'undefined') return;
+        if(!firebase.firestore) return;
 
-        if(!Array.isArray(parsed) || !items) return;
+        const db = firebase.firestore();
 
-        items.length = 0;
+        // Load cache first
+        loadLocal();
 
-        parsed.forEach(item=>{
-            items.push(item);
+        // Realtime listener
+        db.collection('menuItems').onSnapshot(function(snapshot){
+
+            const arr = getItemsArray();
+            if(!arr) return;
+
+            const updatedItems = [];
+            const seen = new Set();
+
+            snapshot.forEach(function(doc){
+
+                const data = doc.data() || {};
+                const itemId = data.id || doc.id;
+
+                if(seen.has(itemId)) return;
+                seen.add(itemId);
+
+                updatedItems.push({
+                    ...data,
+                    id: itemId
+                });
+
+            });
+
+            // Prevent resetting with empty/default data
+            if(updatedItems.length > 0){
+
+                arr.length = 0;
+
+                updatedItems.forEach(function(item){
+                    arr.push(item);
+                });
+
+                saveLocal(arr);
+
+                rerenderAll();
+
+                console.log('Customer menu updated realtime');
+
+            }
+
         });
 
+        // Global save function
+        window.saveMenuItemRealtime = async function(itemId, updatedData){
+
+            try{
+
+                const arr = getItemsArray();
+                if(!arr) return false;
+
+                const index = arr.findIndex(function(item){
+                    return String(item.id) === String(itemId);
+                });
+
+                if(index === -1) return false;
+
+                arr[index] = {
+                    ...arr[index],
+                    ...updatedData,
+                    id: itemId,
+                    updatedAt: Date.now()
+                };
+
+                saveLocal(arr);
+
+                await db.collection('menuItems')
+                    .doc(String(itemId))
+                    .set(arr[index], { merge:true });
+
+                rerenderAll();
+
+                if(typeof showToast === 'function'){
+                    showToast('✅ Item updated successfully');
+                }
+
+                return true;
+
+            }catch(err){
+
+                console.error(err);
+                return false;
+
+            }
+
+        };
+
     }catch(err){
-        console.error(err);
+
+        console.error('Realtime sync failed', err);
+
     }
-}
 
-function refreshCustomerUI(){
-
-    try{
-        if(typeof renderMenu === 'function'){
-            renderMenu();
-        }
-    }catch(e){}
-
-    try{
-        if(typeof renderMenuPage === 'function'){
-            renderMenuPage(window.currentCategory || 'all');
-        }
-    }catch(e){}
-
-    try{
-        if(typeof refreshInventoryUI === 'function'){
-            refreshInventoryUI();
-        }
-    }catch(e){}
-
-    try{
-        if(typeof updateCart === 'function'){
-            updateCart();
-        }
-    }catch(e){}
 }
 
 window.addEventListener('load', function(){
 
-    loadItems();
-
     setTimeout(function(){
-        refreshCustomerUI();
-    }, 800);
+
+        startFirestoreSync();
+
+    }, 1200);
 
 });
-
-document.addEventListener('click', function(e){
-
-    const btn = e.target.closest('button');
-    if(!btn) return;
-
-    const txt = (btn.innerText || '').toLowerCase();
-
-    if(
-        txt.includes('save') ||
-        txt.includes('update')
-    ){
-
-        setTimeout(function(){
-
-            saveItems();
-
-            // Force realtime update
-            window.dispatchEvent(new StorageEvent('storage', {
-                key: STORAGE_KEY
-            }));
-
-            refreshCustomerUI();
-
-            console.log('Realtime customer sync updated');
-
-        }, 700);
-
-    }
-
-}, true);
-
-window.addEventListener('storage', function(e){
-
-    if(e.key === STORAGE_KEY){
-
-        loadItems();
-        refreshCustomerUI();
-
-    }
-
-});
-
-// realtime polling for customer side
-setInterval(function(){
-
-    loadItems();
-    refreshCustomerUI();
-
-}, 2000);
 
 })();
 </script>

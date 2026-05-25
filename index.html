@@ -6876,88 +6876,127 @@ Object.defineProperty(window, 'currentUser', {
 
 
 <script>
-/* ===== REALTIME CUSTOMER MENU UPDATE FIX ===== */
-(function(){
-'use strict';
+/* ===== STABLE ADMIN ITEM SAVE + CUSTOMER REALTIME FIX ===== */
+(function () {
+  'use strict';
 
-function gfyRealtimeMenuSync(){
-  try{
-    if(typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length){
-      return;
+  const STORAGE_KEY = 'restaurant_menu_items_v5';
+
+  function getMenuArray() {
+    if (Array.isArray(window.items)) return window.items;
+    if (Array.isArray(window.menuItems)) return window.menuItems;
+    return null;
+  }
+
+  function saveMenuData() {
+    try {
+      const arr = getMenuArray();
+      if (!arr) return;
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+    } catch (e) {
+      console.error('Save menu failed', e);
     }
+  }
 
-    const db = firebase.firestore();
+  function loadMenuData() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
 
-    db.collection('menuItems').onSnapshot(function(snapshot){
+      const parsed = JSON.parse(saved);
+      const arr = getMenuArray();
 
-      if(!window.items || !Array.isArray(window.items)) return;
+      if (!arr || !Array.isArray(parsed)) return;
 
-      snapshot.docChanges().forEach(function(change){
+      arr.length = 0;
 
-        const data = change.doc.data();
-        const itemId = data.id || change.doc.id;
-
-        const index = window.items.findIndex(function(item){
-          return item.id === itemId;
-        });
-
-        if(index !== -1){
-
-          window.items[index] = {
-            ...window.items[index],
-            ...data,
-            id:itemId
-          };
-
-        }else{
-
-          window.items.push({
-            ...data,
-            id:itemId
-          });
-
-        }
-
+      parsed.forEach(function (item) {
+        arr.push(item);
       });
 
-      try{
-        localStorage.setItem('GFY_MENU_ITEMS_CACHE', JSON.stringify(window.items));
-      }catch(e){}
+    } catch (e) {
+      console.error('Load menu failed', e);
+    }
+  }
 
-      if(typeof renderMenuPage === 'function'){
+  function refreshUI() {
+    try {
+      if (typeof renderMenu === 'function') renderMenu();
+    } catch(e){}
+
+    try {
+      if (typeof renderMenuPage === 'function') {
         renderMenuPage(window.currentCategory || 'all');
       }
+    } catch(e){}
 
-      if(typeof refreshInventoryUI === 'function'){
-        refreshInventoryUI();
-      }
+    try {
+      if (typeof refreshManageList === 'function') refreshManageList();
+    } catch(e){}
 
-      if(typeof updateCart === 'function'){
-        updateCart();
-      }
+    try {
+      if (typeof refreshInventoryUI === 'function') refreshInventoryUI();
+    } catch(e){}
 
-      if(typeof showToast === 'function'){
-        showToast('✅ Menu updated live',1500);
-      }
-
-      console.log('Realtime menu sync updated');
-
-    });
-
-  }catch(err){
-    console.error('Realtime menu sync failed', err);
+    try {
+      if (typeof updateCart === 'function') updateCart();
+    } catch(e){}
   }
-}
 
-window.addEventListener('load', function(){
+  // LOAD SAVED DATA FIRST
+  window.addEventListener('load', function () {
 
-  setTimeout(function(){
+    loadMenuData();
 
-    gfyRealtimeMenuSync();
+    setTimeout(function () {
+      refreshUI();
+    }, 500);
 
-  }, 3000);
+  });
 
-});
+  // SAVE AFTER ADMIN EDIT
+  document.addEventListener('click', function (e) {
+
+    const btn = e.target.closest('button');
+    if (!btn) return;
+
+    const text = (btn.innerText || '').toLowerCase();
+
+    if (
+      text.includes('save') ||
+      text.includes('update')
+    ) {
+
+      setTimeout(function () {
+
+        saveMenuData();
+        refreshUI();
+
+        console.log('Menu saved permanently');
+
+        if (typeof showToast === 'function') {
+          showToast('✅ Item updated successfully');
+        }
+
+      }, 600);
+
+    }
+
+  }, true);
+
+  // REALTIME CUSTOMER SYNC
+  window.addEventListener('storage', function (e) {
+
+    if (e.key === STORAGE_KEY) {
+
+      loadMenuData();
+      refreshUI();
+
+    }
+
+  });
+
 })();
 </script>
 

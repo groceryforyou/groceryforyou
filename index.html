@@ -71,6 +71,10 @@
     "sameAs": ["https://groceryforyou.github.io/"]
   }
   </script>
+  <!-- Structured Data: WebSite -->
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"WebSite","name":"Grocery For You Sircilla","url":"https://groceryforyou.github.io/","description":"Online grocery ordering from Sircilla, Telangana","inLanguage":"en-IN"}
+  </script>
   <!-- Structured Data: BreadcrumbList -->
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Grocery For You Sircilla","item":"https://groceryforyou.github.io/"},{"@type":"ListItem","position":2,"name":"Order Grocery Online Sircilla","item":"https://groceryforyou.github.io/"}]}
@@ -192,7 +196,7 @@
 
     /* ===== HERO ===== */
     .hero{background:linear-gradient(160deg,#0d3b1a 0%,#1e7a3a 40%,#00b04e 100%);padding:44px 20px 38px;text-align:center;position:relative;overflow:hidden;width:100%}
-    .hero::before{content:"🥦";font-size:140px;opacity:.07;position:absolute;top:-20px;right:-10px;animation:float 4s ease-in-out infinite;pointer-events:none}
+`   1    .hero::before{content:"🥦";font-size:140px;opacity:.07;position:absolute;top:-20px;right:-10px;animation:float 4s ease-in-out infinite;pointer-events:none}
     @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
     .hero h1{font-family:"Yeseva One",serif;font-size:2.2rem;color:var(--turmeric);text-shadow:0 2px 12px rgba(0,0,0,0.5)}
     .hero p{color:#c8e6c9;font-size:1rem;margin-top:8px;font-style:italic}
@@ -5434,7 +5438,7 @@ async function loadItemOverrides(db){
     const snap=await db.collection('menuItems').get();
     if(snap.empty)return;
     const map={};snap.forEach(d=>{map[d.id]=d.data();});
-    const allItems = Array.isArray(window.items) ? window.items : Array.isArray(window.menuItems) ? window.menuItems : [];
+    const allItems=window.items||[];
     // Load local overrides from localStorage and prefer them when present
     let localMap = {};
     try{
@@ -5672,10 +5676,9 @@ Object.defineProperty(window, 'currentUser', {
     if(!Array.isArray(parsed)) return;
     if(!Array.isArray(window.items)) return;
 
-    // Build map of current items by id for quick lookup (both arrays)
+    // Build map of current items by id for quick lookup
     const currentMap = {};
-    if (Array.isArray(window.items)) window.items.forEach(i=>{ if(i && i.id) currentMap[i.id] = i; });
-    if (Array.isArray(window.menuItems)) window.menuItems.forEach(i=>{ if(i && i.id) currentMap[i.id] = i; });
+    window.items.forEach(i=>{ if(i && i.id) currentMap[i.id] = i; });
 
     parsed.forEach(si=>{
       if(!si || !si.id) return;
@@ -6569,9 +6572,7 @@ Object.defineProperty(window, 'currentUser', {
 
   // Helper safely getting global list
   function getGlobalItems() {
-    if (Array.isArray(window.items)) return window.items;
-    if (Array.isArray(window.menuItems)) return window.menuItems;
-    return [];
+    return (typeof window.items !== 'undefined') ? window.items : [];
   }
 
   function getGlobalCategories() {
@@ -6657,31 +6658,10 @@ Object.defineProperty(window, 'currentUser', {
       window.cart[itemId].price = newPrice;
     }
 
-    // Also update window.menuItems if present (customer UI may use this array)
-    try {
-      if (Array.isArray(window.menuItems)) {
-        const mi = window.menuItems.find(i => i && i.id === itemId);
-        if (mi) {
-          mi.name = newName;
-          mi.price = newPrice;
-          mi.description = newDesc;
-          mi.type = newDesc;
-          mi.image = newImage;
-          mi.catId = newCatId;
-        }
-      }
-    } catch(e) { console.warn('[EditItem] menuItems update failed', e); }
-
     // Persist local changes to localStorage immediately so customers see updates
     try {
       const key = 'restaurant_menu_items_live';
-      // Build unified list from window.items and window.menuItems to avoid divergence
-      const map = {};
-      if (Array.isArray(window.items)) window.items.forEach(it=>{ if(it && it.id) map[it.id]=it; });
-      if (Array.isArray(window.menuItems)) window.menuItems.forEach(it=>{ if(it && it.id) map[it.id]=it; });
-      // fallback to allItems if map empty
-      const unified = Object.keys(map).length ? Object.values(map) : allItems;
-      localStorage.setItem(key, JSON.stringify(unified));
+      localStorage.setItem(key, JSON.stringify(allItems));
       try {
         window.dispatchEvent(new StorageEvent('storage', { key }));
       } catch (evErr) {
@@ -6691,12 +6671,6 @@ Object.defineProperty(window, 'currentUser', {
         if (typeof refreshManageList === 'function') refreshManageList();
         if (typeof updateCart === 'function') updateCart();
       }
-      // Broadcast via BroadcastChannel for reliable cross-tab notification
-      try{
-        const bc = new BroadcastChannel('gfy_menu_updates');
-        bc.postMessage({ type: 'menu_update', key, timestamp: Date.now() });
-        bc.close();
-      }catch(bce){/*ignore*/}
     } catch (err) {
       console.warn('[EditItem] Could not persist to localStorage:', err);
     }
@@ -6993,6 +6967,12 @@ Object.defineProperty(window, 'currentUser', {
   }
 })();
 </script>
+
+
+<script>
+
+
+
 <script>
 /* ===== FINAL CUSTOMER LIVE UPDATE FIX ===== */
 (function(){
@@ -7000,8 +6980,6 @@ Object.defineProperty(window, 'currentUser', {
 const STORAGE_KEY = "restaurant_menu_items_live";
 
 function getItems(){
-    if(Array.isArray(window.items) && window.items.length) return window.items;
-    if(Array.isArray(window.menuItems) && window.menuItems.length) return window.menuItems;
     if(Array.isArray(window.items)) return window.items;
     if(Array.isArray(window.menuItems)) return window.menuItems;
     return [];
@@ -7022,25 +7000,15 @@ function loadItems(){
         if(!saved) return;
 
         const parsed = JSON.parse(saved);
-        if(!Array.isArray(parsed)) return;
+        const items = getItems();
 
-        const itemsArr = Array.isArray(window.items) ? window.items : null;
-        const menuItemsArr = Array.isArray(window.menuItems) ? window.menuItems : null;
+        if(!Array.isArray(parsed) || !items) return;
 
-        if(itemsArr){
-            itemsArr.length = 0;
-            parsed.forEach(item=>{ itemsArr.push(item); });
-        }
+        items.length = 0;
 
-        if(menuItemsArr && menuItemsArr !== itemsArr){
-            menuItemsArr.length = 0;
-            parsed.forEach(item=>{ menuItemsArr.push(item); });
-        }
-
-        if(!itemsArr && menuItemsArr){
-            menuItemsArr.length = 0;
-            parsed.forEach(item=>{ menuItemsArr.push(item); });
-        }
+        parsed.forEach(item=>{
+            items.push(item);
+        });
 
     }catch(err){
         console.error(err);
@@ -7050,14 +7018,14 @@ function loadItems(){
 function refreshCustomerUI(){
 
     try{
-        if(typeof renderMenuPage === 'function'){
-            renderMenuPage(window._currentMenuFilter || 'all');
+        if(typeof renderMenu === 'function'){
+            renderMenu();
         }
     }catch(e){}
 
     try{
-        if(typeof renderMenu === 'function'){
-            renderMenu();
+        if(typeof renderMenuPage === 'function'){
+            renderMenuPage(window.currentCategory || 'all');
         }
     }catch(e){}
 
@@ -7126,19 +7094,6 @@ window.addEventListener('storage', function(e){
 
 });
 
-// BroadcastChannel listener for reliable cross-tab sync
-try{
-  const _bc = new BroadcastChannel('gfy_menu_updates');
-  _bc.onmessage = function(ev){
-    try{
-      if(ev && ev.data && ev.data.type === 'menu_update'){
-        loadItems();
-        refreshCustomerUI();
-      }
-    }catch(e){console.warn('[BC] menu_update handler',e)}
-  };
-}catch(e){/* BroadcastChannel unsupported */}
-
 // realtime polling for customer side
 setInterval(function(){
 
@@ -7152,4 +7107,3 @@ setInterval(function(){
 
 </body>
 </html>
-

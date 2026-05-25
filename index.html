@@ -6876,230 +6876,151 @@ Object.defineProperty(window, 'currentUser', {
 
 
 <script>
-/* ===== ADMIN ITEM EDIT PERMANENT SYNC FIX ===== */
+/* ===== FINAL ADMIN EDIT SAVE FIX ===== */
 (function(){
-  const ITEM_STORAGE_KEY = 'GFY_PERMANENT_MENU_ITEMS_V2';
+  'use strict';
 
-  function showEditSyncToast(message, type){
+  const STORAGE_KEY = 'GFY_MENU_ITEMS_FINAL_FIX';
+
+  function getItemsArray(){
+    if(Array.isArray(window.items)) return window.items;
+    return [];
+  }
+
+  function saveItemsToLocal(){
     try{
-      if(typeof showToast === 'function'){
-        showToast(message, type || 'success');
-        return;
+      const items = getItemsArray();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    }catch(e){
+      console.error('Local save failed', e);
+    }
+  }
+
+  function loadItemsFromLocal(){
+    try{
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if(!saved) return;
+
+      const parsed = JSON.parse(saved);
+
+      if(Array.isArray(parsed) && Array.isArray(window.items)){
+        window.items.length = 0;
+
+        parsed.forEach(function(item){
+          window.items.push(item);
+        });
+      }
+    }catch(e){
+      console.error('Local load failed', e);
+    }
+  }
+
+  function refreshEverything(){
+    try{
+      if(typeof renderMenuPage === 'function'){
+        renderMenuPage(window._currentMenuFilter || 'all');
       }
     }catch(e){}
-    console.log(message);
-  }
-
-  function safeClone(data){
-    try{
-      return JSON.parse(JSON.stringify(data));
-    }catch(e){
-      return data;
-    }
-  }
-
-  function getMenuCollections(){
-    const collections = [];
 
     try{
-      Object.keys(window).forEach(function(key){
+      if(typeof refreshManageList === 'function'){
+        refreshManageList();
+      }
+    }catch(e){}
+
+    try{
+      if(typeof updateCart === 'function'){
+        updateCart();
+      }
+    }catch(e){}
+
+    try{
+      if(typeof refreshInventoryUI === 'function'){
+        refreshInventoryUI();
+      }
+    }catch(e){}
+  }
+
+  window.GFY_updateItem = async function(itemId, updatedData){
+    try{
+      const items = getItemsArray();
+
+      const index = items.findIndex(function(i){
+        return i.id === itemId;
+      });
+
+      if(index === -1){
+        console.error('Item not found:', itemId);
+        return false;
+      }
+
+      items[index] = {
+        ...items[index],
+        ...updatedData,
+        updatedAt: Date.now()
+      };
+
+      if(window.cart && window.cart[itemId]){
+        window.cart[itemId].name = updatedData.name || window.cart[itemId].name;
+        window.cart[itemId].price = updatedData.price || window.cart[itemId].price;
+      }
+
+      saveItemsToLocal();
+
+      const firestoreReady =
+        typeof firebase !== 'undefined' &&
+        firebase.apps &&
+        firebase.apps.length &&
+        typeof firebase.firestore === 'function';
+
+      if(firestoreReady){
         try{
-          const value = window[key];
+          const db = firebase.firestore();
 
-          if(
-            Array.isArray(value) &&
-            value.length &&
-            typeof value[0] === 'object'
-          ){
-            const first = value[0];
+          await db.collection('menuItems').doc(itemId).set({
+            ...items[index]
+          }, { merge:true });
 
-            const hasItemShape =
-              ('id' in first || '_id' in first || 'itemId' in first) &&
-              ('name' in first || 'title' in first) &&
-              ('price' in first);
-
-            if(hasItemShape){
-              collections.push({
-                key:key,
-                value:value
-              });
-            }
-          }
-        }catch(innerErr){}
-      });
-    }catch(err){}
-
-    return collections;
-  }
-
-  function normalizeItem(item){
-    if(!item || typeof item !== 'object') return item;
-
-    const cloned = safeClone(item);
-
-    if(!cloned.id){
-      cloned.id =
-        cloned.itemId ||
-        cloned._id ||
-        ('item_' + Math.random().toString(36).slice(2,10));
-    }
-
-    return cloned;
-  }
-
-  function persistCollections(){
-    try{
-      const collections = getMenuCollections();
-
-      const payload = {};
-
-      collections.forEach(function(entry){
-        payload[entry.key] = entry.value.map(normalizeItem);
-      });
-
-      localStorage.setItem(
-        ITEM_STORAGE_KEY,
-        JSON.stringify(payload)
-      );
-    }catch(err){
-      console.error('Persist menu sync failed:', err);
-    }
-  }
-
-  function applyPersistedCollections(){
-    try{
-      const raw = localStorage.getItem(ITEM_STORAGE_KEY);
-
-      if(!raw) return;
-
-      const saved = JSON.parse(raw);
-
-      Object.keys(saved).forEach(function(key){
-        if(!Array.isArray(saved[key])) return;
-
-        if(Array.isArray(window[key])){
-          const existingIds = new Set();
-
-          window[key].length = 0;
-
-          saved[key].forEach(function(item){
-            const normalized = normalizeItem(item);
-
-            if(existingIds.has(normalized.id)) return;
-
-            existingIds.add(normalized.id);
-            window[key].push(normalized);
-          });
+          console.log('Firestore item updated');
+        }catch(err){
+          console.error('Firestore update failed', err);
         }
-      });
+      }
+
+      refreshEverything();
+
+      if(typeof showToast === 'function'){
+        showToast('✅ Item updated successfully', 3000);
+      }
+
+      return true;
+
     }catch(err){
-      console.error('Apply persisted menu failed:', err);
+      console.error('Update item error', err);
+
+      if(typeof showToast === 'function'){
+        showToast('❌ Failed to update item', 3000);
+      }
+
+      return false;
     }
-  }
-
-  function refreshAllViews(){
-    try{
-      if(typeof renderMenu === 'function'){
-        renderMenu();
-      }
-    }catch(err){}
-
-    try{
-      if(typeof renderManageItems === 'function'){
-        renderManageItems();
-      }
-    }catch(err){}
-
-    try{
-      if(typeof renderCategories === 'function'){
-        renderCategories();
-      }
-    }catch(err){}
-
-    try{
-      if(typeof updateCartUI === 'function'){
-        updateCartUI();
-      }
-    }catch(err){}
-  }
-
-  function syncAfterEdit(){
-    applyPersistedCollections();
-    persistCollections();
-    refreshAllViews();
-  }
-
-  window.addEventListener('storage', function(e){
-    if(e.key === ITEM_STORAGE_KEY){
-      applyPersistedCollections();
-      refreshAllViews();
-    }
-  });
-
-  document.addEventListener('click', function(event){
-    const target = event.target;
-
-    if(!target) return;
-
-    const text = (target.innerText || target.textContent || '').trim().toLowerCase();
-
-    const isSaveButton =
-      text.includes('save') ||
-      text.includes('update') ||
-      text.includes('edit');
-
-    if(isSaveButton){
-      setTimeout(function(){
-        persistCollections();
-        refreshAllViews();
-        showEditSyncToast('✅ Item changes saved successfully');
-      }, 500);
-
-      setTimeout(function(){
-        persistCollections();
-        refreshAllViews();
-      }, 1200);
-    }
-  }, true);
-
-  const originalSetItem = localStorage.setItem.bind(localStorage);
-
-  localStorage.setItem = function(key, value){
-    originalSetItem(key, value);
-
-    setTimeout(function(){
-      persistCollections();
-    }, 50);
   };
 
-  const observer = new MutationObserver(function(){
-    persistCollections();
+  window.addEventListener('storage', function(e){
+    if(e.key === STORAGE_KEY){
+      loadItemsFromLocal();
+      refreshEverything();
+    }
   });
 
   window.addEventListener('load', function(){
-    applyPersistedCollections();
+    loadItemsFromLocal();
 
     setTimeout(function(){
-      persistCollections();
-      refreshAllViews();
+      refreshEverything();
     }, 1000);
-
-    try{
-      observer.observe(document.body, {
-        childList:true,
-        subtree:true
-      });
-    }catch(err){}
   });
 
-  setInterval(function(){
-    persistCollections();
-  }, 5000);
-
-  window.forcePermanentMenuSync = function(){
-    syncAfterEdit();
-    showEditSyncToast('✅ Menu synced successfully');
-  };
 })();
 </script>
 

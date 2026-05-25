@@ -5438,7 +5438,7 @@ async function loadItemOverrides(db){
     const snap=await db.collection('menuItems').get();
     if(snap.empty)return;
     const map={};snap.forEach(d=>{map[d.id]=d.data();});
-    const allItems=window.items||[];
+    const allItems = Array.isArray(window.items) ? window.items : Array.isArray(window.menuItems) ? window.menuItems : [];
     // Load local overrides from localStorage and prefer them when present
     let localMap = {};
     try{
@@ -6573,7 +6573,9 @@ Object.defineProperty(window, 'currentUser', {
 
   // Helper safely getting global list
   function getGlobalItems() {
-    return (typeof window.items !== 'undefined') ? window.items : [];
+    if (Array.isArray(window.items)) return window.items;
+    if (Array.isArray(window.menuItems)) return window.menuItems;
+    return [];
   }
 
   function getGlobalCategories() {
@@ -7008,6 +7010,8 @@ Object.defineProperty(window, 'currentUser', {
 const STORAGE_KEY = "restaurant_menu_items_live";
 
 function getItems(){
+    if(Array.isArray(window.items) && window.items.length) return window.items;
+    if(Array.isArray(window.menuItems) && window.menuItems.length) return window.menuItems;
     if(Array.isArray(window.items)) return window.items;
     if(Array.isArray(window.menuItems)) return window.menuItems;
     return [];
@@ -7028,15 +7032,25 @@ function loadItems(){
         if(!saved) return;
 
         const parsed = JSON.parse(saved);
-        const items = getItems();
+        if(!Array.isArray(parsed)) return;
 
-        if(!Array.isArray(parsed) || !items) return;
+        const itemsArr = Array.isArray(window.items) ? window.items : null;
+        const menuItemsArr = Array.isArray(window.menuItems) ? window.menuItems : null;
 
-        items.length = 0;
+        if(itemsArr){
+            itemsArr.length = 0;
+            parsed.forEach(item=>{ itemsArr.push(item); });
+        }
 
-        parsed.forEach(item=>{
-            items.push(item);
-        });
+        if(menuItemsArr && menuItemsArr !== itemsArr){
+            menuItemsArr.length = 0;
+            parsed.forEach(item=>{ menuItemsArr.push(item); });
+        }
+
+        if(!itemsArr && menuItemsArr){
+            menuItemsArr.length = 0;
+            parsed.forEach(item=>{ menuItemsArr.push(item); });
+        }
 
     }catch(err){
         console.error(err);
@@ -7046,14 +7060,14 @@ function loadItems(){
 function refreshCustomerUI(){
 
     try{
-        if(typeof renderMenu === 'function'){
-            renderMenu();
+        if(typeof renderMenuPage === 'function'){
+            renderMenuPage(window._currentMenuFilter || 'all');
         }
     }catch(e){}
 
     try{
-        if(typeof renderMenuPage === 'function'){
-            renderMenuPage(window.currentCategory || 'all');
+        if(typeof renderMenu === 'function'){
+            renderMenu();
         }
     }catch(e){}
 

@@ -6465,9 +6465,19 @@ waitFor(
     document.body.appendChild(overlay);
   }
 
+  // Helper safely getting global list
+  function getGlobalItems() {
+    return (typeof items !== 'undefined') ? items : [];
+  }
+
+  function getGlobalCategories() {
+    return (typeof categories !== 'undefined') ? categories : [];
+  }
+
   // 2. Open Modal and prefill choices dynamically
   window.openEditItemModal = function(itemId) {
-    const item = (window.items || []).find(i => i.id === itemId);
+    const allItems = getGlobalItems();
+    const item = allItems.find(i => i.id === itemId);
     if (!item) {
       if (typeof showToast === 'function') showToast('⚠️ Item not found', 2500);
       return;
@@ -6478,7 +6488,8 @@ waitFor(
     // Populate category dropdown choices dynamically
     const catSelect = document.getElementById('edit-item-cat');
     if (catSelect) {
-      catSelect.innerHTML = (window.categories || []).map(cat => 
+      const allCats = getGlobalCategories();
+      catSelect.innerHTML = allCats.map(cat => 
         `<option value="${cat.id}">${cat.emoji || '🍎'} ${cat.name}</option>`
       ).join('');
       catSelect.value = item.catId || '';
@@ -6521,7 +6532,8 @@ waitFor(
       return;
     }
 
-    const item = (window.items || []).find(i => i.id === itemId);
+    const allItems = getGlobalItems();
+    const item = allItems.find(i => i.id === itemId);
     if (!item) {
       if (typeof showToast === 'function') showToast('⚠️ Item not found', 2500);
       return;
@@ -6652,7 +6664,7 @@ waitFor(
     _menuItemsListener = db.collection('menuItems').onSnapshot(snap => {
       if (!snap || snap.empty) return;
       
-      const allItems = window.items || [];
+      const allItems = getGlobalItems();
       let updated = false;
 
       snap.docChanges().forEach(change => {
@@ -6781,7 +6793,7 @@ waitFor(
       }
     } else {
       // Local fallback in case Firebase not loaded
-      const allItems = window.items || [];
+      const allItems = getGlobalItems();
       const localItem = {
         ...newItem,
         type: type, // type holds description locally
@@ -6810,6 +6822,10 @@ waitFor(
 
   // 9. Bootstrap execution
   function init() {
+    // Expose global collections to window object for other integration modules
+    if (typeof items !== 'undefined') window.items = items;
+    if (typeof categories !== 'undefined') window.categories = categories;
+
     injectEditItemModal();
     setupFailsafeEnhancer();
     initRealtimeListener();

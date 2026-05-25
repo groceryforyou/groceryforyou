@@ -7295,5 +7295,103 @@ window.addEventListener('load', function(){
 })();
 </script>
 
+
+<script>
+/* ===== FORCE CUSTOMER PRICE + NAME REALTIME FIX ===== */
+(function(){
+
+function normalizeName(v){
+    return String(v || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g,'');
+}
+
+function forceRealtimeMenuReplace(liveItems){
+
+    try{
+
+        if(!Array.isArray(liveItems) || !liveItems.length) return;
+
+        const liveMap = {};
+
+        liveItems.forEach(item=>{
+            liveMap[normalizeName(item.name)] = item;
+        });
+
+        const arraysToCheck = [
+            window.items,
+            window.menuItems,
+            window.allItems,
+            window.products,
+            window.menuData
+        ];
+
+        arraysToCheck.forEach(arr=>{
+
+            if(!Array.isArray(arr)) return;
+
+            arr.forEach((item,index)=>{
+
+                const match = liveMap[normalizeName(item.name)];
+
+                if(match){
+
+                    arr[index] = {
+                        ...item,
+                        ...match,
+                        name: match.name,
+                        price: Number(match.price || item.price)
+                    };
+
+                }
+
+            });
+
+        });
+
+        if(Array.isArray(window.items)){
+            localStorage.setItem(
+                'restaurant_menu_items_live',
+                JSON.stringify(window.items)
+            );
+        }
+
+        if(typeof renderMenu === 'function'){
+            renderMenu();
+        }
+
+        if(typeof updateCart === 'function'){
+            updateCart();
+        }
+
+        console.log('[GFY] Force realtime customer sync applied');
+
+    }catch(err){
+        console.error(err);
+    }
+
+}
+
+window.forceRealtimeMenuReplace = forceRealtimeMenuReplace;
+
+if(typeof db !== 'undefined' && db){
+
+    db.collection('menuItemsRealtimeSync')
+    .onSnapshot(function(snapshot){
+
+        const items = snapshot.docs.map(doc=>({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        forceRealtimeMenuReplace(items);
+
+    });
+
+}
+
+})();
+</script>
+
 </body>
 </html>

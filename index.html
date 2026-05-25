@@ -6411,8 +6411,203 @@ waitFor(
 
 })();
 </script>
-  // existing code
-});
+
+<!-- ===== ADMIN EDIT ITEM FEATURE ===== -->
+<script>
+(function patchAdminEditItem() {
+  'use strict';
+
+  // 1. Inject Edit Item Modal HTML on load
+  function injectEditItemModal() {
+    if (document.getElementById('edit-item-modal-overlay')) return;
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'cat-modal-overlay';
+    overlay.id = 'edit-item-modal-overlay';
+    overlay.innerHTML = `
+      <div class="cat-modal">
+        <div class="cat-modal-head" style="background: linear-gradient(135deg, var(--brown), #1e7a3a);">
+          <h3>✏️ Edit Item</h3>
+          <button class="cat-modal-close" onclick="closeEditItemModal()">✕</button>
+        </div>
+        <div class="cat-modal-body" style="padding: 20px;">
+          <div style="margin-bottom: 14px;">
+            <label class="aip-label" style="font-size: .75rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Item Name</label>
+            <input type="text" id="edit-item-name" class="aip-input" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff;" />
+          </div>
+          <div style="margin-bottom: 18px;">
+            <label class="aip-label" style="font-size: .75rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Price (₹)</label>
+            <input type="number" id="edit-item-price" class="aip-input" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff;" />
+          </div>
+          <input type="hidden" id="edit-item-id" />
+          <div class="cat-modal-actions" style="display: flex; gap: 8px; margin-top: 16px;">
+            <button class="cat-cancel-btn" onclick="closeEditItemModal()" style="flex: 1; background: var(--cream); border: 1.5px solid var(--border); color: var(--brown); border-radius: 10px; padding: 11px; font-weight: 700; cursor: pointer;">Cancel</button>
+            <button class="cat-save-btn" onclick="saveEditedItem()" style="flex: 2; background: linear-gradient(90deg, var(--brown), var(--saffron)); color: #fff; border: none; border-radius: 10px; padding: 11px; font-family: 'Yeseva One', serif; font-size: .9rem; cursor: pointer;">Save Changes</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  // 2. Open Modal and prefill
+  window.openEditItemModal = function(itemId) {
+    const item = (window.items || []).find(i => i.id === itemId);
+    if (!item) {
+      if (typeof showToast === 'function') showToast('⚠️ Item not found', 2500);
+      return;
+    }
+    
+    injectEditItemModal();
+    
+    document.getElementById('edit-item-name').value = item.name || '';
+    document.getElementById('edit-item-price').value = item.price || 0;
+    document.getElementById('edit-item-id').value = itemId;
+    
+    document.getElementById('edit-item-modal-overlay').classList.add('open');
+    if (typeof window.lockBodyScroll === 'function') window.lockBodyScroll();
+  };
+
+  // 3. Close Modal
+  window.closeEditItemModal = function() {
+    const overlay = document.getElementById('edit-item-modal-overlay');
+    if (overlay) {
+      overlay.classList.remove('open');
+      if (typeof window.unlockBodyScroll === 'function') window.unlockBodyScroll();
+    }
+  };
+
+  // 4. Save Edited Item to Local Cache & Firebase
+  window.saveEditedItem = async function() {
+    const itemId = document.getElementById('edit-item-id').value;
+    const newName = document.getElementById('edit-item-name').value.trim();
+    const newPrice = parseFloat(document.getElementById('edit-item-price').value);
+
+    if (!newName) {
+      if (typeof showToast === 'function') showToast('⚠️ Please enter an item name');
+      return;
+    }
+    if (isNaN(newPrice) || newPrice <= 0) {
+      if (typeof showToast === 'function') showToast('⚠️ Please enter a valid price');
+      return;
+    }
+
+    const item = (window.items || []).find(i => i.id === itemId);
+    if (!item) {
+      if (typeof showToast === 'function') showToast('⚠️ Item not found', 2500);
+      return;
+    }
+
+    // Update in-memory item cache
+    item.name = newName;
+    item.price = newPrice;
+
+    // Update active cart if item exists
+    if (window.cart && window.cart[itemId]) {
+      window.cart[itemId].name = newName;
+      window.cart[itemId].price = newPrice;
+    }
+
+    // Persist to Firebase Firestore
+    if (typeof window.GFY_updateItem === 'function') {
+      try {
+        await window.GFY_updateItem(itemId, { name: newName, price: newPrice });
+      } catch (err) {
+        console.error('[EditItem] Firestore save failed:', err);
+      }
+    } else {
+      console.warn('[EditItem] window.GFY_updateItem is not loaded, changes saved locally');
+    }
+
+    // Redraw UI components
+    if (typeof window.refreshInventoryUI === 'function') {
+      window.refreshInventoryUI();
+    } else {
+      if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
+      if (typeof refreshManageList === 'function') refreshManageList();
+      if (typeof updateCart === 'function') updateCart();
+    }
+
+    window.closeEditItemModal();
+    if (typeof showToast === 'function') showToast('🎉 Item updated successfully!', 3000);
+  };
+
+  // 5. Intercept refreshManageList to inject edit buttons dynamically
+  function patchRefreshManageList() {
+    const original = window.refreshManageList;
+    if (typeof original !== 'function') {
+      setTimeout(patchRefreshManageList, 300);
+      return;
+    }
+
+    window.refreshManageList = function(...args) {
+      // Call original obfuscated code to render the cards
+      original.apply(this, args);
+
+      // Enhance the rendered cards with edit buttons
+      const container = document.getElementById('manage-items-list');
+      if (!container) return;
+
+      const cards = container.querySelectorAll('.mng-card');
+      cards.forEach(card => {
+        const delBtn = card.querySelector('.mng-del');
+        if (!delBtn) return;
+
+        const onclickStr = delBtn.getAttribute('onclick') || '';
+        const match = onclickStr.match(/deleteItem\(['"]([^'"]+)['"]\)/);
+        if (!match) return;
+        
+        const itemId = match[1];
+
+        // Skip if edit button already exists
+        if (card.querySelector('.mng-edit')) return;
+
+        const actions = card.querySelector('.mng-actions');
+        if (!actions) return;
+
+        // Create edit button
+        const editBtn = document.createElement('button');
+        editBtn.className = 'mng-edit';
+        editBtn.innerHTML = '✏️';
+        editBtn.title = 'Edit Item';
+        editBtn.setAttribute('style', 'background: #eef7f2; border: 1.5px solid #c8e6c9; color: var(--brown); width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: .8rem; display: flex; align-items: center; justify-content: center; transition: all .2s;');
+
+        // Add beautiful premium hover effect dynamically
+        editBtn.onmouseenter = function() {
+          editBtn.style.background = 'var(--saffron)';
+          editBtn.style.color = '#fff';
+          editBtn.style.transform = 'scale(1.05)';
+        };
+        editBtn.onmouseleave = function() {
+          editBtn.style.background = '#eef7f2';
+          editBtn.style.color = 'var(--brown)';
+          editBtn.style.transform = 'scale(1)';
+        };
+
+        // Click handler
+        editBtn.onclick = function(e) {
+          e.stopPropagation();
+          window.openEditItemModal(itemId);
+        };
+
+        // Insert before delete button
+        actions.insertBefore(editBtn, delBtn);
+      });
+    };
+  }
+
+  // 6. Bootstrap execution
+  function init() {
+    injectEditItemModal();
+    patchRefreshManageList();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    setTimeout(init, 100);
+  }
+})();
 </script>
 
 </body>

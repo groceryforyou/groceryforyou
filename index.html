@@ -7024,5 +7024,120 @@ Object.defineProperty(window, 'currentUser', {
 })();
 </script>
 
+
+<script>
+/* ===== CUSTOMER REALTIME ITEM UPDATE FIX ===== */
+(function(){
+  const LIVE_KEY = 'GFY_LIVE_MENU_SYNC_V3';
+
+  function getMenuData(){
+    if(Array.isArray(window.items)) return window.items;
+    if(Array.isArray(window.menuItems)) return window.menuItems;
+    return [];
+  }
+
+  function saveLiveMenu(){
+    try{
+      const data = getMenuData();
+      if(data.length){
+        localStorage.setItem(LIVE_KEY, JSON.stringify(data));
+      }
+    }catch(err){
+      console.error(err);
+    }
+  }
+
+  function applyLiveMenu(){
+    try{
+      const saved = localStorage.getItem(LIVE_KEY);
+      if(!saved) return;
+
+      const parsed = JSON.parse(saved);
+
+      if(!Array.isArray(parsed)) return;
+
+      if(Array.isArray(window.items)){
+        window.items.length = 0;
+        parsed.forEach(item => window.items.push(item));
+      }
+
+      if(Array.isArray(window.menuItems)){
+        window.menuItems.length = 0;
+        parsed.forEach(item => window.menuItems.push(item));
+      }
+
+    }catch(err){
+      console.error(err);
+    }
+  }
+
+  function rerenderCustomerUI(){
+    try{
+      if(typeof renderMenu === 'function'){
+        renderMenu();
+      }
+    }catch(e){}
+
+    try{
+      if(typeof renderMenuPage === 'function'){
+        renderMenuPage(window._currentMenuFilter || 'all');
+      }
+    }catch(e){}
+
+    try{
+      if(typeof updateCart === 'function'){
+        updateCart();
+      }
+    }catch(e){}
+
+    try{
+      if(typeof refreshInventoryUI === 'function'){
+        refreshInventoryUI();
+      }
+    }catch(e){}
+  }
+
+  function realtimeSync(){
+    applyLiveMenu();
+    rerenderCustomerUI();
+  }
+
+  window.addEventListener('storage', function(e){
+    if(e.key === LIVE_KEY){
+      realtimeSync();
+    }
+  });
+
+  const originalFetch = window.fetch;
+
+  if(originalFetch){
+    window.fetch = async function(){
+      const response = await originalFetch.apply(this, arguments);
+
+      setTimeout(function(){
+        realtimeSync();
+      }, 300);
+
+      return response;
+    };
+  }
+
+  window.addEventListener('load', function(){
+
+    realtimeSync();
+
+    setInterval(function(){
+      realtimeSync();
+    }, 1000);
+
+    setInterval(function(){
+      saveLiveMenu();
+    }, 1000);
+
+  });
+
+})();
+</script>
+
 </body>
 </html>

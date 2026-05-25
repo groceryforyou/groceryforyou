@@ -5676,9 +5676,10 @@ Object.defineProperty(window, 'currentUser', {
     if(!Array.isArray(parsed)) return;
     if(!Array.isArray(window.items)) return;
 
-    // Build map of current items by id for quick lookup
+    // Build map of current items by id for quick lookup (both arrays)
     const currentMap = {};
-    window.items.forEach(i=>{ if(i && i.id) currentMap[i.id] = i; });
+    if (Array.isArray(window.items)) window.items.forEach(i=>{ if(i && i.id) currentMap[i.id] = i; });
+    if (Array.isArray(window.menuItems)) window.menuItems.forEach(i=>{ if(i && i.id) currentMap[i.id] = i; });
 
     parsed.forEach(si=>{
       if(!si || !si.id) return;
@@ -6658,10 +6659,31 @@ Object.defineProperty(window, 'currentUser', {
       window.cart[itemId].price = newPrice;
     }
 
+    // Also update window.menuItems if present (customer UI may use this array)
+    try {
+      if (Array.isArray(window.menuItems)) {
+        const mi = window.menuItems.find(i => i && i.id === itemId);
+        if (mi) {
+          mi.name = newName;
+          mi.price = newPrice;
+          mi.description = newDesc;
+          mi.type = newDesc;
+          mi.image = newImage;
+          mi.catId = newCatId;
+        }
+      }
+    } catch(e) { console.warn('[EditItem] menuItems update failed', e); }
+
     // Persist local changes to localStorage immediately so customers see updates
     try {
       const key = 'restaurant_menu_items_live';
-      localStorage.setItem(key, JSON.stringify(allItems));
+      // Build unified list from window.items and window.menuItems to avoid divergence
+      const map = {};
+      if (Array.isArray(window.items)) window.items.forEach(it=>{ if(it && it.id) map[it.id]=it; });
+      if (Array.isArray(window.menuItems)) window.menuItems.forEach(it=>{ if(it && it.id) map[it.id]=it; });
+      // fallback to allItems if map empty
+      const unified = Object.keys(map).length ? Object.values(map) : allItems;
+      localStorage.setItem(key, JSON.stringify(unified));
       try {
         window.dispatchEvent(new StorageEvent('storage', { key }));
       } catch (evErr) {
@@ -6671,6 +6693,12 @@ Object.defineProperty(window, 'currentUser', {
         if (typeof refreshManageList === 'function') refreshManageList();
         if (typeof updateCart === 'function') updateCart();
       }
+      // Broadcast via BroadcastChannel for reliable cross-tab notification
+      try{
+        const bc = new BroadcastChannel('gfy_menu_updates');
+        bc.postMessage({ type: 'menu_update', key, timestamp: Date.now() });
+        bc.close();
+      }catch(bce){/*ignore*/}
     } catch (err) {
       console.warn('[EditItem] Could not persist to localStorage:', err);
     }
@@ -7093,6 +7121,19 @@ window.addEventListener('storage', function(e){
     }
 
 });
+
+// BroadcastChannel listener for reliable cross-tab sync
+try{
+  const _bc = new BroadcastChannel('gfy_menu_updates');
+  _bc.onmessage = function(ev){
+    try{
+      if(ev && ev.data && ev.data.type === 'menu_update'){
+        loadItems();
+        refreshCustomerUI();
+      }
+    }catch(e){console.warn('[BC] menu_update handler',e)}
+  };
+}catch(e){/* BroadcastChannel unsupported */}
 
 // realtime polling for customer side
 setInterval(function(){

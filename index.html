@@ -5439,7 +5439,35 @@ async function loadItemOverrides(db){
     if(snap.empty)return;
     const map={};snap.forEach(d=>{map[d.id]=d.data();});
     const allItems=window.items||[];
+    // Load local overrides from localStorage and prefer them when present
+    let localMap = {};
+    try{
+      const saved = localStorage.getItem('restaurant_menu_items_live');
+      if(saved){
+        const parsed = JSON.parse(saved);
+        if(Array.isArray(parsed)){
+          parsed.forEach(i=>{ if(i && i.id) localMap[i.id] = i; });
+        }
+      }
+    }catch(e){ /* ignore parse errors */ }
+
     allItems.forEach(item=>{
+      // Prefer explicit local edits if present
+      const localOv = localMap[item.id];
+      if(localOv){
+        if(localOv.name) item.name = localOv.name;
+        if(localOv.catId) item.catId = localOv.catId;
+        if(localOv.inStock!==undefined) item.inStock = localOv.inStock;
+        if(localOv.price!==undefined) item.price = localOv.price;
+        if(localOv.discount!==undefined) item.discount = localOv.discount;
+        if(localOv.description!==undefined) { item.description = localOv.description; item.type = localOv.description; }
+        if(localOv.image!==undefined) item.image = localOv.image;
+        if(localOv.rating!==undefined) item.rating = localOv.rating;
+        if(localOv.reviewsCount!==undefined) item.reviewsCount = localOv.reviewsCount;
+        return;
+      }
+
+      // Fall back to Firestore override if local edit not present
       let ov=map[item.id];
       if(!ov){
         const sanitizedId=item.name.replace(/\s+/g,'_');
@@ -5450,16 +5478,16 @@ async function loadItemOverrides(db){
             .catch(err=>console.warn('[Migration] Failed:',err));
         }
       }
-      if(!ov)return;
-      if(ov.name)item.name=ov.name;
-      if(ov.catId)item.catId=ov.catId;
-      if(ov.inStock!==undefined)item.inStock=ov.inStock;
-      if(ov.price>0)item.price=ov.price;
-      if(ov.discount!==undefined)item.discount=ov.discount;
-      if(ov.description!==undefined) { item.description=ov.description; item.type=ov.description; }
-      if(ov.image!==undefined)item.image=ov.image;
-      if(ov.rating!==undefined)item.rating=ov.rating;
-      if(ov.reviewsCount!==undefined)item.reviewsCount=ov.reviewsCount;
+      if(!ov) return;
+      if(ov.name) item.name = ov.name;
+      if(ov.catId) item.catId = ov.catId;
+      if(ov.inStock!==undefined) item.inStock = ov.inStock;
+      if(ov.price>0) item.price = ov.price;
+      if(ov.discount!==undefined) item.discount = ov.discount;
+      if(ov.description!==undefined) { item.description = ov.description; item.type = ov.description; }
+      if(ov.image!==undefined) item.image = ov.image;
+      if(ov.rating!==undefined) item.rating = ov.rating;
+      if(ov.reviewsCount!==undefined) item.reviewsCount = ov.reviewsCount;
     });
     try {
       localStorage.setItem('restaurant_menu_items_live', JSON.stringify(allItems));

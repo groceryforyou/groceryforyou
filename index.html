@@ -5440,7 +5440,17 @@ async function loadItemOverrides(db){
     const map={};snap.forEach(d=>{map[d.id]=d.data();});
     const allItems=window.items||[];
     allItems.forEach(item=>{
-      const ov=map[item.id];if(!ov)return;
+      let ov=map[item.id];
+      if(!ov){
+        const sanitizedId=item.name.replace(/\s+/g,'_');
+        ov=map[sanitizedId];
+        if(ov){
+          db.collection('menuItems').doc(item.id).set({...ov,id:item.id},{merge:true})
+            .then(()=>db.collection('menuItems').doc(sanitizedId).delete())
+            .catch(err=>console.warn('[Migration] Failed:',err));
+        }
+      }
+      if(!ov)return;
       if(ov.name)item.name=ov.name;
       if(ov.catId)item.catId=ov.catId;
       if(ov.inStock!==undefined)item.inStock=ov.inStock;
@@ -5609,6 +5619,16 @@ window.refreshInventoryUI = refreshInventoryUI;
 window.renderMenuPage = renderMenuPage;
 window.refreshManageList = refreshManageList;
 window.updateCart = updateCart;
+Object.defineProperty(window, 'currentRole', {
+  get: function() { return currentRole; },
+  set: function(val) { currentRole = val; },
+  configurable: true
+});
+Object.defineProperty(window, 'currentUser', {
+  get: function() { return currentUser; },
+  set: function(val) { currentUser = val; },
+  configurable: true
+});
 })();
 </script>
 
@@ -6683,7 +6703,7 @@ window.updateCart = updateCart;
         const docData = change.doc.data();
         const itemId = docData.id || change.doc.id;
         
-        let item = allItems.find(i => i.id === itemId);
+        let item = allItems.find(i => i.id === itemId || i.name.replace(/\s+/g,'_') === itemId);
         
         if (change.type === 'added' || change.type === 'modified') {
           const mappedItem = {

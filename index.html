@@ -5665,6 +5665,46 @@ Object.defineProperty(window, 'currentUser', {
 })();
 </script>
 
+<script>
+// Apply any locally saved menu item overrides (from admin edits) so page reloads keep changes
+(function applyLocalMenuOverrides(){
+  try{
+    const key = 'restaurant_menu_items_live';
+    const saved = localStorage.getItem(key);
+    if(!saved) return;
+    const parsed = JSON.parse(saved);
+    if(!Array.isArray(parsed)) return;
+    if(!Array.isArray(window.items)) return;
+
+    // Build map of current items by id for quick lookup
+    const currentMap = {};
+    window.items.forEach(i=>{ if(i && i.id) currentMap[i.id] = i; });
+
+    parsed.forEach(si=>{
+      if(!si || !si.id) return;
+      const target = currentMap[si.id];
+      if(target){
+        // Apply only fields that matter (avoid overwriting server-only metadata)
+        if(si.name !== undefined) target.name = si.name;
+        if(si.price !== undefined) target.price = si.price;
+        if(si.description !== undefined) { target.description = si.description; target.type = si.description; }
+        if(si.catId !== undefined) target.catId = si.catId;
+        if(si.image !== undefined) target.image = si.image;
+        if(si.inStock !== undefined) target.inStock = si.inStock;
+        if(si.rating !== undefined) target.rating = si.rating;
+        if(si.ratingCount !== undefined) target.ratingCount = si.ratingCount;
+      }
+    });
+
+    // Trigger UI refreshes if available
+    if(typeof window.refreshInventoryUI === 'function') window.refreshInventoryUI();
+    if(typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
+    if(typeof refreshManageList === 'function') refreshManageList();
+    if(typeof updateCart === 'function') updateCart();
+  }catch(e){console.warn('[LocalOverrides] failed to apply:', e);} 
+})();
+</script>
+
 <!-- ===== SEO FOOTER ===== -->
 <footer itemscope itemtype="https://schema.org/GroceryStore" style="background:linear-gradient(180deg,#0a1a0e,#0d3b1a);color:#c8e6c9;padding:40px 20px 80px;margin-top:0;font-family:'Lato',sans-serif">
   <div style="max-width:1200px;margin:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:32px">

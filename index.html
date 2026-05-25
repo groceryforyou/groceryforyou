@@ -6590,6 +6590,23 @@ Object.defineProperty(window, 'currentUser', {
       window.cart[itemId].price = newPrice;
     }
 
+    // Persist local changes to localStorage immediately so customers see updates
+    try {
+      const key = 'restaurant_menu_items_live';
+      localStorage.setItem(key, JSON.stringify(allItems));
+      try {
+        window.dispatchEvent(new StorageEvent('storage', { key }));
+      } catch (evErr) {
+        // fallback: call refresh directly if StorageEvent cannot be constructed
+        if (typeof window.refreshInventoryUI === 'function') window.refreshInventoryUI();
+        if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
+        if (typeof refreshManageList === 'function') refreshManageList();
+        if (typeof updateCart === 'function') updateCart();
+      }
+    } catch (err) {
+      console.warn('[EditItem] Could not persist to localStorage:', err);
+    }
+
     // Persist to Firebase Firestore
     if (typeof window.GFY_updateItem === 'function') {
       try {
@@ -6600,6 +6617,8 @@ Object.defineProperty(window, 'currentUser', {
           image: newImage,
           catId: newCatId 
         });
+        // ensure localStorage is in sync after successful DB write
+        try { localStorage.setItem('restaurant_menu_items_live', JSON.stringify(allItems)); } catch(e){}
       } catch (err) {
         console.error('[EditItem] Firestore save failed:', err);
       }

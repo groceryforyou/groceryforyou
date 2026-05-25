@@ -6876,126 +6876,137 @@ Object.defineProperty(window, 'currentUser', {
 
 
 <script>
-/* ===== STABLE ADMIN ITEM SAVE + CUSTOMER REALTIME FIX ===== */
-(function () {
-  'use strict';
 
-  const STORAGE_KEY = 'restaurant_menu_items_v5';
 
-  function getMenuArray() {
-    if (Array.isArray(window.items)) return window.items;
-    if (Array.isArray(window.menuItems)) return window.menuItems;
-    return null;
-  }
 
-  function saveMenuData() {
-    try {
-      const arr = getMenuArray();
-      if (!arr) return;
+<script>
+/* ===== FINAL CUSTOMER LIVE UPDATE FIX ===== */
+(function(){
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
-    } catch (e) {
-      console.error('Save menu failed', e);
+const STORAGE_KEY = "restaurant_menu_items_live";
+
+function getItems(){
+    if(Array.isArray(window.items)) return window.items;
+    if(Array.isArray(window.menuItems)) return window.menuItems;
+    return [];
+}
+
+function saveItems(){
+    try{
+        const items = getItems();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    }catch(err){
+        console.error(err);
     }
-  }
+}
 
-  function loadMenuData() {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (!saved) return;
+function loadItems(){
+    try{
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if(!saved) return;
 
-      const parsed = JSON.parse(saved);
-      const arr = getMenuArray();
+        const parsed = JSON.parse(saved);
+        const items = getItems();
 
-      if (!arr || !Array.isArray(parsed)) return;
+        if(!Array.isArray(parsed) || !items) return;
 
-      arr.length = 0;
+        items.length = 0;
 
-      parsed.forEach(function (item) {
-        arr.push(item);
-      });
+        parsed.forEach(item=>{
+            items.push(item);
+        });
 
-    } catch (e) {
-      console.error('Load menu failed', e);
+    }catch(err){
+        console.error(err);
     }
-  }
+}
 
-  function refreshUI() {
-    try {
-      if (typeof renderMenu === 'function') renderMenu();
-    } catch(e){}
+function refreshCustomerUI(){
 
-    try {
-      if (typeof renderMenuPage === 'function') {
-        renderMenuPage(window.currentCategory || 'all');
-      }
-    } catch(e){}
+    try{
+        if(typeof renderMenu === 'function'){
+            renderMenu();
+        }
+    }catch(e){}
 
-    try {
-      if (typeof refreshManageList === 'function') refreshManageList();
-    } catch(e){}
+    try{
+        if(typeof renderMenuPage === 'function'){
+            renderMenuPage(window.currentCategory || 'all');
+        }
+    }catch(e){}
 
-    try {
-      if (typeof refreshInventoryUI === 'function') refreshInventoryUI();
-    } catch(e){}
+    try{
+        if(typeof refreshInventoryUI === 'function'){
+            refreshInventoryUI();
+        }
+    }catch(e){}
 
-    try {
-      if (typeof updateCart === 'function') updateCart();
-    } catch(e){}
-  }
+    try{
+        if(typeof updateCart === 'function'){
+            updateCart();
+        }
+    }catch(e){}
+}
 
-  // LOAD SAVED DATA FIRST
-  window.addEventListener('load', function () {
+window.addEventListener('load', function(){
 
-    loadMenuData();
+    loadItems();
 
-    setTimeout(function () {
-      refreshUI();
-    }, 500);
+    setTimeout(function(){
+        refreshCustomerUI();
+    }, 800);
 
-  });
+});
 
-  // SAVE AFTER ADMIN EDIT
-  document.addEventListener('click', function (e) {
+document.addEventListener('click', function(e){
 
     const btn = e.target.closest('button');
-    if (!btn) return;
+    if(!btn) return;
 
-    const text = (btn.innerText || '').toLowerCase();
+    const txt = (btn.innerText || '').toLowerCase();
 
-    if (
-      text.includes('save') ||
-      text.includes('update')
-    ) {
+    if(
+        txt.includes('save') ||
+        txt.includes('update')
+    ){
 
-      setTimeout(function () {
+        setTimeout(function(){
 
-        saveMenuData();
-        refreshUI();
+            saveItems();
 
-        console.log('Menu saved permanently');
+            // Force realtime update
+            window.dispatchEvent(new StorageEvent('storage', {
+                key: STORAGE_KEY
+            }));
 
-        if (typeof showToast === 'function') {
-          showToast('✅ Item updated successfully');
-        }
+            refreshCustomerUI();
 
-      }, 600);
+            console.log('Realtime customer sync updated');
 
-    }
-
-  }, true);
-
-  // REALTIME CUSTOMER SYNC
-  window.addEventListener('storage', function (e) {
-
-    if (e.key === STORAGE_KEY) {
-
-      loadMenuData();
-      refreshUI();
+        }, 700);
 
     }
 
-  });
+}, true);
+
+window.addEventListener('storage', function(e){
+
+    if(e.key === STORAGE_KEY){
+
+        loadItems();
+        refreshCustomerUI();
+
+    }
+
+});
+
+// realtime polling for customer side
+setInterval(function(){
+
+    loadItems();
+    refreshCustomerUI();
+
+}, 2000);
 
 })();
 </script>

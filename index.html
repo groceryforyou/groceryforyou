@@ -7102,5 +7102,198 @@ setInterval(function(){
 })();
 </script>
 
+
+<!-- ===== REALTIME CUSTOMER MENU SYNC FIX ===== -->
+<script>
+(function(){
+'use strict';
+
+const COLLECTION_NAME = 'menuItemsRealtimeSync';
+let menuRealtimeUnsubscribe = null;
+
+function getMenuArray(){
+    if(Array.isArray(window.items)) return window.items;
+    if(Array.isArray(window.menuItems)) return window.menuItems;
+    window.items = [];
+    return window.items;
+}
+
+function refreshAllMenus(){
+    try{
+        if(typeof renderMenu === 'function') renderMenu();
+    }catch(e){}
+
+    try{
+        if(typeof renderMenuPage === 'function'){
+            renderMenuPage(window.currentCategory || 'all');
+        }
+    }catch(e){}
+
+    try{
+        if(typeof refreshManageList === 'function'){
+            refreshManageList();
+        }
+    }catch(e){}
+
+    try{
+        if(typeof refreshInventoryUI === 'function'){
+            refreshInventoryUI();
+        }
+    }catch(e){}
+
+    try{
+        if(typeof updateCart === 'function'){
+            updateCart();
+        }
+    }catch(e){}
+}
+
+async function saveMenuToFirestore(){
+    try{
+
+        if(typeof db === 'undefined' || !db) return;
+
+        const items = getMenuArray();
+        if(!items.length) return;
+
+        const batch = db.batch();
+
+        items.forEach((item,index)=>{
+
+            const docId = String(
+                item.id ||
+                item.itemId ||
+                item.name ||
+                ('item_' + index)
+            ).replace(/[^\w-]/g,'_');
+
+            batch.set(
+                db.collection(COLLECTION_NAME).doc(docId),
+                {
+                    ...item,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                },
+                { merge:true }
+            );
+        });
+
+        await batch.commit();
+
+        localStorage.setItem(
+            'restaurant_menu_items_live',
+            JSON.stringify(items)
+        );
+
+        console.log('[GFY] Menu synced to Firestore');
+
+    }catch(err){
+        console.error('[GFY] Firestore menu save error', err);
+    }
+}
+
+function applyRealtimeMenu(snapshot){
+
+    try{
+
+        const firestoreItems = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        if(!firestoreItems.length) return;
+
+        const target = getMenuArray();
+
+        target.length = 0;
+
+        firestoreItems.forEach(item=>{
+            target.push(item);
+        });
+
+        window.items = target;
+        window.menuItems = target;
+
+        localStorage.setItem(
+            'restaurant_menu_items_live',
+            JSON.stringify(target)
+        );
+
+        refreshAllMenus();
+
+        console.log('[GFY] Customer menu updated instantly');
+
+    }catch(err){
+        console.error('[GFY] Menu realtime apply error', err);
+    }
+}
+
+function startRealtimeSync(){
+
+    if(typeof db === 'undefined' || !db){
+        setTimeout(startRealtimeSync,1500);
+        return;
+    }
+
+    if(menuRealtimeUnsubscribe){
+        menuRealtimeUnsubscribe();
+    }
+
+    menuRealtimeUnsubscribe = db
+        .collection(COLLECTION_NAME)
+        .onSnapshot(
+            applyRealtimeMenu,
+            function(error){
+                console.error('[GFY] Menu listener error', error);
+            }
+        );
+
+    console.log('[GFY] Realtime menu listener started');
+}
+
+function detectAdminChanges(){
+
+    document.addEventListener('click', function(e){
+
+        const btn = e.target.closest('button');
+        if(!btn) return;
+
+        const text = (btn.innerText || '').toLowerCase();
+
+        if(
+            text.includes('save') ||
+            text.includes('update') ||
+            text.includes('edit')
+        ){
+
+            setTimeout(function(){
+                saveMenuToFirestore();
+            }, 800);
+        }
+    });
+
+    document.addEventListener('change', function(){
+
+        clearTimeout(window.__menuSyncTimer);
+
+        window.__menuSyncTimer = setTimeout(function(){
+            saveMenuToFirestore();
+        }, 1200);
+    });
+}
+
+window.addEventListener('load', function(){
+
+    startRealtimeSync();
+
+    detectAdminChanges();
+
+    setTimeout(function(){
+        saveMenuToFirestore();
+    }, 2500);
+
+});
+})();
+</script>
+
 </body>
 </html>

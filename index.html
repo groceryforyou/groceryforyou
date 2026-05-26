@@ -6467,6 +6467,16 @@ Object.defineProperty(window, 'currentUser', {
     document.getElementById('edit-item-price').value = item.price || 0;
     document.getElementById('edit-item-stock').value = item.inStock ? '1' : '0';
     document.getElementById('edit-item-id').value = itemId;
+
+    // Dynamically prefill choices for current categories list
+    const editItemCat = document.getElementById('edit-item-cat');
+    if (editItemCat) {
+      const allCats = (typeof window.categories !== 'undefined') ? window.categories : [];
+      editItemCat.innerHTML = allCats.map(cat => 
+        `<option value="${cat.id}">${cat.emoji} ${cat.name}</option>`
+      ).join('');
+      editItemCat.value = item.category || item.catId || '';
+    }
     
     document.getElementById('edit-item-modal-overlay').classList.add('open');
     if (typeof window.lockBodyScroll === 'function') window.lockBodyScroll();
@@ -6651,6 +6661,53 @@ Object.defineProperty(window, 'currentUser', {
     }
   };
 
+  // Add New Category Function writing directly to Firestore
+  window.saveNewCategory = async function() {
+    if (currentRole !== 'admin') {
+      if (typeof showToast === 'function') showToast('⚠️ Only admin can add categories');
+      return;
+    }
+    const nameInput = document.getElementById('new-cat-name');
+    const emojiInput = document.getElementById('new-cat-emoji-custom');
+    
+    const name = nameInput ? nameInput.value.trim() : '';
+    const emoji = (emojiInput && emojiInput.value.trim()) || window.selectedCatEmoji || '📂';
+
+    if (!name) {
+      if (nameInput) nameInput.focus();
+      if (typeof showToast === 'function') showToast('⚠️ Enter category name');
+      return;
+    }
+
+    const catId = 'cat-' + name.replace(/\s+/g, '-').toLowerCase();
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+
+    if (!firebaseDB) {
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
+      return;
+    }
+
+    try {
+      await firebaseDB.collection('categories').doc(catId).set({
+        id: catId,
+        name: name,
+        emoji: emoji,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      if (typeof showToast === 'function') showToast(`🎉 Category "${name}" added successfully!`, 3000);
+      
+      if (typeof closeCatModal === 'function') closeCatModal();
+      if (nameInput) nameInput.value = '';
+      if (emojiInput) emojiInput.value = '';
+    } catch (err) {
+      console.error('[AddCategory] Firestore write failed:', err);
+      if (typeof showToast === 'function') showToast('⚠️ Could not save category', 2500);
+    }
+  };
+
   // ── 4. FAILSURE / ENHANCE ADMIN PANEL UI ───────────────────────────────
   function enhanceManageListWithEditButtons() {
     const container = document.getElementById('manage-items-list');
@@ -6715,6 +6772,87 @@ Object.defineProperty(window, 'currentUser', {
   }
 
   // ── 5. REALTIME SNAPSHOT LISTENERS ─────────────────────────────────────
+  const defaultCategories = [
+    { id: 'vegetables', name: 'Vegetables', emoji: '🥦' },
+    { id: 'fruits', name: 'Fruits', emoji: '🍎' },
+    { id: 'dairy', name: 'Dairy', emoji: '🥛' },
+    { id: 'grocery', name: 'Grocery', emoji: '🌾' },
+    { id: 'leafy', name: 'Leafy', emoji: '🥬' },
+    { id: 'snacks', name: 'Snacks', emoji: '🍿' },
+    { id: 'beverages', name: 'Beverages', emoji: '🥤' }
+  ];
+
+  function startCategoriesSync(firebaseDB) {
+    console.log('[FirestoreSync] Initializing realtime categories sync listener...');
+
+    onSnapshot(collection(firebaseDB, "categories"), (snapshot) => {
+      try {
+        const loadedCats = [];
+        if (snapshot && !snapshot.empty) {
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            loadedCats.push({
+              id: doc.id,
+              name: data.name || '',
+              emoji: data.emoji || '📂'
+            });
+          });
+        }
+
+        const mergedCats = [...defaultCategories];
+        loadedCats.forEach(lc => {
+          if (!mergedCats.some(mc => mc.id === lc.id)) {
+            mergedCats.push(lc);
+          }
+        });
+
+        // Update arrays in-place to preserve references
+        if (typeof categories !== 'undefined' && Array.isArray(categories)) {
+          categories.length = 0;
+          mergedCats.forEach(c => categories.push(c));
+        }
+        if (typeof window.categories !== 'undefined' && Array.isArray(window.categories)) {
+          window.categories.length = 0;
+          mergedCats.forEach(c => window.categories.push(c));
+        }
+
+        // Update Add Item Dropdown
+        const aipCat = document.getElementById('aip-cat');
+        if (aipCat) {
+          const currentVal = aipCat.value;
+          aipCat.innerHTML = mergedCats.map(cat => 
+            `<option value="${cat.id}">${cat.emoji} ${cat.name}</option>`
+          ).join('');
+          if (currentVal && mergedCats.some(c => c.id === currentVal)) {
+            aipCat.value = currentVal;
+          }
+        }
+
+        // Update Edit Item Dropdown (dynamic on load anyway but good for live feedback)
+        const editItemCat = document.getElementById('edit-item-cat');
+        if (editItemCat) {
+          const currentVal = editItemCat.value;
+          editItemCat.innerHTML = mergedCats.map(cat => 
+            `<option value="${cat.id}">${cat.emoji} ${cat.name}</option>`
+          ).join('');
+          if (currentVal && mergedCats.some(c => c.id === currentVal)) {
+            editItemCat.value = currentVal;
+          }
+        }
+
+        // Refresh UI
+        if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
+        if (typeof refreshManageList === 'function') refreshManageList();
+        if (typeof renderManagePage === 'function') renderManagePage();
+
+      } catch (err) {
+        console.error('[FirestoreSync] Categories sync apply error:', err);
+      }
+    }, (error) => {
+      console.error('[FirestoreSync] Categories listener error:', error);
+    });
+  }
+
   function startRealtimeSync() {
     const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
                        (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
@@ -6723,6 +6861,9 @@ Object.defineProperty(window, 'currentUser', {
       setTimeout(startRealtimeSync, 500);
       return;
     }
+
+    // Start category realtime sync
+    startCategoriesSync(firebaseDB);
 
     console.log('[FirestoreSync] Initializing realtime menuItems sync listener...');
 

@@ -7153,19 +7153,26 @@ async function refreshTotals(){
     });
 
   // FIX PLAIN TEXT
-  document.querySelectorAll('div,p,span,strong').forEach(function(el){
+  // Optimized text updates without blinking
+document.querySelectorAll('div,p,span,strong').forEach(function(el){
 
-    const txt = (el.textContent || '').trim();
+  const txt = (el.textContent || '').trim();
 
-    if(txt.startsWith('Items Total')){
-      el.textContent = 'Items Total ₹' + subtotal;
+  if(txt.startsWith('Items Total')){
+    const newText = 'Items Total ₹' + subtotal;
+    if(el.textContent !== newText){
+      el.textContent = newText;
     }
+  }
 
-    if(txt.startsWith('Grand Total')){
-      el.textContent = 'Grand Total ₹' + grandTotal;
+  if(txt.startsWith('Grand Total')){
+    const newText = 'Grand Total ₹' + grandTotal;
+    if(el.textContent !== newText){
+      el.textContent = newText;
     }
+  }
 
-  });
+});
 
   // UPI PAYMENT FIX
   document.querySelectorAll('a[href*="upi://pay"]').forEach(function(link){
@@ -7196,13 +7203,41 @@ window.addEventListener('load', function(){
 
   refreshTotals();
 
-  setInterval(refreshTotals, 1000);
+  
+let lastSubtotal = -1;
+let lastDelivery = -1;
+let lastGrand = -1;
+
+async function optimizedRefresh(){
+
+  const subtotal = getSubtotal();
+  const deliveryFee = await getDeliveryFee();
+  const grandTotal = subtotal + deliveryFee;
+
+  // Prevent unnecessary DOM updates causing blinking
+  if(
+    subtotal === lastSubtotal &&
+    deliveryFee === lastDelivery &&
+    grandTotal === lastGrand
+  ){
+    return;
+  }
+
+  lastSubtotal = subtotal;
+  lastDelivery = deliveryFee;
+  lastGrand = grandTotal;
+
+  refreshTotals();
+}
+
+setInterval(optimizedRefresh, 3000);
+
 
 });
 
 document.addEventListener('click', function(){
 
-  setTimeout(refreshTotals, 200);
+  setTimeout(refreshTotals, 500);
 
 });
 

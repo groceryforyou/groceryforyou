@@ -3048,11 +3048,6 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 <script>
 function getNum(v){return Number(String(v||'0').replace(/[^0-9.]/g,''))||0;}
 function calculateFinalTotal(){
-  if (typeof window.syncTotalsFromCart === 'function'){
-    try{ window.syncTotalsFromCart(); }catch(e){}
-    return Number(window.finalGrandTotal) || 0;
-  }
-
   const cartEl=document.getElementById('om-subtotal') || document.getElementById('cart-total') || document.querySelector('.cart-total');
   const deliveryEl=document.getElementById('delivery-fee') || document.getElementById('om-delivery-fee');
   const grandEl=document.getElementById('grand-total') || document.querySelector('[data-grand-total]');
@@ -3069,10 +3064,6 @@ function calculateFinalTotal(){
 }
 
 function patchUPIPayment(){
-  if (typeof window.syncTotalsFromCart === 'function'){
-    try{ window.syncTotalsFromCart(); }catch(e){}
-    return;
-  }
   const total=calculateFinalTotal();
   if(!total || total<=0) return;
 
@@ -3100,21 +3091,13 @@ function patchUPIPayment(){
 }
 
 setInterval(function(){
-  if (typeof window.syncTotalsFromCart === 'function') {
-    try{ window.syncTotalsFromCart(); }catch(e){}
-  } else {
-    calculateFinalTotal();
-    patchUPIPayment();
-  }
-},800);
+  calculateFinalTotal();
+  patchUPIPayment();
+},1000);
 
 window.addEventListener('load',function(){
-  if (typeof window.syncTotalsFromCart === 'function') {
-    try{ window.syncTotalsFromCart(); }catch(e){}
-  } else {
-    calculateFinalTotal();
-    patchUPIPayment();
-  }
+  calculateFinalTotal();
+  patchUPIPayment();
 });
 })();
 </script>
@@ -6074,106 +6057,6 @@ Object.defineProperty(window, 'currentUser', {
   }
 
   console.log('[DeliveryFee] 🚀 System loaded');
-})();
-</script>
-
-<!-- ===== SYNC TOTALS HELPER: single authoritative updater ===== -->
-<script>
-(function(){
-  'use strict';
-
-  function safeNum(v){ return Number(String(v||'0').replace(/[^0-9.]/g,''))||0; }
-
-  function syncTotalsFromCart(){
-    try{
-      var subtotal = 0;
-      if (typeof cart !== 'undefined' && cart && Object.keys(cart).length){
-        subtotal = Object.keys(cart).reduce(function(s,id){
-          var it = cart[id]||{};
-          return s + ((Number(it.price)||0) * (Number(it.qty)||0));
-        },0);
-      } else {
-        var subEl = document.getElementById('om-subtotal') || document.getElementById('cart-total') || document.querySelector('.cart-total');
-        subtotal = subEl ? safeNum(subEl.innerText || subEl.textContent) : 0;
-      }
-
-      var fee = 0;
-      if (typeof calcDeliveryFee === 'function') fee = Number(calcDeliveryFee(subtotal)) || 0;
-      else if (typeof window.currentDeliveryFee !== 'undefined') fee = Number(window.currentDeliveryFee)||0;
-      else if (typeof _fee !== 'undefined') fee = Number(_fee)||0;
-
-      var grand = Math.round(subtotal + fee);
-
-      // Update visible UI elements (subtotal, delivery fee, grand)
-      var omTotalEl = document.getElementById('om-total');
-      if (omTotalEl) omTotalEl.innerText = '₹' + Math.round(subtotal);
-
-      var deliveryEl = document.getElementById('om-delivery-fee-display') || document.getElementById('om-delivery-fee') || document.getElementById('deliveryFee');
-      if (deliveryEl) deliveryEl.innerText = (fee === 0 ? '🎁 Free' : '₹' + Math.round(fee));
-
-      var grandEl = document.getElementById('om-grand-total') || document.getElementById('om-order-total') || document.getElementById('grand-total') || document.querySelector('[data-grand-total]');
-      if (grandEl) grandEl.innerText = '₹' + grand;
-
-      var totalAmountEl = document.getElementById('totalAmount') || document.getElementById('totalAmountDisplay');
-      if (totalAmountEl) totalAmountEl.innerText = '₹' + grand;
-
-      // Expose canonical values used by payment flows
-      window.finalAmount = grand;
-      window.finalGrandTotal = grand;
-      window._gfyGrandTotal = grand;
-      window._pendingUPIAmount = grand;
-
-      // Sync UPI links
-      document.querySelectorAll('a[href^="upi://pay"]').forEach(function(link){
-        try{
-          var href = link.getAttribute('href') || '';
-          if (href.match(/([&?]am=)(\d+(?:\.\d+)?)/)){
-            href = href.replace(/([&?]am=)(\d+(?:\.\d+)?)/, '$1' + grand);
-          } else {
-            href += (href.indexOf('?') === -1 ? '?' : '&') + 'am=' + grand;
-          }
-          link.setAttribute('href', href);
-        }catch(e){}
-      });
-
-      // Ensure Razorpay opens with correct amount
-      try{
-        if (typeof window.Razorpay === 'function'){
-          var OldRazor = window.Razorpay;
-          // Only wrap once
-          if (!OldRazor.__gfy_wrapped) {
-            var Wrapped = function(options){ try{ options.amount = Math.round(grand * 100); }catch(e){} return new OldRazor(options); };
-            Wrapped.__gfy_wrapped = true;
-            window.Razorpay = Wrapped;
-          }
-        }
-      }catch(e){}
-
-    }catch(err){
-      console.warn('[SyncTotals] error', err);
-    }
-  }
-
-  // Run periodically and on load
-  document.addEventListener('DOMContentLoaded', function(){ syncTotalsFromCart(); });
-  setInterval(syncTotalsFromCart, 600);
-
-  // Hook updateCart to run sync after cart updates
-  (function(){
-    var tryHook = function(){
-      if (typeof window.updateCart === 'function' && !window.updateCart.__gfy_hooked) {
-        var orig = window.updateCart;
-        window.updateCart = function(){ var r = orig.apply(this, arguments); try{ syncTotalsFromCart(); }catch(e){} return r; };
-        window.updateCart.__gfy_hooked = true;
-        return true;
-      }
-      return false;
-    };
-    if (!tryHook()) setTimeout(tryHook, 400);
-  })();
-
-  // expose for debugging
-  window.syncTotalsFromCart = syncTotalsFromCart;
 })();
 </script>
 

@@ -3105,7 +3105,11 @@ window.addEventListener('load',function(){
 <script>
 (function(){
   function getGrandTotal(){
-    let el = document.getElementById('om-total') || document.querySelector('.grand-total') || document.querySelector('[data-grand-total]');
+    if (typeof window.getGrandTotal === 'function') {
+      const g = window.getGrandTotal();
+      if (g > 0) return g;
+    }
+    let el = document.getElementById('om-grand-total') || document.getElementById('grand-total') || document.getElementById('om-total') || document.querySelector('.grand-total') || document.querySelector('[data-grand-total]');
     if(!el) return 0;
     let amt = parseFloat((el.innerText || el.textContent || '0').replace(/[^\d.]/g,''));
     return isNaN(amt) ? 0 : amt;
@@ -6818,8 +6822,6 @@ Object.defineProperty(window, 'currentUser', {
 if (window.__GFY_TOTAL_FIX_APPLIED__) return;
 window.__GFY_TOTAL_FIX_APPLIED__ = true;
 
-const DELIVERY_FEE = 30;
-
 function safeNumber(value) {
     const num = Number(String(value || 0).replace(/[^\d.]/g, ''));
     return isNaN(num) ? 0 : num;
@@ -6868,7 +6870,41 @@ function calculateTotals() {
 
     subtotal = Number(subtotal.toFixed(2));
 
-    const deliveryFee = DELIVERY_FEE;
+    // Get current delivery fee dynamically from configuration/state/storage
+    let deliveryFee = 30; // default fallback
+    if (typeof _dsSettings !== 'undefined' && _dsSettings) {
+        if (!_dsSettings.enabled) {
+            deliveryFee = 0;
+        } else if (_dsSettings.freeAbove > 0 && subtotal >= _dsSettings.freeAbove) {
+            deliveryFee = 0;
+        } else {
+            deliveryFee = Number(_dsSettings.fee) || 0;
+        }
+    } else if (typeof window._gfyDeliveryFee !== 'undefined') {
+        deliveryFee = window._gfyDeliveryFee;
+    } else if (typeof window.currentDeliveryFee !== 'undefined') {
+        deliveryFee = window.currentDeliveryFee;
+    } else {
+        try {
+            const stored = localStorage.getItem('deliverySettings') || localStorage.getItem('perfect_delivery_settings');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed) {
+                    const enabled = parsed.feeEnabled !== undefined ? parsed.feeEnabled : parsed.enabled;
+                    const fee = parsed.feeAmount !== undefined ? parsed.feeAmount : parsed.fee;
+                    const freeAbove = parsed.freeAbove;
+                    if (enabled === false) {
+                        deliveryFee = 0;
+                    } else if (freeAbove > 0 && subtotal >= freeAbove) {
+                        deliveryFee = 0;
+                    } else {
+                        deliveryFee = Number(fee) || 0;
+                    }
+                }
+            }
+        } catch(e) {}
+    }
+
     const grandTotal = Number((subtotal + deliveryFee).toFixed(2));
 
     window.currentSubtotal = subtotal;
@@ -6909,7 +6945,15 @@ function syncTotalsUI() {
     updateElement('delivery-fee', totals.deliveryFee);
     updateElement('om-delivery-fee', totals.deliveryFee);
 
-    updateElement('om-total', totals.grandTotal);
+    if (totals.deliveryFee === 0) {
+        const el = document.getElementById('om-delivery-fee-display');
+        if (el) el.textContent = '🎁 Free';
+    } else {
+        updateElement('om-delivery-fee-display', totals.deliveryFee);
+    }
+
+    updateElement('om-total', totals.subtotal); // Set items total (subtotal)
+    updateElement('om-grand-total', totals.grandTotal); // Set grand total
     updateElement('grand-total', totals.grandTotal);
     updateElement('totalAmount', totals.grandTotal);
 
@@ -7016,6 +7060,45 @@ observer.observe(document.body, {
 document.addEventListener('DOMContentLoaded', function() {
     syncTotalsUI();
     setTimeout(syncTotalsUI, 300);
+
+    // Prevent duplicate order placement from multiple clicks (double-submitting)
+    if (typeof window.submitOrder === 'function') {
+        const originalSubmitOrder = window.submitOrder;
+        let isSubmitting = false;
+        window.submitOrder = function() {
+            if (isSubmitting) return;
+            isSubmitting = true;
+            
+            const btn = document.querySelector('.om-place');
+            const originalText = btn ? btn.innerText : '🛍️ Place Order';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = '⏳ Placing...';
+                btn.style.opacity = '0.7';
+            }
+            
+            try {
+                originalSubmitOrder();
+            } catch (err) {
+                isSubmitting = false;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                    btn.style.opacity = '';
+                }
+            }
+            
+            // Safety timeout to reset button if order placement fails silently or payment checkout is closed
+            setTimeout(function() {
+                isSubmitting = false;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                    btn.style.opacity = '';
+                }
+            }, 6000);
+        };
+    }
 });
 
 window.addEventListener('load', function() {

@@ -6992,5 +6992,221 @@ Object.defineProperty(window, 'currentUser', {
 })();
 </script>
 
+
+<!-- FINAL CHECKOUT + UPI TOTAL FIX -->
+<script>
+(function () {
+'use strict';
+
+if (window.__GFY_TOTAL_FIX_APPLIED__) return;
+window.__GFY_TOTAL_FIX_APPLIED__ = true;
+
+const DELIVERY_FEE = 30;
+
+function safeNumber(value) {
+    const num = Number(String(value || 0).replace(/[^\d.]/g, ''));
+    return isNaN(num) ? 0 : num;
+}
+
+function getCartItems() {
+    try {
+        if (Array.isArray(window.cart)) {
+            return window.cart;
+        }
+
+        if (window.cart && typeof window.cart === 'object') {
+            return Object.values(window.cart);
+        }
+
+        const stored =
+            localStorage.getItem('cart') ||
+            localStorage.getItem('gfy_cart') ||
+            '[]';
+
+        const parsed = JSON.parse(stored);
+
+        if (Array.isArray(parsed)) {
+            return parsed;
+        }
+
+        if (parsed && typeof parsed === 'object') {
+            return Object.values(parsed);
+        }
+    } catch (e) {}
+
+    return [];
+}
+
+function calculateTotals() {
+    let subtotal = 0;
+
+    const items = getCartItems();
+
+    items.forEach(function(item) {
+        const price = safeNumber(item.price);
+        const quantity = safeNumber(item.quantity || item.qty || 1);
+
+        subtotal += price * quantity;
+    });
+
+    subtotal = Number(subtotal.toFixed(2));
+
+    const deliveryFee = DELIVERY_FEE;
+    const grandTotal = Number((subtotal + deliveryFee).toFixed(2));
+
+    window.currentSubtotal = subtotal;
+    window.currentDeliveryFee = deliveryFee;
+    window.currentGrandTotal = grandTotal;
+    window.finalAmount = grandTotal;
+    window._pendingUPIAmount = grandTotal;
+    window._gfyGrandTotal = grandTotal;
+
+    return {
+        subtotal,
+        deliveryFee,
+        grandTotal
+    };
+}
+
+function updateElement(id, value) {
+    const el = document.getElementById(id);
+
+    if (!el) return;
+
+    const formatted = '₹' + value;
+
+    if (el.textContent !== formatted) {
+        el.textContent = formatted;
+    }
+}
+
+function syncTotalsUI() {
+    const totals = calculateTotals();
+
+    updateElement('om-subtotal', totals.subtotal);
+    updateElement('subtotal', totals.subtotal);
+    updateElement('cart-total', totals.subtotal);
+    updateElement('items-total', totals.subtotal);
+
+    updateElement('deliveryFee', totals.deliveryFee);
+    updateElement('delivery-fee', totals.deliveryFee);
+    updateElement('om-delivery-fee', totals.deliveryFee);
+
+    updateElement('om-total', totals.grandTotal);
+    updateElement('grand-total', totals.grandTotal);
+    updateElement('totalAmount', totals.grandTotal);
+
+    updateElement('upi-amount-display', totals.grandTotal);
+    updateElement('phonepe-qr-amount', totals.grandTotal);
+
+    document.querySelectorAll(
+        'input[name="amount"], #payment-amount, .payment-amount'
+    ).forEach(function(el) {
+        el.value = totals.grandTotal;
+    });
+
+    return totals;
+}
+
+window.calculateTotals = calculateTotals;
+window.syncTotalsUI = syncTotalsUI;
+window.getGrandTotal = function() {
+    return calculateTotals().grandTotal;
+};
+
+window.getSubtotal = function() {
+    return calculateTotals().subtotal;
+};
+
+window.deepLinkUPI = function(app) {
+    const totals = calculateTotals();
+    const upiAmount = totals.grandTotal;
+
+    const UPI_ID =
+        window.UPI_ID ||
+        'example@upi';
+
+    const baseLink =
+        'upi://pay?pa=' +
+        encodeURIComponent(UPI_ID) +
+        '&pn=' +
+        encodeURIComponent('CeryForYou') +
+        '&am=' +
+        upiAmount +
+        '&cu=INR';
+
+    const links = {
+        gpay: 'tez://upi/pay?' + baseLink.replace('upi://pay?', ''),
+        phonepe: 'phonepe://pay?' + baseLink.replace('upi://pay?', ''),
+        paytm: 'paytmmp://pay?' + baseLink.replace('upi://pay?', ''),
+        bhim: baseLink
+    };
+
+    window.location.href = links[app] || baseLink;
+};
+
+if (typeof window.openRazorpayCheckout === 'function') {
+    const originalCheckout = window.openRazorpayCheckout;
+
+    window.openRazorpayCheckout = function(amount, name, phone) {
+        const totals = calculateTotals();
+
+        return originalCheckout(
+            totals.grandTotal,
+            name,
+            phone
+        );
+    };
+}
+
+let rafScheduled = false;
+
+function requestTotalsRefresh() {
+    if (rafScheduled) return;
+
+    rafScheduled = true;
+
+    requestAnimationFrame(function() {
+        syncTotalsUI();
+        rafScheduled = false;
+    });
+}
+
+document.addEventListener('click', function(event) {
+    const target = event.target;
+
+    if (
+        target.closest('.qty-btn') ||
+        target.closest('.card-qty-btn') ||
+        target.closest('.add-btn') ||
+        target.closest('.checkout-btn')
+    ) {
+        setTimeout(requestTotalsRefresh, 0);
+    }
+}, true);
+
+window.addEventListener('storage', requestTotalsRefresh);
+
+const observer = new MutationObserver(function() {
+    requestTotalsRefresh();
+});
+
+observer.observe(document.body, {
+    childList: true,
+    subtree: true
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    syncTotalsUI();
+    setTimeout(syncTotalsUI, 300);
+});
+
+window.addEventListener('load', function() {
+    syncTotalsUI();
+});
+
+})();
+</script>
+
 </body>
 </html>

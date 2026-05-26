@@ -6534,15 +6534,25 @@ Object.defineProperty(window, 'currentUser', {
       return;
     }
 
-    const itemId = 'item-' + Date.now();
+    const itemId = 'item_' + Date.now();
 
     try {
       await setDoc(doc(firebaseDB, "menuItems", itemId), {
+        id: itemId,
         name,
         price,
         category,
+        catId: category,
         inStock,
-        emoji
+        emoji,
+        description: '',
+        type: '',
+        image: '',
+        discount: 0,
+        rating: 5.0,
+        ratingCount: 5,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
       if (typeof showToast === 'function') showToast(`🎉 ${name} added successfully!`, 3000);
@@ -6559,7 +6569,7 @@ Object.defineProperty(window, 'currentUser', {
 
     } catch (err) {
       console.error('[AddItem] Firestore write failed:', err);
-      if (typeof showToast === 'function') showToast('⚠️ Could not save item to database', 2500);
+      if (typeof showToast === 'function') showToast('⚠️ Write failed: ' + (err.message || err), 4000);
     }
   };
 
@@ -6591,14 +6601,15 @@ Object.defineProperty(window, 'currentUser', {
       await updateDoc(doc(firebaseDB, "menuItems", itemId), {
         name,
         price,
-        inStock
+        inStock,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
       if (typeof showToast === 'function') showToast('🎉 Item updated successfully!', 3000);
       window.closeEditItemModal();
     } catch (err) {
       console.error('[EditItem] Firestore write failed:', err);
-      if (typeof showToast === 'function') showToast('⚠️ Could not update item', 2500);
+      if (typeof showToast === 'function') showToast('⚠️ Update failed: ' + (err.message || err), 4000);
     }
   };
 

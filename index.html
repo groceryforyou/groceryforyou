@@ -1892,7 +1892,10 @@ animation:spinRefresh .7s linear infinite;
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div class="section-title" style="margin-bottom:0">📂 Categories</div>
-      <button class="new-cat-btn" onclick="openCatModal()">➕ New Category</button>
+      <div style="display:flex;gap:8px;">
+        <button class="new-cat-btn" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown);" onclick="openManageCatsModal()">📂 Manage Categories</button>
+        <button class="new-cat-btn" onclick="openCatModal()">➕ New Category</button>
+      </div>
     </div>
     <div class="cat-tabs-row" id="manage-cat-tabs"></div>
     <div class="add-item-panel">
@@ -2640,6 +2643,46 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="cat-modal-actions">
         <button class="cat-cancel-btn" onclick="closeCatModal()">Cancel</button>
         <button class="cat-save-btn" onclick="saveNewCategory()">✅ Create</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE CATEGORIES MODAL -->
+<div class="cat-modal-overlay" id="manage-cats-modal-overlay">
+  <div class="cat-modal">
+    <div class="cat-modal-head" style="background: linear-gradient(135deg, var(--brown), #1e7a3a);">
+      <h3>📂 Manage Categories</h3>
+      <button class="cat-modal-close" onclick="closeManageCatsModal()">✕</button>
+    </div>
+    <div class="cat-modal-body" style="padding: 20px; max-height: 70dvh; overflow-y: auto;">
+      <div id="manage-cats-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;">
+        <!-- Categories list items will be injected here -->
+      </div>
+      <div class="cat-modal-actions" style="display: flex; gap: 8px;">
+        <button class="cat-cancel-btn" onclick="closeManageCatsModal()" style="flex: 1; background: var(--cream); border: 1.5px solid var(--border); color: var(--brown); border-radius: 10px; padding: 11px; font-weight: 700; cursor: pointer;">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT CATEGORY MODAL -->
+<div class="cat-modal-overlay" id="edit-cat-modal-overlay">
+  <div class="cat-modal">
+    <div class="cat-modal-head" style="background: linear-gradient(135deg, var(--brown), var(--saffron));">
+      <h3>✏️ Edit Category</h3>
+      <button class="cat-modal-close" onclick="closeEditCatModal()">✕</button>
+    </div>
+    <div class="cat-modal-body" style="padding: 20px;">
+      <input type="hidden" id="edit-cat-id" />
+      <label class="aip-label">Category Name *</label>
+      <input class="aip-input" type="text" id="edit-cat-name" placeholder="e.g. Special Grocerys" style="margin-bottom:12px"/>
+      <label class="aip-label">Choose Icon</label>
+      <div class="cat-emoji-row" id="edit-cat-emoji-row"></div>
+      <input class="aip-input" type="text" id="edit-cat-emoji-custom" placeholder="Or type any emoji: 🥙"/>
+      <div class="cat-modal-actions" style="display: flex; gap: 8px; margin-top:20px;">
+        <button class="cat-cancel-btn" onclick="closeEditCatModal()" style="flex: 1;">Cancel</button>
+        <button class="cat-save-btn" onclick="saveEditedCategory()" style="flex: 2; background: linear-gradient(90deg, var(--brown), var(--saffron)); color: #fff; border: none; border-radius: 10px; padding: 11px; font-family: 'Yeseva One', serif; font-size: .9rem; cursor: pointer;">💾 Save Changes</button>
       </div>
     </div>
   </div>
@@ -6554,6 +6597,167 @@ Object.defineProperty(window, 'currentUser', {
     }
   };
 
+  // Manage Categories Modal & Edit/Delete Operations
+  window.openManageCatsModal = function() {
+    const listContainer = document.getElementById('manage-cats-list');
+    if (!listContainer) return;
+
+    const allCats = (typeof window.categories !== 'undefined') ? window.categories : [];
+    
+    listContainer.innerHTML = allCats.map(cat => `
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--cream); border:1.5px solid var(--border); border-radius:12px; gap:10px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:1.3rem;">${cat.emoji}</span>
+          <span style="font-weight:700; color:var(--brown); font-size:.9rem;">${cat.name}</span>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button onclick="openEditCatModal('${cat.id}')" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Edit Category">✏️</button>
+          <button onclick="deleteCategory('${cat.id}')" style="background:#ffebee; border:1.5px solid #ffcdd2; color:#c62828; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Delete Category">🗑️</button>
+        </div>
+      </div>
+    `).join('');
+
+    document.getElementById('manage-cats-modal-overlay').classList.add('open');
+    if (typeof window.lockBodyScroll === 'function') window.lockBodyScroll();
+  };
+
+  window.closeManageCatsModal = function() {
+    const overlay = document.getElementById('manage-cats-modal-overlay');
+    if (overlay) {
+      overlay.classList.remove('open');
+      if (typeof window.unlockBodyScroll === 'function') window.unlockBodyScroll();
+    }
+  };
+
+  window.openEditCatModal = function(catId) {
+    const allCats = (typeof window.categories !== 'undefined') ? window.categories : [];
+    const cat = allCats.find(c => c.id === catId);
+    if (!cat) return;
+
+    document.getElementById('edit-cat-id').value = cat.id;
+    document.getElementById('edit-cat-name').value = cat.name;
+    document.getElementById('edit-cat-emoji-custom').value = cat.emoji;
+    window.selectedEditCatEmoji = cat.emoji;
+
+    // Render emojis in the row
+    const emojiRow = document.getElementById('edit-cat-emoji-row');
+    if (emojiRow) {
+      const catEmojis = ['🍽','🛒','🍛','🥘','🫘','🥗','🥙','🌮','🍚','🍲','☕','🥤','🍰','🧆','🫔'];
+      emojiRow.innerHTML = catEmojis.map(emoji => `
+        <span class="cat-emoji-opt ${emoji === cat.emoji ? 'selected' : ''}" onclick="selectEditCatEmoji('${emoji}')">${emoji}</span>
+      `).join('');
+    }
+
+    // Close manage modal first so only one modal is open
+    document.getElementById('manage-cats-modal-overlay').classList.remove('open');
+
+    document.getElementById('edit-cat-modal-overlay').classList.add('open');
+  };
+
+  window.selectEditCatEmoji = function(emoji) {
+    window.selectedEditCatEmoji = emoji;
+    document.querySelectorAll('#edit-cat-emoji-row .cat-emoji-opt').forEach(opt => {
+      opt.classList.toggle('selected', opt.textContent === emoji);
+    });
+    const customInput = document.getElementById('edit-cat-emoji-custom');
+    if (customInput) customInput.value = emoji;
+  };
+
+  window.closeEditCatModal = function() {
+    document.getElementById('edit-cat-modal-overlay').classList.remove('open');
+    // Reopen manage modal
+    window.openManageCatsModal();
+  };
+
+  window.saveEditedCategory = async function() {
+    if (currentRole !== 'admin') {
+      if (typeof showToast === 'function') showToast('⚠️ Only admin can edit categories');
+      return;
+    }
+
+    const catId = document.getElementById('edit-cat-id').value;
+    const nameInput = document.getElementById('edit-cat-name');
+    const emojiInput = document.getElementById('edit-cat-emoji-custom');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    const emoji = (emojiInput && emojiInput.value.trim()) || window.selectedEditCatEmoji || '📂';
+
+    if (!name) {
+      if (typeof showToast === 'function') showToast('⚠️ Category name is required');
+      return;
+    }
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+
+    if (!firebaseDB) {
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
+      return;
+    }
+
+    try {
+      await firebaseDB.collection('categories').doc(catId).set({
+        id: catId,
+        name: name,
+        emoji: emoji,
+        deleted: false,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      if (typeof showToast === 'function') showToast('🎉 Category updated successfully!', 3000);
+      document.getElementById('edit-cat-modal-overlay').classList.remove('open');
+      window.openManageCatsModal();
+    } catch(err) {
+      console.error('[EditCategory] Firestore write failed:', err);
+      if (typeof showToast === 'function') showToast('⚠️ Update failed: ' + (err.message || err), 5000);
+    }
+  };
+
+  window.deleteCategory = async function(catId) {
+    if (currentRole !== 'admin') {
+      if (typeof showToast === 'function') showToast('⚠️ Only admin can delete categories');
+      return;
+    }
+
+    const allCats = (typeof window.categories !== 'undefined') ? window.categories : [];
+    const cat = allCats.find(c => c.id === catId);
+    if (!cat) return;
+
+    if (!confirm(`⚠️ Are you sure you want to delete the category "${cat.name}"?\nItems in this category will remain, but won't belong to any category on the menu.`)) {
+      return;
+    }
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+
+    if (!firebaseDB) {
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
+      return;
+    }
+
+    const defaultIds = ['vegetables', 'fruits', 'dairy', 'grocery', 'leafy', 'snacks', 'beverages'];
+
+    try {
+      if (defaultIds.includes(catId)) {
+        // For default categories, mark as deleted in Firestore
+        await firebaseDB.collection('categories').doc(catId).set({
+          id: catId,
+          deleted: true,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      } else {
+        // For custom categories, delete the document entirely
+        await firebaseDB.collection('categories').doc(catId).delete();
+      }
+
+      if (typeof showToast === 'function') showToast('🗑️ Category deleted successfully!', 2000);
+      window.openManageCatsModal();
+    } catch(err) {
+      console.error('[DeleteCategory] Firestore delete failed:', err);
+      if (typeof showToast === 'function') showToast('⚠️ Delete failed: ' + (err.message || err), 2500);
+    }
+  };
+
   // ── 4. FAILSURE / ENHANCE ADMIN PANEL UI ───────────────────────────────
   function enhanceManageListWithEditButtons() {
     const container = document.getElementById('manage-items-list');
@@ -6640,14 +6844,21 @@ Object.defineProperty(window, 'currentUser', {
             loadedCats.push({
               id: doc.id,
               name: data.name || '',
-              emoji: data.emoji || '📂'
+              emoji: data.emoji || '📂',
+              deleted: data.deleted === true
             });
           });
         }
 
-        const mergedCats = [...defaultCategories];
+        const mergedCats = defaultCategories.map(dc => {
+          const matched = loadedCats.find(lc => lc.id === dc.id);
+          return matched ? matched : dc;
+        }).filter(cat => {
+          const matched = loadedCats.find(lc => lc.id === cat.id);
+          return !(matched && matched.deleted === true);
+        });
         loadedCats.forEach(lc => {
-          if (!mergedCats.some(mc => mc.id === lc.id)) {
+          if (lc.deleted !== true && !mergedCats.some(mc => mc.id === lc.id)) {
             mergedCats.push(lc);
           }
         });

@@ -209,7 +209,7 @@
     .section-title{font-family:"Yeseva One",serif;font-size:1.5rem;color:var(--brown);margin-bottom:18px;display:flex;align-items:center;gap:10px;border-left:4px solid var(--saffron);padding-left:12px}
     .page{display:none}
     .page.active{display:block}
-    .back-btn{background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);color:#fff;border-radius:20px;padding:7px 14px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .2s;font-family:"Lato",sans-serif}
+    .back-btn{background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);color:#fff;border-radius:20px;padding:7px 14px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .2s;font-family:"Lato",sans-serif;white-space:nowrap;flex-shrink:0}
     .back-btn:hover{background:rgba(255,255,255,0.28)}
     .back-btn-light{background:var(--cream);border:1.5px solid var(--border);color:var(--brown);border-radius:20px;padding:8px 16px;font-size:.85rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .2s;font-family:"Lato",sans-serif;margin-bottom:16px}
     .back-btn-light:hover{background:#f0e0c8}
@@ -737,6 +737,13 @@
       body.admin-mode .float-order-bar{left:0}
     }
 
+    /* Mobile header enhancements */
+    @media(max-width:480px){
+      .back-btn .back-text{display:none}
+      .back-btn{padding:5px 8px;border-radius:10px;font-size:.9rem}
+      .om-header h2, .cart-header h2, .orders-modal-header h2{font-size:1.05rem}
+    }
+
     /* Small phones */
     @media(max-width:400px){
       .menu-grid{grid-template-columns:1fr 1fr;gap:8px}
@@ -759,6 +766,7 @@
       .cart-btn{padding:8px 10px}
       .menu-card{padding:10px 8px}
       .card-name{font-size:.82rem}
+      .om-header h2, .cart-header h2, .orders-modal-header h2{font-size:0.92rem!important}
     }
 
     /* ===== ADMIN SIDEBAR ===== */
@@ -1599,7 +1607,7 @@ animation:spinRefresh .7s linear infinite;
 <!-- CART PANEL -->
 <div class="cart-panel" id="cart-panel">
   <div class="cart-header">
-    <button class="back-btn" onclick="closeCart()">← Back</button>
+    <button class="back-btn" onclick="closeCart()">← <span class="back-text">Back</span></button>
     <h2>🛒 Your Order</h2>
     <button class="close-btn" onclick="closeCart()">✕</button>
   </div>
@@ -2462,7 +2470,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <div class="order-modal-overlay" id="order-modal-overlay">
   <div class="order-modal">
     <div class="om-header">
-      <button class="back-btn" onclick="closeOrderModal()">← Back</button>
+      <button class="back-btn" onclick="closeOrderModal()">← <span class="back-text">Back</span></button>
       <h2>🚴 Place Your Grocery Order</h2>
       <button class="om-close" onclick="closeOrderModal()">✕</button>
     </div>
@@ -2759,7 +2767,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <div class="orders-overlay" id="orders-overlay">
   <div class="orders-modal">
     <div class="orders-modal-header">
-      <button class="back-btn" onclick="closeOrdersModal()">← Back</button>
+      <button class="back-btn" onclick="closeOrdersModal()">← <span class="back-text">Back</span></button>
       <h2 id="orders-modal-title">🧾 My Orders</h2>
       <button class="om-close" onclick="closeOrdersModal()">✕</button>
     </div>

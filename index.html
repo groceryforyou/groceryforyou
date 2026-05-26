@@ -6971,79 +6971,124 @@ Object.defineProperty(window, 'currentUser', {
 </script>
 
 
+
+
+
 <script>
 (function(){
 
-function safeNumber(v){
+function num(v){
   return Number(String(v || '0').replace(/[^0-9.]/g,'')) || 0;
 }
 
-window.getRealtimeGrandTotal = function(){
+function calculateGrandTotal(){
 
-  const subtotalEl =
-    document.getElementById('om-subtotal') ||
-    document.getElementById('cart-total') ||
-    document.querySelector('.cart-total');
+  let subtotal = 0;
+
+  // Calculate directly from cart items
+  document.querySelectorAll('.cart-item-price, .item-total, [data-item-total]').forEach(function(el){
+    subtotal += num(el.innerText || el.textContent);
+  });
+
+  // Fallback to existing subtotal elements
+  if(subtotal <= 0){
+    const subtotalEl =
+      document.getElementById('om-subtotal') ||
+      document.getElementById('cart-total') ||
+      document.querySelector('.cart-total');
+
+    subtotal = num(subtotalEl ? subtotalEl.innerText : 0);
+  }
 
   const deliveryEl =
     document.getElementById('delivery-fee') ||
     document.getElementById('om-delivery-fee');
 
-  const grandEl =
-    document.getElementById('om-total') ||
-    document.getElementById('grand-total');
+  const deliveryFee = num(deliveryEl ? deliveryEl.innerText : 0);
 
-  const subtotal = safeNumber(subtotalEl ? subtotalEl.innerText : 0);
-  const delivery = safeNumber(deliveryEl ? deliveryEl.innerText : 0);
+  const grandTotal = subtotal + deliveryFee;
 
-  const grandTotal = subtotal + delivery;
-
-  if(grandEl){
-    grandEl.innerText = '₹' + grandTotal.toFixed(0);
-  }
-
-  return grandTotal;
-};
-
-window.updateUPIAmounts = function(){
-
-  const total = window.getRealtimeGrandTotal();
-
-  document.querySelectorAll('a[href*="upi://pay"]').forEach(function(link){
-
-    try{
-
-      let href = link.getAttribute('href') || '';
-
-      if(href.match(/am=[0-9.]+/)){
-        href = href.replace(/am=[0-9.]+/, 'am=' + total.toFixed(0));
-      } else {
-        href += (href.includes('?') ? '&' : '?') + 'am=' + total.toFixed(0);
-      }
-
-      link.setAttribute('href', href);
-
-    }catch(e){
-      console.error(e);
+  // Update ALL total fields
+  [
+    'grand-total',
+    'om-total',
+    'final-total',
+    'pay-total'
+  ].forEach(function(id){
+    const el = document.getElementById(id);
+    if(el){
+      el.innerText = '₹' + grandTotal.toFixed(0);
     }
-
   });
 
-  // Razorpay Fix
+  // Update text-based total displays
+  document.querySelectorAll('.grand-total, .final-total').forEach(function(el){
+    el.innerText = '₹' + grandTotal.toFixed(0);
+  });
+
+  // Save globally
+  window.finalGrandTotal = grandTotal;
+
+  return grandTotal;
+}
+
+function updateUPI(){
+
+  const total = calculateGrandTotal();
+
+  // Update UPI deep links
+  document.querySelectorAll('a[href*="upi://pay"]').forEach(function(link){
+
+    let href = link.getAttribute('href') || '';
+
+    if(href.match(/am=[0-9.]+/)){
+      href = href.replace(/am=[0-9.]+/, 'am=' + total.toFixed(0));
+    } else {
+      href += (href.includes('?') ? '&' : '?') + 'am=' + total.toFixed(0);
+    }
+
+    link.setAttribute('href', href);
+  });
+
+  // Update QR amount displays
+  document.querySelectorAll('.upi-amount, .qr-amount').forEach(function(el){
+    el.innerText = '₹' + total.toFixed(0);
+  });
+
+  // Razorpay fix
   if(window.razorpayOptions){
     window.razorpayOptions.amount = Math.round(total * 100);
   }
 
+  // Force hidden payment amount fields
+  document.querySelectorAll('input[name="amount"], input.amount').forEach(function(el){
+    el.value = total.toFixed(0);
+  });
+
+}
+
+window.forceUpdatePaymentTotals = function(){
+  calculateGrandTotal();
+  updateUPI();
 };
 
 setInterval(function(){
-  window.getRealtimeGrandTotal();
-  window.updateUPIAmounts();
-}, 500);
+  calculateGrandTotal();
+  updateUPI();
+}, 300);
 
 window.addEventListener('load', function(){
-  window.getRealtimeGrandTotal();
-  window.updateUPIAmounts();
+  setTimeout(function(){
+    calculateGrandTotal();
+    updateUPI();
+  }, 1000);
+});
+
+document.addEventListener('click', function(){
+  setTimeout(function(){
+    calculateGrandTotal();
+    updateUPI();
+  }, 300);
 });
 
 })();

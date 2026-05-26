@@ -6971,83 +6971,133 @@ Object.defineProperty(window, 'currentUser', {
 </script>
 
 
+<script>
+(function(){
 
+function safeNumber(v){
+  return Number(String(v || '0').replace(/[^0-9.]/g,'')) || 0;
+}
 
+window.getRealtimeGrandTotal = function(){
 
+  const subtotalEl =
+    document.getElementById('om-subtotal') ||
+    document.getElementById('cart-total') ||
+    document.querySelector('.cart-total');
 
+  const deliveryEl =
+    document.getElementById('delivery-fee') ||
+    document.getElementById('om-delivery-fee');
 
+  const grandEl =
+    document.getElementById('om-total') ||
+    document.getElementById('grand-total');
 
+  const subtotal = safeNumber(subtotalEl ? subtotalEl.innerText : 0);
+  const delivery = safeNumber(deliveryEl ? deliveryEl.innerText : 0);
 
+  const grandTotal = subtotal + delivery;
+
+  if(grandEl){
+    grandEl.innerText = '₹' + grandTotal.toFixed(0);
+  }
+
+  return grandTotal;
+};
+
+window.updateUPIAmounts = function(){
+
+  const total = window.getRealtimeGrandTotal();
+
+  document.querySelectorAll('a[href*="upi://pay"]').forEach(function(link){
+
+    try{
+
+      let href = link.getAttribute('href') || '';
+
+      if(href.match(/am=[0-9.]+/)){
+        href = href.replace(/am=[0-9.]+/, 'am=' + total.toFixed(0));
+      } else {
+        href += (href.includes('?') ? '&' : '?') + 'am=' + total.toFixed(0);
+      }
+
+      link.setAttribute('href', href);
+
+    }catch(e){
+      console.error(e);
+    }
+
+  });
+
+  // Razorpay Fix
+  if(window.razorpayOptions){
+    window.razorpayOptions.amount = Math.round(total * 100);
+  }
+
+};
+
+setInterval(function(){
+  window.getRealtimeGrandTotal();
+  window.updateUPIAmounts();
+}, 500);
+
+window.addEventListener('load', function(){
+  window.getRealtimeGrandTotal();
+  window.updateUPIAmounts();
+});
+
+})();
+</script>
 
 
 <script>
 (function(){
 
-function safeNum(v){
+function amount(v){
   return Number(String(v || '0').replace(/[^0-9.]/g,'')) || 0;
 }
 
-// REAL CART TOTAL FROM ACTUAL CART DATA
-function getRealCartTotal(){
+function getSubtotal(){
 
-  let total = 0;
+  let subtotal = 0;
 
-  // PRIORITY: use window.cart
+  // ONLY REAL CART ITEMS
   if(Array.isArray(window.cart)){
 
     window.cart.forEach(function(item){
 
-      const qty = safeNum(item.quantity || item.qty || 1);
-      const price = safeNum(item.price || item.itemPrice || 0);
+      const qty = parseInt(item.quantity || item.qty || 1);
+      const price = amount(item.price || item.itemPrice || 0);
 
-      total += qty * price;
+      subtotal += qty * price;
 
     });
 
-    return total;
   }
 
-  // FALLBACK: calculate from visible cart rows only
-  const rows = document.querySelectorAll('.cart-item, .checkout-item, .order-item');
-
-  rows.forEach(function(row){
-
-    const priceEl =
-      row.querySelector('.price') ||
-      row.querySelector('.item-price');
-
-    const qtyEl =
-      row.querySelector('.qty') ||
-      row.querySelector('.quantity');
-
-    const price = safeNum(priceEl ? priceEl.innerText : 0);
-    const qty = safeNum(qtyEl ? qtyEl.innerText : 1);
-
-    total += price * qty;
-
-  });
-
-  return total;
+  return subtotal;
 }
 
-// DELIVERY FEE FROM FIRESTORE
-async function loadDeliveryFee(){
+async function getDeliveryFee(){
 
   try{
 
     if(window.db){
 
-      const doc = await db.collection('settings').doc('delivery').get();
+      const doc = await db.collection('settings')
+        .doc('delivery')
+        .get();
 
       if(doc.exists){
 
         const data = doc.data() || {};
 
-        window.currentDeliveryFee =
-          safeNum(data.deliveryFee) ||
-          safeNum(data.fee) ||
-          safeNum(data.amount) ||
-          0;
+        return amount(
+          data.deliveryFee ||
+          data.fee ||
+          data.amount ||
+          0
+        );
 
       }
 
@@ -7057,138 +7107,106 @@ async function loadDeliveryFee(){
     console.error(e);
   }
 
+  return 0;
 }
 
-// MAIN TOTAL UPDATE
-function updateTotals(){
+async function refreshTotals(){
 
-  const itemsTotal = getRealCartTotal();
+  const subtotal = getSubtotal();
 
-  const deliveryFee = safeNum(window.currentDeliveryFee || 0);
+  const deliveryFee = await getDeliveryFee();
 
-  const grandTotal = itemsTotal + deliveryFee;
+  const grandTotal = subtotal + deliveryFee;
+
+  // REMOVE DUPLICATE HIDDEN TOTALS
+  document.querySelectorAll('[style*="display:none"], .hidden, .d-none')
+    .forEach(function(el){
+
+      const txt = (el.textContent || '').toLowerCase();
+
+      if(
+        txt.includes('items total') ||
+        txt.includes('grand total') ||
+        txt.includes('delivery fee')
+      ){
+        el.remove();
+      }
+
+    });
 
   // ITEMS TOTAL
-  [
-    'items-total',
-    'cart-total',
-    'subtotal',
-    'om-subtotal'
-  ].forEach(function(id){
-
-    const el = document.getElementById(id);
-
-    if(el){
-      el.innerText = '₹' + itemsTotal.toFixed(0);
-    }
-
-  });
+  document.querySelectorAll('#items-total,#cart-total,#subtotal,#om-subtotal')
+    .forEach(function(el){
+      el.textContent = '₹' + subtotal;
+    });
 
   // DELIVERY FEE
-  [
-    'delivery-fee',
-    'om-delivery-fee'
-  ].forEach(function(id){
-
-    const el = document.getElementById(id);
-
-    if(el){
-      el.innerText = '₹' + deliveryFee.toFixed(0);
-    }
-
-  });
+  document.querySelectorAll('#delivery-fee,#om-delivery-fee')
+    .forEach(function(el){
+      el.textContent = '₹' + deliveryFee;
+    });
 
   // GRAND TOTAL
-  [
-    'grand-total',
-    'om-total',
-    'final-total',
-    'pay-total'
-  ].forEach(function(id){
+  document.querySelectorAll('#grand-total,#om-total,#final-total,#pay-total')
+    .forEach(function(el){
+      el.textContent = '₹' + grandTotal;
+    });
 
-    const el = document.getElementById(id);
+  // FIX PLAIN TEXT
+  document.querySelectorAll('div,p,span,strong').forEach(function(el){
 
-    if(el){
-      el.innerText = '₹' + grandTotal.toFixed(0);
+    const txt = (el.textContent || '').trim();
+
+    if(txt.startsWith('Items Total')){
+      el.textContent = 'Items Total ₹' + subtotal;
+    }
+
+    if(txt.startsWith('Grand Total')){
+      el.textContent = 'Grand Total ₹' + grandTotal;
     }
 
   });
 
-  // Text replacement fix
-  document.body.innerHTML = document.body.innerHTML
-    .replace(/Items Total ₹\d+/g, 'Items Total ₹' + itemsTotal.toFixed(0))
-    .replace(/Grand Total ₹\d+/g, 'Grand Total ₹' + grandTotal.toFixed(0));
-
-  // SAVE GLOBAL
-  window.finalGrandTotal = grandTotal;
-
-  // FIX UPI LINKS
+  // UPI PAYMENT FIX
   document.querySelectorAll('a[href*="upi://pay"]').forEach(function(link){
 
     let href = link.getAttribute('href') || '';
 
-    if(href.match(/am=[0-9.]+/)){
-      href = href.replace(/am=[0-9.]+/, 'am=' + grandTotal.toFixed(0));
-    }else{
-      href += (href.includes('?') ? '&' : '?') + 'am=' + grandTotal.toFixed(0);
-    }
+    href = href.replace(/am=[0-9.]+/g,'');
+    href = href.replace(/[?&]+$/,'');
+
+    href += (href.includes('?') ? '&' : '?') +
+      'am=' + grandTotal;
 
     link.setAttribute('href', href);
 
   });
 
-  // FIX RAZORPAY
+  // Razorpay
   if(window.razorpayOptions){
-    window.razorpayOptions.amount = Math.round(grandTotal * 100);
+    window.razorpayOptions.amount =
+      Math.round(grandTotal * 100);
   }
+
+  window.finalGrandTotal = grandTotal;
 
 }
 
-// REALTIME FIRESTORE DELIVERY SYNC
-function setupRealtime(){
+window.addEventListener('load', function(){
 
-  if(window.db){
+  refreshTotals();
 
-    db.collection('settings').doc('delivery')
-    .onSnapshot(function(doc){
-
-      if(doc.exists){
-
-        const data = doc.data() || {};
-
-        window.currentDeliveryFee =
-          safeNum(data.deliveryFee) ||
-          safeNum(data.fee) ||
-          safeNum(data.amount) ||
-          0;
-
-        updateTotals();
-
-      }
-
-    });
-
-  }
-
-}
-
-window.forceUpdatePaymentTotals = updateTotals;
-
-window.addEventListener('load', async function(){
-
-  await loadDeliveryFee();
-
-  setupRealtime();
-
-  setTimeout(updateTotals, 500);
-
-  setInterval(updateTotals, 500);
+  setInterval(refreshTotals, 1000);
 
 });
 
 document.addEventListener('click', function(){
-  setTimeout(updateTotals, 200);
+
+  setTimeout(refreshTotals, 200);
+
 });
+
+window.forceUpdatePaymentTotals = refreshTotals;
 
 })();
 </script>

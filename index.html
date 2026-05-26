@@ -4668,7 +4668,7 @@ function toggleSidebar() {
       const omTotalEl = document.getElementById('om-total');
       const omOrderTotalEl = document.getElementById('om-order-total');
       if (omTotalEl) {
-        const subtotal = getSubtotal();
+        const subtotal = parseInt((onTotalEl.innerText || '0').replace(/\D/g, ''), 10) || 0;
         const deliveryFee = calcDeliveryFee(subtotal);
         const highDemandFee = 0;
         const grandTotal = subtotal + deliveryFee + highDemandFee;

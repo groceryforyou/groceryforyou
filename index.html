@@ -7025,5 +7025,138 @@ window.addEventListener('load', function() {
 })();
 </script>
 
+
+<!-- CHECKOUT DUPLICATE TOTAL FINAL FIX -->
+<script>
+(function () {
+'use strict';
+
+if (window.__GFY_DUPLICATE_TOTAL_FIXED__) return;
+window.__GFY_DUPLICATE_TOTAL_FIXED__ = true;
+
+function num(v) {
+  return Number(String(v || 0).replace(/[^\d.]/g, '')) || 0;
+}
+
+function getCart() {
+  try {
+    if (Array.isArray(window.cart)) return window.cart;
+
+    const raw =
+      localStorage.getItem('cart') ||
+      localStorage.getItem('gfy_cart') ||
+      '[]';
+
+    const parsed = JSON.parse(raw);
+
+    if (Array.isArray(parsed)) return parsed;
+
+    if (parsed && typeof parsed === 'object') {
+      return Object.values(parsed);
+    }
+  } catch (e) {}
+
+  return [];
+}
+
+function getRealSubtotal() {
+  return getCart().reduce(function(total, item) {
+    const price = num(item.price);
+    const qty = num(item.quantity || item.qty || 1);
+    return total + (price * qty);
+  }, 0);
+}
+
+function getDeliveryFee() {
+  const ids = [
+    'deliveryFee',
+    'delivery-fee',
+    'om-delivery-fee',
+    'om-delivery-fee-display'
+  ];
+
+  for (const id of ids) {
+    const el = document.getElementById(id);
+
+    if (!el) continue;
+
+    const value = num(el.textContent);
+
+    if (value > 0) return value;
+  }
+
+  return num(window.currentDeliveryFee || 40);
+}
+
+function applyCorrectTotals() {
+  const subtotal = getRealSubtotal();
+  const deliveryFee = getDeliveryFee();
+  const grandTotal = subtotal + deliveryFee;
+
+  window.currentSubtotal = subtotal;
+  window.currentGrandTotal = grandTotal;
+  window.finalAmount = grandTotal;
+  window._pendingUPIAmount = grandTotal;
+  window._gfyGrandTotal = grandTotal;
+
+  const updates = {
+    'om-total': subtotal,
+    'subtotal': subtotal,
+    'items-total': subtotal,
+    'cart-total': subtotal,
+    'grand-total': grandTotal,
+    'om-grand-total': grandTotal,
+    'totalAmount': grandTotal,
+    'upi-amount-display': grandTotal,
+    'phonepe-qr-amount': grandTotal
+  };
+
+  Object.keys(updates).forEach(function(id) {
+    const el = document.getElementById(id);
+
+    if (el) {
+      el.textContent = '₹' + updates[id];
+    }
+  });
+
+  document.querySelectorAll(
+    'input[name="amount"], #payment-amount, .payment-amount'
+  ).forEach(function(el) {
+    el.value = grandTotal;
+  });
+
+  return {
+    subtotal,
+    deliveryFee,
+    grandTotal
+  };
+}
+
+window.calculateTotals = applyCorrectTotals;
+window.syncTotalsUI = applyCorrectTotals;
+window.getGrandTotal = function () {
+  return applyCorrectTotals().grandTotal;
+};
+
+document.addEventListener('DOMContentLoaded', function () {
+  applyCorrectTotals();
+
+  setTimeout(applyCorrectTotals, 300);
+  setTimeout(applyCorrectTotals, 800);
+  setTimeout(applyCorrectTotals, 1500);
+
+  const observer = new MutationObserver(function () {
+    applyCorrectTotals();
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+});
+
+})();
+</script>
+
 </body>
 </html>

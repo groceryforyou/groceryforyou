@@ -6980,38 +6980,58 @@ Object.defineProperty(window, 'currentUser', {
 
 
 
-
-
-
 <script>
 (function(){
 
-function money(v){
+function safeNum(v){
   return Number(String(v || '0').replace(/[^0-9.]/g,'')) || 0;
 }
 
-function getCartItemsTotal(){
+// REAL CART TOTAL FROM ACTUAL CART DATA
+function getRealCartTotal(){
 
   let total = 0;
 
-  // Use actual cart array only
-  if(Array.isArray(window.cart) && window.cart.length){
+  // PRIORITY: use window.cart
+  if(Array.isArray(window.cart)){
 
     window.cart.forEach(function(item){
 
-      const qty = Number(item.quantity || item.qty || 1);
-      const price = Number(item.price || 0);
+      const qty = safeNum(item.quantity || item.qty || 1);
+      const price = safeNum(item.price || item.itemPrice || 0);
 
       total += qty * price;
 
     });
 
+    return total;
   }
+
+  // FALLBACK: calculate from visible cart rows only
+  const rows = document.querySelectorAll('.cart-item, .checkout-item, .order-item');
+
+  rows.forEach(function(row){
+
+    const priceEl =
+      row.querySelector('.price') ||
+      row.querySelector('.item-price');
+
+    const qtyEl =
+      row.querySelector('.qty') ||
+      row.querySelector('.quantity');
+
+    const price = safeNum(priceEl ? priceEl.innerText : 0);
+    const qty = safeNum(qtyEl ? qtyEl.innerText : 1);
+
+    total += price * qty;
+
+  });
 
   return total;
 }
 
-async function getDeliveryFee(){
+// DELIVERY FEE FROM FIRESTORE
+async function loadDeliveryFee(){
 
   try{
 
@@ -7023,104 +7043,152 @@ async function getDeliveryFee(){
 
         const data = doc.data() || {};
 
-        return money(
-          data.deliveryFee ||
-          data.fee ||
-          data.amount ||
-          0
-        );
+        window.currentDeliveryFee =
+          safeNum(data.deliveryFee) ||
+          safeNum(data.fee) ||
+          safeNum(data.amount) ||
+          0;
+
       }
+
     }
 
   }catch(e){
     console.error(e);
   }
 
-  return 0;
 }
 
-async function updateAllTotals(){
+// MAIN TOTAL UPDATE
+function updateTotals(){
 
-  const itemsTotal = getCartItemsTotal();
+  const itemsTotal = getRealCartTotal();
 
-  const deliveryFee = await getDeliveryFee();
+  const deliveryFee = safeNum(window.currentDeliveryFee || 0);
 
   const grandTotal = itemsTotal + deliveryFee;
 
   // ITEMS TOTAL
-  document.querySelectorAll(
-    '#items-total, #cart-total, #subtotal, #om-subtotal'
-  ).forEach(function(el){
-    el.textContent = '₹' + itemsTotal;
+  [
+    'items-total',
+    'cart-total',
+    'subtotal',
+    'om-subtotal'
+  ].forEach(function(id){
+
+    const el = document.getElementById(id);
+
+    if(el){
+      el.innerText = '₹' + itemsTotal.toFixed(0);
+    }
+
   });
 
   // DELIVERY FEE
-  document.querySelectorAll(
-    '#delivery-fee, #om-delivery-fee'
-  ).forEach(function(el){
-    el.textContent = '₹' + deliveryFee;
+  [
+    'delivery-fee',
+    'om-delivery-fee'
+  ].forEach(function(id){
+
+    const el = document.getElementById(id);
+
+    if(el){
+      el.innerText = '₹' + deliveryFee.toFixed(0);
+    }
+
   });
 
   // GRAND TOTAL
-  document.querySelectorAll(
-    '#grand-total, #om-total, #final-total, #pay-total'
-  ).forEach(function(el){
-    el.textContent = '₹' + grandTotal;
-  });
+  [
+    'grand-total',
+    'om-total',
+    'final-total',
+    'pay-total'
+  ].forEach(function(id){
 
-  // Fix plain text totals
-  document.querySelectorAll('div,span,p,strong').forEach(function(el){
+    const el = document.getElementById(id);
 
-    const txt = (el.textContent || '').trim();
-
-    if(txt.startsWith('Items Total')){
-      el.textContent = 'Items Total ₹' + itemsTotal;
-    }
-
-    if(txt.startsWith('Grand Total')){
-      el.textContent = 'Grand Total ₹' + grandTotal;
+    if(el){
+      el.innerText = '₹' + grandTotal.toFixed(0);
     }
 
   });
 
-  // UPI LINKS
+  // Text replacement fix
+  document.body.innerHTML = document.body.innerHTML
+    .replace(/Items Total ₹\d+/g, 'Items Total ₹' + itemsTotal.toFixed(0))
+    .replace(/Grand Total ₹\d+/g, 'Grand Total ₹' + grandTotal.toFixed(0));
+
+  // SAVE GLOBAL
+  window.finalGrandTotal = grandTotal;
+
+  // FIX UPI LINKS
   document.querySelectorAll('a[href*="upi://pay"]').forEach(function(link){
 
     let href = link.getAttribute('href') || '';
 
-    if(href.includes('am=')){
-      href = href.replace(/am=[0-9.]+/, 'am=' + grandTotal);
+    if(href.match(/am=[0-9.]+/)){
+      href = href.replace(/am=[0-9.]+/, 'am=' + grandTotal.toFixed(0));
     }else{
-      href += (href.includes('?') ? '&' : '?') + 'am=' + grandTotal;
+      href += (href.includes('?') ? '&' : '?') + 'am=' + grandTotal.toFixed(0);
     }
 
     link.setAttribute('href', href);
 
   });
 
-  // Razorpay
+  // FIX RAZORPAY
   if(window.razorpayOptions){
-    window.razorpayOptions.amount = grandTotal * 100;
+    window.razorpayOptions.amount = Math.round(grandTotal * 100);
   }
-
-  window.finalGrandTotal = grandTotal;
 
 }
 
-// Realtime update
-window.addEventListener('load', function(){
+// REALTIME FIRESTORE DELIVERY SYNC
+function setupRealtime(){
 
-  updateAllTotals();
+  if(window.db){
 
-  setInterval(updateAllTotals, 1000);
+    db.collection('settings').doc('delivery')
+    .onSnapshot(function(doc){
+
+      if(doc.exists){
+
+        const data = doc.data() || {};
+
+        window.currentDeliveryFee =
+          safeNum(data.deliveryFee) ||
+          safeNum(data.fee) ||
+          safeNum(data.amount) ||
+          0;
+
+        updateTotals();
+
+      }
+
+    });
+
+  }
+
+}
+
+window.forceUpdatePaymentTotals = updateTotals;
+
+window.addEventListener('load', async function(){
+
+  await loadDeliveryFee();
+
+  setupRealtime();
+
+  setTimeout(updateTotals, 500);
+
+  setInterval(updateTotals, 500);
 
 });
 
 document.addEventListener('click', function(){
-  setTimeout(updateAllTotals, 300);
+  setTimeout(updateTotals, 200);
 });
-
-window.forceUpdatePaymentTotals = updateAllTotals;
 
 })();
 </script>

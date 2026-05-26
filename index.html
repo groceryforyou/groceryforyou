@@ -4668,7 +4668,7 @@ function toggleSidebar() {
       const omTotalEl = document.getElementById('om-total');
       const omOrderTotalEl = document.getElementById('om-order-total');
       if (omTotalEl) {
-        const subtotal = parseInt((onTotalEl.innerText || '0').replace(/\D/g, ''), 10) || 0;
+        const subtotal = parseInt((omTotalEl.innerText || '0').replace(/\D/g, ''), 10) || 0;
         const deliveryFee = calcDeliveryFee(subtotal);
         const highDemandFee = 0;
         const grandTotal = subtotal + deliveryFee + highDemandFee;
@@ -7047,7 +7047,7 @@ async function updateAllTotals(){
 
   const grandTotal = itemsTotal + deliveryFee;
 
-  // 
+  // ITEMS TOTAL
   document.querySelectorAll(
     '#items-total, #cart-total, #subtotal, #om-subtotal'
   ).forEach(function(el){
@@ -7073,7 +7073,7 @@ async function updateAllTotals(){
 
     const txt = (el.textContent || '').trim();
 
-    if(txt.startsWith('')){
+    if(txt.startsWith('Items Total')){
       el.textContent = 'Items Total ₹' + itemsTotal;
     }
 

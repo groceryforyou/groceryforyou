@@ -4499,30 +4499,7 @@ function toggleSidebar() {
     return Number(_dsSettings.fee) || 0;
   }
 
-  function updateCartDeliveryFee() {
-
-    const totalEl = document.getElementById('om-total');
-
-    const subtotal =
-      totalEl
-        ? parseInt(totalEl.textContent.replace(/[^\d]/g,'')) || 0
-        : 0;
-
-    const fee = calcDeliveryFee(subtotal);
-
-    const grand = subtotal + fee;
-
-    const feeEl = document.getElementById('om-delivery-fee-display');
-
-    const grandEl = document.getElementById('om-grand-total');
-
-    if (feeEl) {
-
-      if (fee === 0) {
-
-        feeEl.textContent = '🎁 Free';
-
-      } else {
+       else {
 
         feeEl.textContent = '₹' + fee;
 
@@ -5717,26 +5694,6 @@ Object.defineProperty(window, 'currentUser', {
     updateCartTotal();
   }
 
-  function updateCartTotal(){
-     const subtotal = getCartSubtotal();
-     const total = subtotal + _fee;
-
-     // Update cart display elements
-     const deliveryFeeEl = document.getElementById("deliveryFee");
-     const totalAmountEl = document.getElementById("totalAmount");
-     
-     if (deliveryFeeEl) deliveryFeeEl.innerText = "₹"+_fee;
-     if (totalAmountEl) totalAmountEl.innerText = "₹"+total;
-
-     // Update order modal elements
-     const omTotalEl = document.getElementById('om-total');
-     if (omTotalEl) omTotalEl.innerText = "₹"+subtotal;
-     updateCartDeliveryFee();
-
-     window.finalAmount = total;
-     console.log('[DeliveryFee] Cart total updated:', subtotal, '+', _fee, '=', total);
-  }
-
   function getCartSubtotal(){
      if(typeof cart !== 'undefined'){
         return Object.keys(cart).reduce((sum, id) => sum + cart[id].price * cart[id].qty, 0);
@@ -5975,54 +5932,7 @@ Object.defineProperty(window, 'currentUser', {
       }
     }, 800);
   }
-
-  /* ── Patch submitOrder: inject grand total before obfuscated code reads it ── */
-  function patchSubmitOrder() {
-    var orig = window.submitOrder;
-    if (typeof orig !== 'function') { setTimeout(patchSubmitOrder, 400); return; }
-
-    window.submitOrder = function() {
-      var omTotal = document.getElementById('om-total');
-      if (omTotal) {
-        var sub   = numFrom(omTotal);
-        var fee   = window._gfyDeliveryFee !== undefined ? window._gfyDeliveryFee : _fee;
-        var grand = sub + fee;
-        if (grand !== sub) {
-          omTotal.innerText = fmt(grand);
-          console.log('[DeliveryFee] submitOrder patch: subtotal=' + sub + ' fee=' + fee + ' grand=' + grand);
-        }
-        window._gfySubtotal   = sub;
-        window._gfyGrandTotal = grand;
-      }
-      orig.apply(this, arguments);
-    };
-
-    console.log('[DeliveryFee] submitOrder patched');
-  }
-
-  /* ── Patch openOrderModal: reapply fee after modal opens ── */
-  function patchOpenOrderModal() {
-    var orig = window.openOrderModal;
-    if (typeof orig !== 'function') { setTimeout(patchOpenOrderModal, 400); return; }
-
-    window.openOrderModal = function() {
-      // Ensure delivery fee is loaded before opening modal
-      if (window.currentDeliveryFee === undefined || window.currentDeliveryFee === null) {
-        var settings = typeof getDeliverySettings === 'function' ? getDeliverySettings() : {};
-        window.currentDeliveryFee = settings.feeEnabled ? (settings.feeAmount || 0) : 0;
-        _fee = window.currentDeliveryFee;
-        console.log('[DeliveryFee] Initialized currentDeliveryFee from settings:', window.currentDeliveryFee);
-      }
-      
-      orig.apply(this, arguments);
-      [100, 350, 700, 1200, 2000].forEach(function(ms) {
-        setTimeout(function() { applyFee(_fee); }, ms);
-      });
-    };
-
-    console.log('[DeliveryFee] openOrderModal patched');
-  }
-
+  
   /* ── MutationObserver: reapply whenever obfuscated code rewrites om-total ── */
   function watchOmTotal() {
     var el = document.getElementById('om-total');

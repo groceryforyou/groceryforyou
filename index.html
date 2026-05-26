@@ -3543,6 +3543,12 @@ Payment: ${order.paymentMethod || 'N/A'}`;
       if(adminOrderListenerAttached) return;
       const firestore = (typeof db !== 'undefined' && db) ? db : (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
       if(!firestore) return;
+
+      // Only attach if current user role is admin
+      if(typeof currentRole === 'undefined' || currentRole !== 'admin') {
+        setTimeout(attachAdminOrderNotifications, 2000);
+        return;
+      }
       adminOrderListenerAttached = true;
 
       firestore.collection('orders').orderBy('createdAt','desc').limit(20)
@@ -3556,6 +3562,8 @@ Payment: ${order.paymentMethod || 'N/A'}`;
             }
           }
         });
+      }, (error) => {
+        console.log('Realtime admin notification snap error', error);
       });
     }catch(err){ console.log('Realtime admin notification error', err); }
   }
@@ -6569,7 +6577,9 @@ Object.defineProperty(window, 'currentUser', {
 
     } catch (err) {
       console.error('[AddItem] Firestore write failed:', err);
-      if (typeof showToast === 'function') showToast('⚠️ Write failed: ' + (err.message || err), 4000);
+      const user = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth().currentUser : null;
+      const emailInfo = user ? ` (Logged in as: ${user.email})` : ' (Not logged in)';
+      if (typeof showToast === 'function') showToast('⚠️ Write failed: ' + (err.message || err) + emailInfo, 5000);
     }
   };
 
@@ -6609,7 +6619,9 @@ Object.defineProperty(window, 'currentUser', {
       window.closeEditItemModal();
     } catch (err) {
       console.error('[EditItem] Firestore write failed:', err);
-      if (typeof showToast === 'function') showToast('⚠️ Update failed: ' + (err.message || err), 4000);
+      const user = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth().currentUser : null;
+      const emailInfo = user ? ` (Logged in as: ${user.email})` : ' (Not logged in)';
+      if (typeof showToast === 'function') showToast('⚠️ Update failed: ' + (err.message || err) + emailInfo, 5000);
     }
   };
 
@@ -6715,7 +6727,9 @@ Object.defineProperty(window, 'currentUser', {
       if (emojiInput) emojiInput.value = '';
     } catch (err) {
       console.error('[AddCategory] Firestore write failed:', err);
-      if (typeof showToast === 'function') showToast('⚠️ Could not save category', 2500);
+      const user = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth().currentUser : null;
+      const emailInfo = user ? ` (Logged in as: ${user.email})` : ' (Not logged in)';
+      if (typeof showToast === 'function') showToast('⚠️ Category save failed: ' + (err.message || err) + emailInfo, 5000);
     }
   };
 

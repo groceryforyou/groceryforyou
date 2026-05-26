@@ -5404,111 +5404,28 @@ function toggleSidebar() {
 function waitFor(check,cb,n){if(n===undefined)n=0;if(check())return cb();if(n<40)setTimeout(()=>waitFor(check,cb,n+1),500);}
 function gfyDB(){return(typeof firebase!=='undefined'&&firebase.apps&&firebase.apps.length)?firebase.firestore():null;}
 
-// ── 1. SEED + LOAD MENU ITEMS TO FIRESTORE ──────────────────────────────
-window._gfyItemsSeeded=false;
-async function seedItems(db){
-  if(window._gfyItemsSeeded)return;
-  try{
-    const col=db.collection('menuItems');
-    const snap=await col.limit(1).get();
-    const allItems=window.items||[];
-    if(!allItems.length)return;
-    if(!snap.empty){await loadItemOverrides(db);return;}
-    window._gfyItemsSeeded=true;
-    for(let i=0;i<allItems.length;i+=400){
-      const batch=db.batch();
-      allItems.slice(i,i+400).forEach(item=>{
-        batch.set(col.doc(item.id||item.name.replace(/\s+/g,'_')),{
-          id:item.id,name:item.name,description:item.type||'',
-          price:item.price||0,discount:0,emoji:item.emoji||'🛒',
-          catId:item.catId||'',inStock:item.inStock!==false,
-          image:'',rating:0,reviewsCount:0,
-          createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-          updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-        },{merge:true});
-      });
-      await batch.commit();
-    }
-    console.log('[GFY] Seeded',allItems.length,'items to Firestore');
-  }catch(e){console.error('[GFY] Seed error:',e);}
+// ── 1. CLEAR LEGACY STATIC ARRAYS & OVERRIDE CATEGORIES ─────────────────
+if (typeof items !== 'undefined') {
+  items.length = 0;
+}
+if (typeof window.items !== 'undefined') {
+  window.items.length = 0;
 }
 
-async function loadItemOverrides(db){
-  try{
-    const snap=await db.collection('menuItems').get();
-    if(snap.empty)return;
-    const map={};snap.forEach(d=>{map[d.id]=d.data();});
-    const allItems=window.items||[];
-    // Load local overrides from localStorage and prefer them when present
-    let localMap = {};
-    try{
-      const saved = localStorage.getItem('restaurant_menu_items_live');
-      if(saved){
-        const parsed = JSON.parse(saved);
-        if(Array.isArray(parsed)){
-          parsed.forEach(i=>{ if(i && i.id) localMap[i.id] = i; });
-        }
-      }
-    }catch(e){ /* ignore parse errors */ }
-
-    allItems.forEach(item=>{
-      // Prefer explicit local edits if present
-      const localOv = localMap[item.id];
-      if(localOv){
-        if(localOv.name) item.name = localOv.name;
-        if(localOv.catId) item.catId = localOv.catId;
-        if(localOv.inStock!==undefined) item.inStock = localOv.inStock;
-        if(localOv.price!==undefined) item.price = localOv.price;
-        if(localOv.discount!==undefined) item.discount = localOv.discount;
-        if(localOv.description!==undefined) { item.description = localOv.description; item.type = localOv.description; }
-        if(localOv.image!==undefined) item.image = localOv.image;
-        if(localOv.rating!==undefined) item.rating = localOv.rating;
-        if(localOv.reviewsCount!==undefined) item.reviewsCount = localOv.reviewsCount;
-        return;
-      }
-
-      // Fall back to Firestore override if local edit not present
-      let ov=map[item.id];
-      if(!ov){
-        const sanitizedId=item.name.replace(/\s+/g,'_');
-        ov=map[sanitizedId];
-        if(ov){
-          db.collection('menuItems').doc(item.id).set({...ov,id:item.id},{merge:true})
-            .then(()=>db.collection('menuItems').doc(sanitizedId).delete())
-            .catch(err=>console.warn('[Migration] Failed:',err));
-        }
-      }
-      if(!ov) return;
-      if(ov.name) item.name = ov.name;
-      if(ov.catId) item.catId = ov.catId;
-      if(ov.inStock!==undefined) item.inStock = ov.inStock;
-      if(ov.price>0) item.price = ov.price;
-      if(ov.discount!==undefined) item.discount = ov.discount;
-      if(ov.description!==undefined) { item.description = ov.description; item.type = ov.description; }
-      if(ov.image!==undefined) item.image = ov.image;
-      if(ov.rating!==undefined) item.rating = ov.rating;
-      if(ov.reviewsCount!==undefined) item.reviewsCount = ov.reviewsCount;
-    });
-    try {
-      localStorage.setItem('restaurant_menu_items_live', JSON.stringify(allItems));
-    } catch(e) {}
-    if(typeof window.refreshManageList==='function')window.refreshManageList();
-    if(typeof window.refreshInventoryUI==='function')window.refreshInventoryUI();
-    if(typeof window.renderMenuPage==='function')window.renderMenuPage('all');
-    if(typeof window.updateCart==='function')window.updateCart();
-  }catch(e){console.error('[GFY] Load overrides:',e);}
+if (typeof categories !== 'undefined') {
+  categories.length = 0;
+  categories.push(
+    { id: 'vegetables', name: 'Vegetables', emoji: '🥦' },
+    { id: 'fruits', name: 'Fruits', emoji: '🍎' },
+    { id: 'dairy', name: 'Dairy', emoji: '🥛' },
+    { id: 'grocery', name: 'Grocery', emoji: '🌾' },
+    { id: 'leafy', name: 'Leafy', emoji: '🥬' },
+    { id: 'snacks', name: 'Snacks', emoji: '🍿' },
+    { id: 'beverages', name: 'Beverages', emoji: '🥤' }
+  );
 }
 
-// ── 2. ADMIN: UPDATE ITEM IN FIRESTORE ──────────────────────────────────
-window.GFY_updateItem=async function(itemId,data){
-  try{
-    const db=gfyDB();if(!db)return;
-    await db.collection('menuItems').doc(itemId).set({...data,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
-    if(typeof showToast==='function')showToast('✅ Item updated!',2000);
-  }catch(e){if(typeof showToast==='function')showToast('❌ Could not update item',2000);}
-};
-
-// ── 3. ADMIN ORDER WATCHER ───────────────────────────────────────────────
+// ── 2. ADMIN ORDER WATCHER ───────────────────────────────────────────────
 let _adminOrderUnsub=null,_adminInit=false,_adminSeen=new Set();
 function setupAdminOrderWatch(db){
   if(_adminOrderUnsub)return;
@@ -5535,7 +5452,7 @@ function setupAdminOrderWatch(db){
   }catch(e){console.error('[Admin Watch setup]',e);}
 }
 
-// ── 4. CUSTOMER ORDER STATUS WATCHER ────────────────────────────────────
+// ── 3. CUSTOMER ORDER STATUS WATCHER ────────────────────────────────────
 let _custUnsub=null,_custSeen={};
 function setupCustomerWatch(db,email){
   if(_custUnsub){_custUnsub();_custUnsub=null;}
@@ -5571,7 +5488,7 @@ function setupCustomerWatch(db,email){
   }catch(e){console.error('[Cust Watch setup]',e);}
 }
 
-// ── 5. RATING WITH EMAIL ─────────────────────────────────────────────────
+// ── 4. RATING WITH EMAIL ─────────────────────────────────────────────────
 window.GFY_submitRating=async function(itemId,stars,reviewText){
   if(!window.currentUser){
     if(typeof showToast==='function')showToast('⚠️ Please sign in to rate',2000);
@@ -5600,7 +5517,7 @@ window.GFY_submitRating=async function(itemId,stars,reviewText){
   }
 };
 
-// ── 6. BROWSER NOTIFICATION HELPER ──────────────────────────────────────
+// ── 5. BROWSER NOTIFICATION HELPER ──────────────────────────────────────
 function gfyNotif(title,body){
   if(!('Notification'in window))return;
   if(Notification.permission==='granted'){
@@ -5612,7 +5529,7 @@ function gfyNotif(title,body){
   }
 }
 
-// ── 7. REQUEST NOTIFICATION PERMISSION ──────────────────────────────────
+// ── 6. REQUEST NOTIFICATION PERMISSION ──────────────────────────────────
 if('Notification'in window&&Notification.permission==='default'){
   document.addEventListener('click',function ask(){
     Notification.requestPermission();
@@ -5620,7 +5537,7 @@ if('Notification'in window&&Notification.permission==='default'){
   },{once:true});
 }
 
-// ── 8. WIRE INTO AUTH STATE ───────────────────────────────────────────────
+// ── 7. WIRE INTO AUTH STATE ───────────────────────────────────────────────
 waitFor(
   ()=>typeof firebase!=='undefined'&&firebase.apps&&firebase.apps.length>0,
   ()=>{
@@ -5630,15 +5547,12 @@ waitFor(
       if(!user){
         if(_custUnsub){_custUnsub();_custUnsub=null;}
         if(_adminOrderUnsub){_adminOrderUnsub();_adminOrderUnsub=null;_adminInit=false;}
-        waitFor(()=>window.items&&window.items.length>0,()=>loadItemOverrides(db));
         return;
       }
       const isAdmin=(window.currentRole==='admin');
       if(isAdmin){
-        waitFor(()=>window.items&&window.items.length>0,()=>seedItems(db));
         setTimeout(()=>setupAdminOrderWatch(db),1500);
       } else {
-        waitFor(()=>window.items&&window.items.length>0,()=>loadItemOverrides(db));
         setupCustomerWatch(db,user.email);
       }
     });
@@ -5662,46 +5576,6 @@ Object.defineProperty(window, 'currentUser', {
   set: function(val) { currentUser = val; },
   configurable: true
 });
-})();
-</script>
-
-<script>
-// Apply any locally saved menu item overrides (from admin edits) so page reloads keep changes
-(function applyLocalMenuOverrides(){
-  try{
-    const key = 'restaurant_menu_items_live';
-    const saved = localStorage.getItem(key);
-    if(!saved) return;
-    const parsed = JSON.parse(saved);
-    if(!Array.isArray(parsed)) return;
-    if(!Array.isArray(window.items)) return;
-
-    // Build map of current items by id for quick lookup
-    const currentMap = {};
-    window.items.forEach(i=>{ if(i && i.id) currentMap[i.id] = i; });
-
-    parsed.forEach(si=>{
-      if(!si || !si.id) return;
-      const target = currentMap[si.id];
-      if(target){
-        // Apply only fields that matter (avoid overwriting server-only metadata)
-        if(si.name !== undefined) target.name = si.name;
-        if(si.price !== undefined) target.price = si.price;
-        if(si.description !== undefined) { target.description = si.description; target.type = si.description; }
-        if(si.catId !== undefined) target.catId = si.catId;
-        if(si.image !== undefined) target.image = si.image;
-        if(si.inStock !== undefined) target.inStock = si.inStock;
-        if(si.rating !== undefined) target.rating = si.rating;
-        if(si.ratingCount !== undefined) target.ratingCount = si.ratingCount;
-      }
-    });
-
-    // Trigger UI refreshes if available
-    if(typeof window.refreshInventoryUI === 'function') window.refreshInventoryUI();
-    if(typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
-    if(typeof refreshManageList === 'function') refreshManageList();
-    if(typeof updateCart === 'function') updateCart();
-  }catch(e){console.warn('[LocalOverrides] failed to apply:', e);} 
 })();
 </script>
 
@@ -6517,15 +6391,29 @@ Object.defineProperty(window, 'currentUser', {
 })();
 </script>
 
-<!-- ===== ADMIN EDIT ITEM FEATURE ===== -->
+<!-- ===== GFY UNIFIED FIRESTORE REALTIME SYNC SYSTEM ===== -->
 <script>
-(function patchAdminEditItem() {
+(function GFYUnifiedFirestoreSync() {
   'use strict';
 
-  // State
-  let _menuItemsListener = null;
+  // ── 1. MODULAR-TO-NAMESPACE SDK COMPATIBILITY LAYER ──────────────────
+  function doc(dbInstance, collectionPath, documentPath) {
+    return dbInstance.collection(collectionPath).doc(documentPath);
+  }
+  function collection(dbInstance, collectionPath) {
+    return dbInstance.collection(collectionPath);
+  }
+  async function setDoc(docRef, data) {
+    return docRef.set(data, { merge: true });
+  }
+  async function updateDoc(docRef, data) {
+    return docRef.update(data);
+  }
+  function onSnapshot(ref, callback, errorCallback) {
+    return ref.onSnapshot(callback, errorCallback);
+  }
 
-  // 1. Inject Edit Item Modal HTML on load
+  // ── 2. ADMIN EDIT ITEM MODAL SETUP ──────────────────────────────────
   function injectEditItemModal() {
     if (document.getElementById('edit-item-modal-overlay')) return;
     
@@ -6548,19 +6436,14 @@ Object.defineProperty(window, 'currentUser', {
             <input type="number" id="edit-item-price" class="aip-input" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff;" />
           </div>
           <div style="margin-bottom: 12px;">
-            <label class="aip-label" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Description / Type</label>
-            <input type="text" id="edit-item-desc" class="aip-input" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff;" placeholder="e.g. 500g, Fresh bunch" />
-          </div>
-          <div style="margin-bottom: 12px;">
-            <label class="aip-label" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Image URL</label>
-            <input type="text" id="edit-item-image" class="aip-input" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff;" placeholder="e.g. https://domain.com/image.jpg" />
-          </div>
-          <div style="margin-bottom: 16px;">
-            <label class="aip-label" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Category</label>
-            <select id="edit-item-cat" class="aip-select" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff; cursor: pointer;"></select>
+            <label class="aip-label" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Stock Status</label>
+            <select id="edit-item-stock" class="aip-select" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff; cursor: pointer;">
+              <option value="1">✅ In Stock</option>
+              <option value="0">❌ Out Of Stock</option>
+            </select>
           </div>
           <input type="hidden" id="edit-item-id" />
-          <div class="cat-modal-actions" style="display: flex; gap: 8px; margin-top: 16px;">
+          <div class="cat-modal-actions" style="display: flex; gap: 8px; margin-top: 20px;">
             <button class="cat-cancel-btn" onclick="closeEditItemModal()" style="flex: 1; background: var(--cream); border: 1.5px solid var(--border); color: var(--brown); border-radius: 10px; padding: 11px; font-weight: 700; cursor: pointer;">Cancel</button>
             <button class="cat-save-btn" onclick="saveEditedItem()" style="flex: 2; background: linear-gradient(90deg, var(--brown), var(--saffron)); color: #fff; border: none; border-radius: 10px; padding: 11px; font-family: 'Yeseva One', serif; font-size: .9rem; cursor: pointer;">Save Changes</button>
           </div>
@@ -6570,18 +6453,8 @@ Object.defineProperty(window, 'currentUser', {
     document.body.appendChild(overlay);
   }
 
-  // Helper safely getting global list
-  function getGlobalItems() {
-    return (typeof window.items !== 'undefined') ? window.items : [];
-  }
-
-  function getGlobalCategories() {
-    return (typeof window.categories !== 'undefined') ? window.categories : [];
-  }
-
-  // 2. Open Modal and prefill choices dynamically
   window.openEditItemModal = function(itemId) {
-    const allItems = getGlobalItems();
+    const allItems = (typeof window.items !== 'undefined') ? window.items : [];
     const item = allItems.find(i => i.id === itemId);
     if (!item) {
       if (typeof showToast === 'function') showToast('⚠️ Item not found', 2500);
@@ -6589,28 +6462,16 @@ Object.defineProperty(window, 'currentUser', {
     }
     
     injectEditItemModal();
-
-    // Populate category dropdown choices dynamically
-    const catSelect = document.getElementById('edit-item-cat');
-    if (catSelect) {
-      const allCats = getGlobalCategories();
-      catSelect.innerHTML = allCats.map(cat => 
-        `<option value="${cat.id}">${cat.emoji || '🍎'} ${cat.name}</option>`
-      ).join('');
-      catSelect.value = item.catId || '';
-    }
     
     document.getElementById('edit-item-name').value = item.name || '';
     document.getElementById('edit-item-price').value = item.price || 0;
-    document.getElementById('edit-item-desc').value = item.type || item.description || '';
-    document.getElementById('edit-item-image').value = item.image || '';
+    document.getElementById('edit-item-stock').value = item.inStock ? '1' : '0';
     document.getElementById('edit-item-id').value = itemId;
     
     document.getElementById('edit-item-modal-overlay').classList.add('open');
     if (typeof window.lockBodyScroll === 'function') window.lockBodyScroll();
   };
 
-  // 3. Close Modal
   window.closeEditItemModal = function() {
     const overlay = document.getElementById('edit-item-modal-overlay');
     if (overlay) {
@@ -6619,95 +6480,178 @@ Object.defineProperty(window, 'currentUser', {
     }
   };
 
-  // 4. Save Edited Item to Local Cache & Firebase
-  window.saveEditedItem = async function() {
-    const itemId = document.getElementById('edit-item-id').value;
-    const newName = document.getElementById('edit-item-name').value.trim();
-    const newPrice = parseFloat(document.getElementById('edit-item-price').value);
-    const newDesc = document.getElementById('edit-item-desc').value.trim();
-    const newImage = document.getElementById('edit-item-image').value.trim();
-    const newCatId = document.getElementById('edit-item-cat').value;
+  // ── 3. ADMINISTRATIVE ACTIONS ──────────────────────────────────────────
+  
+  // Add New Item Function using setDoc
+  window.saveNewItem = async function() {
+    if (typeof currentRole !== 'undefined' && currentRole !== 'admin') {
+      if (typeof showToast === 'function') showToast('⚠️ Only admin can add items');
+      return;
+    }
 
-    if (!newName) {
+    const nameInput = document.getElementById('aip-name');
+    const priceInput = document.getElementById('aip-price');
+    const catSelect = document.getElementById('aip-cat');
+    const emojiCustom = document.getElementById('aip-emoji-custom');
+    const stockSelect = document.getElementById('aip-stock');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    const price = priceInput ? parseFloat(priceInput.value) : 0;
+    const category = catSelect ? catSelect.value : '';
+    const emoji = (emojiCustom && emojiCustom.value.trim()) || window.selectedEmoji || '🍎';
+    const inStock = stockSelect ? stockSelect.value === '1' : true;
+
+    if (!name) {
+      if (nameInput) nameInput.focus();
       if (typeof showToast === 'function') showToast('⚠️ Please enter an item name');
       return;
     }
-    if (isNaN(newPrice) || newPrice <= 0) {
+    if (isNaN(price) || price <= 0) {
+      if (priceInput) priceInput.focus();
+      if (typeof showToast === 'function') showToast('⚠️ Please enter a valid price');
+      return;
+    }
+    if (!category) {
+      if (typeof showToast === 'function') showToast('⚠️ Please select a category');
+      return;
+    }
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+
+    if (!firebaseDB) {
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
+      return;
+    }
+
+    const itemId = 'item-' + Date.now();
+
+    try {
+      await setDoc(doc(firebaseDB, "menuItems", itemId), {
+        name,
+        price,
+        category,
+        inStock,
+        emoji
+      });
+
+      if (typeof showToast === 'function') showToast(`🎉 ${name} added successfully!`, 3000);
+
+      // Reset fields
+      if (nameInput) nameInput.value = '';
+      if (priceInput) priceInput.value = '';
+      if (emojiCustom) emojiCustom.value = '';
+      if (stockSelect) stockSelect.value = '1';
+      
+      window.selectedEmoji = '🍽';
+      const emojiOpts = document.querySelectorAll('.emoji-opt');
+      emojiOpts.forEach(opt => opt.classList.toggle('selected', opt.textContent === '🍽'));
+
+    } catch (err) {
+      console.error('[AddItem] Firestore write failed:', err);
+      if (typeof showToast === 'function') showToast('⚠️ Could not save item to database', 2500);
+    }
+  };
+
+  // Edit Item Function using updateDoc
+  window.saveEditedItem = async function() {
+    const itemId = document.getElementById('edit-item-id').value;
+    const name = document.getElementById('edit-item-name').value.trim();
+    const price = parseFloat(document.getElementById('edit-item-price').value);
+    const inStock = document.getElementById('edit-item-stock').value === '1';
+
+    if (!name) {
+      if (typeof showToast === 'function') showToast('⚠️ Please enter an item name');
+      return;
+    }
+    if (isNaN(price) || price <= 0) {
       if (typeof showToast === 'function') showToast('⚠️ Please enter a valid price');
       return;
     }
 
-    const allItems = getGlobalItems();
-    const item = allItems.find(i => i.id === itemId);
-    if (!item) {
-      if (typeof showToast === 'function') showToast('⚠️ Item not found', 2500);
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+
+    if (!firebaseDB) {
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
       return;
     }
 
-    // Update in-memory item cache
-    item.name = newName;
-    item.price = newPrice;
-    item.type = newDesc;
-    item.description = newDesc;
-    item.image = newImage;
-    item.catId = newCatId;
-
-    // Update active cart if item exists
-    if (window.cart && window.cart[itemId]) {
-      window.cart[itemId].name = newName;
-      window.cart[itemId].price = newPrice;
-    }
-
-    // Persist local changes to localStorage immediately so customers see updates
     try {
-      const key = 'restaurant_menu_items_live';
-      localStorage.setItem(key, JSON.stringify(allItems));
-      try {
-        window.dispatchEvent(new StorageEvent('storage', { key }));
-      } catch (evErr) {
-        // fallback: call refresh directly if StorageEvent cannot be constructed
-        if (typeof window.refreshInventoryUI === 'function') window.refreshInventoryUI();
-        if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
-        if (typeof refreshManageList === 'function') refreshManageList();
-        if (typeof updateCart === 'function') updateCart();
-      }
+      await updateDoc(doc(firebaseDB, "menuItems", itemId), {
+        name,
+        price,
+        inStock
+      });
+
+      if (typeof showToast === 'function') showToast('🎉 Item updated successfully!', 3000);
+      window.closeEditItemModal();
     } catch (err) {
-      console.warn('[EditItem] Could not persist to localStorage:', err);
+      console.error('[EditItem] Firestore write failed:', err);
+      if (typeof showToast === 'function') showToast('⚠️ Could not update item', 2500);
     }
-
-    // Persist to Firebase Firestore
-    if (typeof window.GFY_updateItem === 'function') {
-      try {
-        await window.GFY_updateItem(itemId, { 
-          name: newName, 
-          price: newPrice, 
-          description: newDesc,
-          image: newImage,
-          catId: newCatId 
-        });
-        // ensure localStorage is in sync after successful DB write
-        try { localStorage.setItem('restaurant_menu_items_live', JSON.stringify(allItems)); } catch(e){}
-      } catch (err) {
-        console.error('[EditItem] Firestore save failed:', err);
-      }
-    } else {
-      console.warn('[EditItem] window.GFY_updateItem is not loaded, changes saved locally');
-    }
-
-    // Redraw UI components locally as fallback
-    if (typeof window.refreshInventoryUI === 'function') {
-      window.refreshInventoryUI();
-    } else {
-      if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
-      if (typeof refreshManageList === 'function') refreshManageList();
-      if (typeof updateCart === 'function') updateCart();
-    }
-
-    window.closeEditItemModal();
-    if (typeof showToast === 'function') showToast('🎉 Item updated successfully!', 3000);
   };
 
-  // 5. Enhance the rendered cards with edit buttons
+  // Toggle Item Stock Function using updateDoc
+  window.toggleItemStock = async function(itemId) {
+    if (currentRole !== 'admin') {
+      if (typeof showToast === 'function') showToast('⚠️ Only admin can change stock');
+      return;
+    }
+
+    const allItems = (typeof window.items !== 'undefined') ? window.items : [];
+    const item = allItems.find(i => i.id === itemId);
+    if (!item) return;
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+
+    if (!firebaseDB) {
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
+      return;
+    }
+
+    const inStock = !item.inStock;
+
+    try {
+      await updateDoc(doc(firebaseDB, "menuItems", itemId), {
+        name: item.name,
+        price: item.price,
+        inStock: inStock
+      });
+      if (typeof showToast === 'function') showToast(inStock ? '✅ Marked In Stock' : '❌ Marked Out of Stock', 2000);
+    } catch (err) {
+      console.error('[StockToggle] Firestore update failed:', err);
+      if (typeof showToast === 'function') showToast('⚠️ Could not update stock', 2500);
+    }
+  };
+
+  // Delete Item Function
+  window.deleteItem = async function(itemId) {
+    if (currentRole !== 'admin') {
+      if (typeof showToast === 'function') showToast('⚠️ Only admin can delete items');
+      return;
+    }
+    if (!confirm('Delete this item?')) return;
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+
+    if (!firebaseDB) {
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
+      return;
+    }
+
+    try {
+      await firebaseDB.collection('menuItems').doc(itemId).delete();
+      if (typeof showToast === 'function') showToast('🗑️ Item deleted successfully!', 2000);
+    } catch (err) {
+      console.error('[DeleteItem] Firestore delete failed:', err);
+      if (typeof showToast === 'function') showToast('⚠️ Could not delete item', 2500);
+    }
+  };
+
+  // ── 4. FAILSURE / ENHANCE ADMIN PANEL UI ───────────────────────────────
   function enhanceManageListWithEditButtons() {
     const container = document.getElementById('manage-items-list');
     if (!container) return;
@@ -6723,20 +6667,17 @@ Object.defineProperty(window, 'currentUser', {
       
       const itemId = match[1];
 
-      // Skip if edit button already exists
       if (card.querySelector('.mng-edit')) return;
 
       const actions = card.querySelector('.mng-actions');
       if (!actions) return;
 
-      // Create edit button
       const editBtn = document.createElement('button');
       editBtn.className = 'mng-edit';
       editBtn.innerHTML = '✏️';
       editBtn.title = 'Edit Item';
       editBtn.setAttribute('style', 'background: #eef7f2; border: 1.5px solid #c8e6c9; color: var(--brown); width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: .8rem; display: flex; align-items: center; justify-content: center; transition: all .2s;');
 
-      // Add beautiful premium hover effect dynamically
       editBtn.onmouseenter = function() {
         editBtn.style.background = 'var(--saffron)';
         editBtn.style.color = '#fff';
@@ -6748,18 +6689,15 @@ Object.defineProperty(window, 'currentUser', {
         editBtn.style.transform = 'scale(1)';
       };
 
-      // Click handler
       editBtn.onclick = function(e) {
         e.stopPropagation();
         window.openEditItemModal(itemId);
       };
 
-      // Insert before delete button
       actions.insertBefore(editBtn, delBtn);
     });
   }
 
-  // 6. Setup MutationObserver and setInterval polling failsafe
   function setupFailsafeEnhancer() {
     const manageList = document.getElementById('manage-items-list');
     if (!manageList) {
@@ -6767,197 +6705,116 @@ Object.defineProperty(window, 'currentUser', {
       return;
     }
 
-    // A. Observer
     const observer = new MutationObserver(function() {
       enhanceManageListWithEditButtons();
     });
     observer.observe(manageList, { childList: true, subtree: true });
 
-    // B. Periodic poll check (every 500ms)
     setInterval(enhanceManageListWithEditButtons, 500);
-
-    // Initial enhancement
     enhanceManageListWithEditButtons();
   }
 
-  // 7. Real-Time Firestore onSnapshot Sync across all customer tabs
-  function startMenuItemsListener(db) {
-    if (_menuItemsListener) return;
-    
-    console.log('[EditItem] Starting real-time Firestore listener for menuItems...');
-    _menuItemsListener = db.collection('menuItems').onSnapshot(snap => {
-      if (!snap || snap.empty) return;
-      
-      const allItems = getGlobalItems();
-      let updated = false;
+  // ── 5. REALTIME SNAPSHOT LISTENERS ─────────────────────────────────────
+  function startRealtimeSync() {
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
 
-      snap.docChanges().forEach(change => {
-        const docData = change.doc.data();
-        const itemId = docData.id || change.doc.id;
-        
-        let item = allItems.find(i => i.id === itemId || i.name.replace(/\s+/g,'_') === itemId);
-        
-        if (change.type === 'added' || change.type === 'modified') {
-          const mappedItem = {
-            id: itemId,
-            catId: docData.catId || '',
-            name: docData.name || '',
-            type: docData.description || '', // type inside GFY array holds description
-            description: docData.description || '',
-            price: Number(docData.price) || 0,
-            emoji: docData.emoji || '🍎',
-            inStock: docData.inStock !== false,
-            rating: docData.rating !== undefined ? Number(docData.rating) : 5.0, // default 5.0
-            ratingCount: docData.ratingCount !== undefined ? Number(docData.ratingCount) : 5, // default 5 reviews
-            image: docData.image || '',
-            discount: docData.discount || 0
-          };
+    if (!firebaseDB) {
+      setTimeout(startRealtimeSync, 500);
+      return;
+    }
 
-          if (item) {
-            // Update cache item properties in-place preserving array references
-            Object.assign(item, mappedItem);
-            // Update active cart if item exists
-            if (window.cart && window.cart[itemId]) {
-              window.cart[itemId].name = mappedItem.name;
-              window.cart[itemId].price = mappedItem.price;
-            }
-          } else {
-            // Push newly added admin item in real-time
-            allItems.push(mappedItem);
-          }
-          updated = true;
-        } else if (change.type === 'removed') {
-          const index = allItems.findIndex(i => i.id === itemId);
-          if (index !== -1) {
-            allItems.splice(index, 1);
-            updated = true;
-          }
+    console.log('[FirestoreSync] Initializing realtime menuItems sync listener...');
+
+    onSnapshot(collection(firebaseDB, "menuItems"), (snapshot) => {
+      try {
+        if (!snapshot) return;
+
+        console.log('[FirestoreSync] Realtime menu update received. Documents count:', snapshot.size);
+
+        const firestoreItems = [];
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const category = data.category || 'grocery';
+          
+          firestoreItems.push({
+            id: doc.id,
+            name: data.name || '',
+            price: Number(data.price) || 0,
+            category: category,
+            catId: category, // compatibility catId mapping
+            inStock: data.inStock !== false,
+            emoji: data.emoji || '🍎',
+            description: data.description || '',
+            type: data.description || '', // backward compatible description holder
+            rating: typeof data.rating === 'number' ? data.rating : 5.0,
+            ratingCount: typeof data.ratingCount === 'number' ? data.ratingCount : 5,
+            image: data.image || '',
+            discount: Number(data.discount) || 0
+          });
+        });
+
+        // Update items arrays in-place to preserve application references
+        if (Array.isArray(window.items)) {
+          window.items.length = 0;
+          firestoreItems.forEach(item => window.items.push(item));
         }
-      });
+        if (Array.isArray(window.menuItems)) {
+          window.menuItems.length = 0;
+          firestoreItems.forEach(item => window.menuItems.push(item));
+        }
+        if (Array.isArray(window.allItems)) {
+          window.allItems.length = 0;
+          firestoreItems.forEach(item => window.allItems.push(item));
+        }
+        if (Array.isArray(window.products)) {
+          window.products.length = 0;
+          firestoreItems.forEach(item => window.products.push(item));
+        }
+        if (Array.isArray(window.menuData)) {
+          window.menuData.length = 0;
+          firestoreItems.forEach(item => window.menuData.push(item));
+        }
 
-      if (updated) {
-        try {
-          localStorage.setItem('restaurant_menu_items_live', JSON.stringify(allItems));
-        } catch(e) {}
-        // Redraw customer pages and inventory instantly
+        // Sync active cart in case of out of stock or price changes
+        if (window.cart) {
+          Object.keys(window.cart).forEach(itemId => {
+            const matched = firestoreItems.find(i => i.id === itemId);
+            if (matched) {
+              if (!matched.inStock) {
+                delete window.cart[itemId];
+              } else {
+                window.cart[itemId].name = matched.name;
+                window.cart[itemId].price = matched.price;
+              }
+            }
+          });
+        }
+
+        // Instantly refresh UI components
         if (typeof window.refreshInventoryUI === 'function') {
           window.refreshInventoryUI();
+        } else {
+          if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
+          if (typeof refreshManageList === 'function') refreshManageList();
+          if (typeof updateCart === 'function') updateCart();
         }
-        if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
-        if (typeof refreshManageList === 'function') refreshManageList();
-        if (typeof updateCart === 'function') updateCart();
+
+        console.log('[FirestoreSync] Customer & Admin UI updated instantly');
+
+      } catch (err) {
+        console.error('[FirestoreSync] Realtime sync apply error:', err);
       }
-    }, err => {
-      console.warn('[EditItem] menuItems sync listener error:', err);
+    }, (error) => {
+      console.error('[FirestoreSync] Realtime menuItems collection listener error:', error);
     });
   }
 
-  // Poll for db ready to start listener
-  function initRealtimeListener() {
-    const firestoreInstance = (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
-    if (firestoreInstance) {
-      startMenuItemsListener(firestoreInstance);
-    } else {
-      setTimeout(initRealtimeListener, 500);
-    }
-  }
-
-  // 8. Custom saveNewItem patch: defaults to 5.0 rating & saves to Firestore
-  window.saveNewItem = async function() {
-    if (typeof currentRole !== 'undefined' && currentRole !== 'admin') {
-      if (typeof showToast === 'function') showToast('⚠️ Only admin can add items');
-      return;
-    }
-
-    const catSelect = document.getElementById('aip-cat');
-    const nameInput = document.getElementById('aip-name');
-    const priceInput = document.getElementById('aip-price');
-    const typeInput = document.getElementById('aip-type');
-    const stockSelect = document.getElementById('aip-stock');
-    const emojiCustom = document.getElementById('aip-emoji-custom');
-
-    const catId = catSelect ? catSelect.value : '';
-    const name = nameInput ? nameInput.value.trim() : '';
-    const price = priceInput ? parseFloat(priceInput.value) : 0;
-    const type = typeInput ? typeInput.value.trim() : '';
-    const inStock = stockSelect ? stockSelect.value === '1' : true;
-    const emoji = (emojiCustom && emojiCustom.value.trim()) || window.selectedEmoji || '🍎';
-
-    if (!catId) {
-      if (typeof showToast === 'function') showToast('⚠️ Please select a category');
-      return;
-    }
-    if (!name) {
-      if (nameInput) nameInput.focus();
-      if (typeof showToast === 'function') showToast('⚠️ Please enter an item name');
-      return;
-    }
-    if (isNaN(price) || price <= 0) {
-      if (priceInput) priceInput.focus();
-      if (typeof showToast === 'function') showToast('⚠️ Please enter a valid price');
-      return;
-    }
-
-    const itemId = 'item_' + Date.now();
-    const newItem = {
-      id: itemId,
-      catId: catId,
-      name: name,
-      description: type, // description maps to type/desc field
-      price: price,
-      emoji: emoji,
-      inStock: inStock,
-      image: '',
-      rating: 5.0, // Default 5.0 rating as requested!
-      ratingCount: 5, // Default 5 review ratings
-      createdAt: (typeof firebase !== 'undefined') ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
-      updatedAt: (typeof firebase !== 'undefined') ? firebase.firestore.FieldValue.serverTimestamp() : new Date()
-    };
-
-    // Save to Firestore
-    const firestoreInstance = (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
-    if (firestoreInstance) {
-      try {
-        await firestoreInstance.collection('menuItems').doc(itemId).set(newItem);
-        if (typeof showToast === 'function') showToast(`🍕 ${name} added successfully!`, 3000);
-      } catch (err) {
-        console.error('[AddItem] Firestore write failed:', err);
-        if (typeof showToast === 'function') showToast('⚠️ Could not save item to database', 2500);
-      }
-    } else {
-      // Local fallback in case Firebase not loaded
-      const allItems = getGlobalItems();
-      const localItem = {
-        ...newItem,
-        type: type, // type holds description locally
-        ratingCount: 5
-      };
-      allItems.push(localItem);
-      if (typeof showToast === 'function') showToast(`🍕 ${name} added locally!`, 3000);
-    }
-
-    // Reset Form fields
-    if (nameInput) nameInput.value = '';
-    if (priceInput) priceInput.value = '';
-    if (typeInput) typeInput.value = '';
-    if (emojiCustom) emojiCustom.value = '';
-    if (stockSelect) stockSelect.value = '1';
-    
-    // Refresh Inventory UI locally as fallback
-    if (typeof window.refreshInventoryUI === 'function') {
-      window.refreshInventoryUI();
-    } else {
-      if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
-      if (typeof refreshManageList === 'function') refreshManageList();
-      if (typeof updateCart === 'function') updateCart();
-    }
-  };
-
-  // 9. Bootstrap execution
+  // Bootstrap execution
   function init() {
     injectEditItemModal();
     setupFailsafeEnhancer();
-    initRealtimeListener();
+    startRealtimeSync();
   }
 
   if (document.readyState === 'loading') {
@@ -6965,142 +6822,6 @@ Object.defineProperty(window, 'currentUser', {
   } else {
     setTimeout(init, 100);
   }
-})();
-</script>
-
-
-<script>
-
-
-
-<script>
-/* ===== FINAL CUSTOMER LIVE UPDATE FIX ===== */
-(function(){
-
-const STORAGE_KEY = "restaurant_menu_items_live";
-
-function getItems(){
-    if(Array.isArray(window.items)) return window.items;
-    if(Array.isArray(window.menuItems)) return window.menuItems;
-    return [];
-}
-
-function saveItems(){
-    try{
-        const items = getItems();
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    }catch(err){
-        console.error(err);
-    }
-}
-
-function loadItems(){
-    try{
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if(!saved) return;
-
-        const parsed = JSON.parse(saved);
-        const items = getItems();
-
-        if(!Array.isArray(parsed) || !items) return;
-
-        items.length = 0;
-
-        parsed.forEach(item=>{
-            items.push(item);
-        });
-
-    }catch(err){
-        console.error(err);
-    }
-}
-
-function refreshCustomerUI(){
-
-    try{
-        if(typeof renderMenu === 'function'){
-            renderMenu();
-        }
-    }catch(e){}
-
-    try{
-        if(typeof renderMenuPage === 'function'){
-            renderMenuPage(window.currentCategory || 'all');
-        }
-    }catch(e){}
-
-    try{
-        if(typeof refreshInventoryUI === 'function'){
-            refreshInventoryUI();
-        }
-    }catch(e){}
-
-    try{
-        if(typeof updateCart === 'function'){
-            updateCart();
-        }
-    }catch(e){}
-}
-
-window.addEventListener('load', function(){
-
-    loadItems();
-
-    setTimeout(function(){
-        refreshCustomerUI();
-    }, 800);
-
-});
-
-document.addEventListener('click', function(e){
-
-    const btn = e.target.closest('button');
-    if(!btn) return;
-
-    const txt = (btn.innerText || '').toLowerCase();
-
-    if(
-        txt.includes('save') ||
-        txt.includes('update')
-    ){
-
-        setTimeout(function(){
-
-            saveItems();
-
-            // Force realtime update
-            window.dispatchEvent(new StorageEvent('storage', {
-                key: STORAGE_KEY
-            }));
-
-            refreshCustomerUI();
-
-            console.log('Realtime customer sync updated');
-
-        }, 700);
-
-    }
-
-}, true);
-
-window.addEventListener('storage', function(e){
-
-    if(e.key === STORAGE_KEY){
-
-        loadItems();
-        refreshCustomerUI();
-
-    }
-
-});
-
-// realtime polling for customer side
-setInterval(function(){
-
-    loadItems();
-    refreshCustomerUI();
-
-}, 2000);
 
 })();
 </script>

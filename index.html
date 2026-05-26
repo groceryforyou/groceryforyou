@@ -136,15 +136,16 @@
 
 
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-    html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior-y:contain}
-    body{background:var(--cream);font-family:"Lato",sans-serif;color:var(--deep);overflow-x:hidden;-webkit-overflow-scrolling:touch;min-height:100vh;min-height:100dvh}
+    html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior-y:contain;overflow-x:hidden;max-width:100%}
+    body{background:var(--cream);font-family:"Lato",sans-serif;color:var(--deep);overflow-x:hidden;-webkit-overflow-scrolling:touch;min-height:100vh;min-height:100dvh;max-width:100%}
     img,video{max-width:100%;height:auto;display:block}
     input,select,textarea{font-size:16px!important;-webkit-appearance:none;appearance:none}
     button,a,[role="button"]{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
     button:focus-visible,a:focus-visible{outline:2px solid var(--saffron);outline-offset:2px}
+    .menu-toggle{display:none!important}
 
     /* ===== HEADER ===== */
-    header{background:linear-gradient(135deg,var(--brown) 0%,#0d3b1a 60%,#1e7a3a 100%);color:#fff;padding:0;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,0.35)}
+    header{background:linear-gradient(135deg,var(--brown) 0%,#0d3b1a 60%,#1e7a3a 100%);color:#fff;padding:0;position:sticky;top:0;z-index:1000;box-shadow:0 4px 20px rgba(0,0,0,0.35)}
     .header-inner{max-width:1200px;margin:auto;display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:var(--header-h);gap:10px}
     .logo{display:flex;align-items:center;gap:10px;cursor:pointer;flex-shrink:0}
     .logo-icon{font-size:2rem;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.4))}
@@ -1519,7 +1520,9 @@ animation:spinRefresh .7s linear infinite;
 <!-- HEADER -->
 <header>
   <div class="header-inner">
-    <div class="logo" onclick="showPage('menu')">
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
+        <div class="logo" onclick="showPage('menu')">
       <span class="logo-icon">🛒</span>
       <div>
         <div class="logo-text">Grocery For You</div>
@@ -3042,128 +3045,12 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 })();
 </script>
 
-
-<!-- GRAND TOTAL + UPI PAYMENT FINAL FIX -->
 <script>
-(function(){
-'use strict';
-
-function getSubtotal(){
-  try{
-    if(typeof cart !== 'undefined'){
-      return Object.keys(cart).reduce(function(sum,id){
-        var item=cart[id]||{};
-        return sum + ((Number(item.price)||0) * (Number(item.qty)||0));
-      },0);
-    }
-  }catch(e){}
-  return 0;
-}
-
-function getDeliveryFee(){
-  return Number(window._gfyDeliveryFee || window.currentDeliveryFee || window._fee || 0);
-}
-
-function getGrandTotal(){
-  return getSubtotal() + getDeliveryFee();
-}
-
-window.getGrandTotal = getGrandTotal;
-
-function updateGrandTotalUI(){
-  var subtotal = getSubtotal();
-  var fee = getDeliveryFee();
-  var grand = subtotal + fee;
-
-  var omTotal = document.getElementById('om-total');
-  if(omTotal){
-    omTotal.innerText = '₹' + grand;
-  }
-
-  var totalAmount = document.getElementById('totalAmount');
-  if(totalAmount){
-    totalAmount.innerText = '₹' + grand;
-  }
-
-  var deliveryFee = document.getElementById('deliveryFee');
-  if(deliveryFee){
-    deliveryFee.innerText = '₹' + fee;
-  }
-
-  var upiAmount = document.getElementById('upi-amount-display');
-  if(upiAmount){
-    upiAmount.innerText = '₹' + grand;
-  }
-
-  var phonepeAmount = document.getElementById('phonepe-qr-amount');
-  if(phonepeAmount){
-    phonepeAmount.innerText = '₹' + grand;
-  }
-
-  window.finalAmount = grand;
-  window._pendingUPIAmount = grand;
-  window._gfyGrandTotal = grand;
-
-  console.log('[GFY FIX] subtotal=',subtotal,'delivery=',fee,'grand=',grand);
-}
-
-setInterval(updateGrandTotalUI,500);
-
-var oldOpen = window.openRazorpayCheckout;
-window.openRazorpayCheckout = function(amount,name,phone){
-  var finalAmount = getGrandTotal();
-  updateGrandTotalUI();
-
-  if(typeof oldOpen === 'function'){
-    return oldOpen(finalAmount,name,phone);
-  }
-};
-
-var oldDeepLink = window.deepLinkUPI;
-window.deepLinkUPI = function(app){
-  var amount = getGrandTotal();
-  window._pendingUPIAmount = amount;
-
-  var amtEl = document.getElementById('upi-amount-display');
-  if(amtEl){
-    amtEl.innerText = '₹' + amount;
-  }
-
-  if(typeof UPI_ID !== 'undefined'){
-    var upiLink = 'upi://pay?pa=' + UPI_ID + '&pn=GroceryForYou&am=' + amount + '&cu=INR&tn=GroceryForYouOrder';
-    var links = {
-      gpay: 'tez://upi/pay?' + upiLink.replace('upi://pay?',''),
-      phonepe: 'phonepe://pay?' + upiLink.replace('upi://pay?',''),
-      paytm: 'paytmmp://pay?' + upiLink.replace('upi://pay?',''),
-      bhim: upiLink
-    };
-
-    try{
-      window.location.href = links[app] || upiLink;
-      return;
-    }catch(e){}
-  }
-
-  if(typeof oldDeepLink === 'function'){
-    return oldDeepLink(app);
-  }
-};
-
-document.addEventListener('DOMContentLoaded',function(){
-  setTimeout(updateGrandTotalUI,500);
-  setTimeout(updateGrandTotalUI,1500);
-  setTimeout(updateGrandTotalUI,3000);
-});
-})();
-</script>
-
-<script>
-(function(){
 function getNum(v){return Number(String(v||'0').replace(/[^0-9.]/g,''))||0;}
 function calculateFinalTotal(){
   const cartEl=document.getElementById('om-subtotal') || document.getElementById('cart-total') || document.querySelector('.cart-total');
   const deliveryEl=document.getElementById('delivery-fee') || document.getElementById('om-delivery-fee');
-  const grandEl=document.getElementById('om-total') || document.getElementById('grand-total');
+  const grandEl=document.getElementById('grand-total') || document.querySelector('[data-grand-total]');
   const cartAmount=getNum(cartEl ? cartEl.innerText : 0);
   const deliveryAmount=getNum(deliveryEl ? deliveryEl.innerText : (window.currentDeliveryFee||0));
   const finalTotal=cartAmount + deliveryAmount;
@@ -3443,10 +3330,147 @@ document.addEventListener("DOMContentLoaded", function(){
 });
 </script>
 
-</body>
+
+<script>
+(function(){
+  const ADMIN_WHATSAPP_NUMBER = '919154092906';
+  const CALLMEBOT_API_KEY = 'REPLACE_WITH_CALLMEBOT_API_KEY';
+  const processedOrders = new Set(JSON.parse(sessionStorage.getItem('processedOrders') || '[]'));
+  let adminOrderListenerAttached = false;
+
+  function isStoreOpenSafe(){
+    try{
+      if(typeof window.storeOpen !== 'undefined') return !!window.storeOpen;
+      const local = localStorage.getItem('storeOpen');
+      return local !== 'false';
+    }catch(e){ return true; }
+  }
+
+  window.playNotificationSound = function(){
+    try{
+      const audio = new Audio('notification.mp3');
+      audio.volume = 1;
+      audio.play().catch(()=>{
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 880;
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 1);
+        osc.stop(ctx.currentTime + 1);
+      });
+    }catch(err){console.log(err)}
+  };
+
+  window.showBrowserNotification = function(order){
+    try{
+      const body = `Order: ${order.orderId || order.id || 'N/A'}
+Customer: ${order.customerName || order.name || 'Customer'}
+Grand Total: ₹${order.grandTotal || order.total || 0}
+Payment: ${order.paymentMethod || 'N/A'}`;
+      const showNow = () => {
+        new Notification('🛒 New Order Received', { body, icon: './favicon.jpg' });
+      };
+      if ('Notification' in window) {
+        if (Notification.permission === 'granted') {
+          showNow();
+        } else if (Notification.permission !== 'denied') {
+          Notification.requestPermission().then(p => { if (p === 'granted') showNow(); });
+        }
+      }
+    } catch(err){ console.log(err); }
+  };
+
+  window.sendWhatsAppNotification = async function(order){
+    try{
+      if(!CALLMEBOT_API_KEY || CALLMEBOT_API_KEY === 'REPLACE_WITH_CALLMEBOT_API_KEY'){
+        console.warn('Add CallMeBot API key to enable WhatsApp notifications');
+        return;
+      }
+      const items = (order.items || []).map(i => `- ${i.name || i.title} x${i.qty || i.quantity || 1}`).join('%0A');
+      const msg = `🛒 New Order Received%0A%0AOrder ID: #${order.orderId || order.id || 'N/A'}%0ACustomer: ${order.customerName || order.name || ''}%0APhone: ${order.phone || ''}%0A%0AItems:%0A${items}%0A%0AGrand Total: ₹${order.grandTotal || order.total || 0}%0APayment: ${order.paymentMethod || 'N/A'}%0A%0AAddress:%0A${order.address || order.deliveryAddress || ''}%0A%0APlease check admin panel.`;
+      const url = `https://api.callmebot.com/whatsapp.php?phone=${ADMIN_WHATSAPP_NUMBER}&text=${msg}&apikey=${CALLMEBOT_API_KEY}`;
+      await fetch(url, {mode:'no-cors'});
+    }catch(err){ console.log('WhatsApp notification failed', err); }
+  };
+
+  window.notifyNewOrder = async function(order){
+    try{
+      if(!isStoreOpenSafe()) return;
+      const orderKey = order.orderId || order.id;
+      if(!orderKey || processedOrders.has(orderKey)) return;
+      processedOrders.add(orderKey);
+      sessionStorage.setItem('processedOrders', JSON.stringify(Array.from(processedOrders).slice(-100)));
+
+      playNotificationSound();
+      showBrowserNotification(order);
+      sendWhatsAppNotification(order);
+
+      const popup = document.getElementById('admin-order-popup');
+      if(popup){
+        popup.style.display = 'block';
+        const title = popup.querySelector('.popup-title');
+        if(title) title.textContent = `🛒 New Order #${orderKey}`;
+        setTimeout(()=>{ popup.style.display = 'none'; }, 15000);
+      }
+
+      if(typeof showToast === 'function'){
+        showToast(`🛒 New Order Received - ₹${order.grandTotal || order.total || 0}`, 6000, 'info');
+      }
+    }catch(err){ console.log(err); }
+  };
+
+  async function attachAdminOrderNotifications(){
+    try{
+      if(adminOrderListenerAttached) return;
+      const firestore = (typeof db !== 'undefined' && db) ? db : (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+      if(!firestore) return;
+
+      // Only attach if current user role is admin
+      if(typeof currentRole === 'undefined' || currentRole !== 'admin') {
+        setTimeout(attachAdminOrderNotifications, 2000);
+        return;
+      }
+      adminOrderListenerAttached = true;
+
+      firestore.collection('orders').orderBy('createdAt','desc').limit(20)
+      .onSnapshot((snapshot)=>{
+        snapshot.docChanges().forEach((change)=>{
+          if(change.type === 'added'){
+            const order = {id: change.doc.id, ...change.doc.data()};
+            const createdAt = order.createdAt && order.createdAt.toDate ? order.createdAt.toDate().getTime() : Date.now();
+            if(Date.now() - createdAt < 120000){
+              notifyNewOrder(order);
+            }
+          }
+        });
+      }, (error) => {
+        console.log('Realtime admin notification snap error', error);
+      });
+    }catch(err){ console.log('Realtime admin notification error', err); }
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    if('Notification' in window && Notification.permission !== 'granted'){
+      Notification.requestPermission().catch(()=>{});
+    }
+    setTimeout(attachAdminOrderNotifications, 4000);
+  });
+})();
+</script>
+  
+<script>
+function toggleSidebar() {
+    document.querySelector('.sidebar').classList.toggle('active');
+}
+</script>
+  
 <script>
   document.addEventListener('contextmenu', event => event.preventDefault());
   document.addEventListener('keydown', event => {
+
       if (event.keyCode == 123) { // F12
           event.preventDefault();
           return false;
@@ -4533,43 +4557,12 @@ document.addEventListener("DOMContentLoaded", function(){
     };
   }
 
-  function hookSubmitOrder() {
-    const original = window.submitOrder;
-    if (typeof original !== 'function') {
-      setTimeout(hookSubmitOrder, 400);
-      return;
-    }
-    window.submitOrder = function(...args) {
-      const settings = getDeliverySettings();
-      if (!isStoreOpen(settings)) {
-        showToast('⚠️ Store is currently closed.', 5000);
-        return;
-      }
-      // Read subtotal from om-total, add delivery fees, patch om-total so
-      // the obfuscated submitOrder saves the correct grand total.
-      const omTotalEl = document.getElementById('om-total');
-      const omOrderTotalEl = document.getElementById('om-order-total');
-      if (omTotalEl) {
-        const subtotal = parseInt((omTotalEl.innerText || '0').replace(/\D/g, ''), 10) || 0;
-        const deliveryFee = calcDeliveryFee(subtotal);
-        const highDemandFee = 0;
-        const grandTotal = subtotal + deliveryFee + highDemandFee;
-        // Temporarily patch om-total so obfuscated code reads the grand total
-        if (grandTotal !== subtotal) {
-          omTotalEl.innerText = `₹${grandTotal}`;
-        }
-      }
-      original.apply(this, args);
-    };
-  }
-
   /* ── bootstrap: run after DOM + Firebase ready ── */
   function bootstrap() {
     hookShowPage();
     restoreLastActivePage();
     hookOpenSupportForm();
     hookSubmitTicket();
-    hookSubmitOrder();
     renderDeliverySettings();
     hookOpenOrderModal();
     hookUpdateCartForDelivery();
@@ -5272,65 +5265,28 @@ document.addEventListener("DOMContentLoaded", function(){
 function waitFor(check,cb,n){if(n===undefined)n=0;if(check())return cb();if(n<40)setTimeout(()=>waitFor(check,cb,n+1),500);}
 function gfyDB(){return(typeof firebase!=='undefined'&&firebase.apps&&firebase.apps.length)?firebase.firestore():null;}
 
-// ── 1. SEED + LOAD MENU ITEMS TO FIRESTORE ──────────────────────────────
-window._gfyItemsSeeded=false;
-async function seedItems(db){
-  if(window._gfyItemsSeeded)return;
-  try{
-    const col=db.collection('menuItems');
-    const snap=await col.limit(1).get();
-    const allItems=window.items||[];
-    if(!allItems.length)return;
-    if(!snap.empty){await loadItemOverrides(db);return;}
-    window._gfyItemsSeeded=true;
-    for(let i=0;i<allItems.length;i+=400){
-      const batch=db.batch();
-      allItems.slice(i,i+400).forEach(item=>{
-        batch.set(col.doc(item.id||item.name.replace(/\s+/g,'_')),{
-          id:item.id,name:item.name,description:item.type||'',
-          price:item.price||0,discount:0,emoji:item.emoji||'🛒',
-          catId:item.catId||'',inStock:item.inStock!==false,
-          image:'',rating:0,reviewsCount:0,
-          createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-          updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-        },{merge:true});
-      });
-      await batch.commit();
-    }
-    console.log('[GFY] Seeded',allItems.length,'items to Firestore');
-  }catch(e){console.error('[GFY] Seed error:',e);}
+// ── 1. CLEAR LEGACY STATIC ARRAYS & OVERRIDE CATEGORIES ─────────────────
+if (typeof items !== 'undefined') {
+  items.length = 0;
+}
+if (typeof window.items !== 'undefined') {
+  window.items.length = 0;
 }
 
-async function loadItemOverrides(db){
-  try{
-    const snap=await db.collection('menuItems').get();
-    if(snap.empty)return;
-    const map={};snap.forEach(d=>{map[d.id]=d.data();});
-    const allItems=window.items||[];
-    allItems.forEach(item=>{
-      const ov=map[item.id];if(!ov)return;
-      if(ov.inStock!==undefined)item.inStock=ov.inStock;
-      if(ov.price>0)item.price=ov.price;
-      if(ov.discount)item.discount=ov.discount;
-      if(ov.description)item.description=ov.description;
-      if(ov.image)item.image=ov.image;
-      if(ov.rating!==undefined)item.rating=ov.rating;
-      if(ov.reviewsCount!==undefined)item.reviewsCount=ov.reviewsCount;
-    });
-    if(typeof renderMenuPage==='function')renderMenuPage('all');
-  }catch(e){console.error('[GFY] Load overrides:',e);}
+if (typeof categories !== 'undefined') {
+  categories.length = 0;
+  categories.push(
+    { id: 'vegetables', name: 'Vegetables', emoji: '🥦' },
+    { id: 'fruits', name: 'Fruits', emoji: '🍎' },
+    { id: 'dairy', name: 'Dairy', emoji: '🥛' },
+    { id: 'grocery', name: 'Grocery', emoji: '🌾' },
+    { id: 'leafy', name: 'Leafy', emoji: '🥬' },
+    { id: 'snacks', name: 'Snacks', emoji: '🍿' },
+    { id: 'beverages', name: 'Beverages', emoji: '🥤' }
+  );
 }
 
-// ── 2. ADMIN: UPDATE ITEM IN FIRESTORE ──────────────────────────────────
-window.GFY_updateItem=async function(itemId,data){
-  try{
-    const db=gfyDB();if(!db)return;
-    await db.collection('menuItems').doc(itemId).set({...data,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
-    if(typeof showToast==='function')showToast('✅ Item updated!',2000);
-  }catch(e){if(typeof showToast==='function')showToast('❌ Could not update item',2000);}
-};
-
-// ── 3. ADMIN ORDER WATCHER ───────────────────────────────────────────────
+// ── 2. ADMIN ORDER WATCHER ───────────────────────────────────────────────
 let _adminOrderUnsub=null,_adminInit=false,_adminSeen=new Set();
 function setupAdminOrderWatch(db){
   if(_adminOrderUnsub)return;
@@ -5357,7 +5313,7 @@ function setupAdminOrderWatch(db){
   }catch(e){console.error('[Admin Watch setup]',e);}
 }
 
-// ── 4. CUSTOMER ORDER STATUS WATCHER ────────────────────────────────────
+// ── 3. CUSTOMER ORDER STATUS WATCHER ────────────────────────────────────
 let _custUnsub=null,_custSeen={};
 function setupCustomerWatch(db,email){
   if(_custUnsub){_custUnsub();_custUnsub=null;}
@@ -5393,7 +5349,7 @@ function setupCustomerWatch(db,email){
   }catch(e){console.error('[Cust Watch setup]',e);}
 }
 
-// ── 5. RATING WITH EMAIL ─────────────────────────────────────────────────
+// ── 4. RATING WITH EMAIL ─────────────────────────────────────────────────
 window.GFY_submitRating=async function(itemId,stars,reviewText){
   if(!window.currentUser){
     if(typeof showToast==='function')showToast('⚠️ Please sign in to rate',2000);
@@ -5422,7 +5378,7 @@ window.GFY_submitRating=async function(itemId,stars,reviewText){
   }
 };
 
-// ── 6. BROWSER NOTIFICATION HELPER ──────────────────────────────────────
+// ── 5. BROWSER NOTIFICATION HELPER ──────────────────────────────────────
 function gfyNotif(title,body){
   if(!('Notification'in window))return;
   if(Notification.permission==='granted'){
@@ -5434,7 +5390,7 @@ function gfyNotif(title,body){
   }
 }
 
-// ── 7. REQUEST NOTIFICATION PERMISSION ──────────────────────────────────
+// ── 6. REQUEST NOTIFICATION PERMISSION ──────────────────────────────────
 if('Notification'in window&&Notification.permission==='default'){
   document.addEventListener('click',function ask(){
     Notification.requestPermission();
@@ -5442,11 +5398,12 @@ if('Notification'in window&&Notification.permission==='default'){
   },{once:true});
 }
 
-// ── 8. WIRE INTO AUTH STATE ───────────────────────────────────────────────
+// ── 7. WIRE INTO AUTH STATE ───────────────────────────────────────────────
 waitFor(
   ()=>typeof firebase!=='undefined'&&firebase.apps&&firebase.apps.length>0,
   ()=>{
     const db=firebase.firestore();
+    window.db=db; // Expose db to window.db
     firebase.auth().onAuthStateChanged(async user=>{
       if(!user){
         if(_custUnsub){_custUnsub();_custUnsub=null;}
@@ -5455,16 +5412,31 @@ waitFor(
       }
       const isAdmin=(window.currentRole==='admin');
       if(isAdmin){
-        waitFor(()=>window.items&&window.items.length>0,()=>seedItems(db));
         setTimeout(()=>setupAdminOrderWatch(db),1500);
       } else {
-        waitFor(()=>window.items&&window.items.length>0,()=>loadItemOverrides(db));
         setupCustomerWatch(db,user.email);
       }
     });
   }
 );
 
+window.items = items;
+window.categories = categories;
+window.cart = cart;
+window.refreshInventoryUI = refreshInventoryUI;
+window.renderMenuPage = renderMenuPage;
+window.refreshManageList = refreshManageList;
+window.updateCart = updateCart;
+Object.defineProperty(window, 'currentRole', {
+  get: function() { return currentRole; },
+  set: function(val) { currentRole = val; },
+  configurable: true
+});
+Object.defineProperty(window, 'currentUser', {
+  get: function() { return currentUser; },
+  set: function(val) { currentUser = val; },
+  configurable: true
+});
 })();
 </script>
 
@@ -5611,8 +5583,10 @@ waitFor(
 
      // Update order modal elements
      const omTotalEl = document.getElementById('om-total');
-     if (omTotalEl) omTotalEl.innerText = "₹"+subtotal;
-     updateCartDeliveryFee();
+      if (omTotalEl) {
+        // Do not overwrite the order modal subtotal directly here.
+        // Let the main checkout flow manage the om-total value.
+      }
 
      window.finalAmount = total;
      console.log('[DeliveryFee] Cart total updated:', subtotal, '+', _fee, '=', total);
@@ -5857,30 +5831,6 @@ waitFor(
     }, 800);
   }
 
-  /* ── Patch submitOrder: inject grand total before obfuscated code reads it ── */
-  function patchSubmitOrder() {
-    var orig = window.submitOrder;
-    if (typeof orig !== 'function') { setTimeout(patchSubmitOrder, 400); return; }
-
-    window.submitOrder = function() {
-      var omTotal = document.getElementById('om-total');
-      if (omTotal) {
-        var sub   = numFrom(omTotal);
-        var fee   = window._gfyDeliveryFee !== undefined ? window._gfyDeliveryFee : _fee;
-        var grand = sub + fee;
-        if (grand !== sub) {
-          omTotal.innerText = fmt(grand);
-          console.log('[DeliveryFee] submitOrder patch: subtotal=' + sub + ' fee=' + fee + ' grand=' + grand);
-        }
-        window._gfySubtotal   = sub;
-        window._gfyGrandTotal = grand;
-      }
-      orig.apply(this, arguments);
-    };
-
-    console.log('[DeliveryFee] submitOrder patched');
-  }
-
   /* ── Patch openOrderModal: reapply fee after modal opens ── */
   function patchOpenOrderModal() {
     var orig = window.openOrderModal;
@@ -5902,18 +5852,6 @@ waitFor(
     };
 
     console.log('[DeliveryFee] openOrderModal patched');
-  }
-
-  /* ── MutationObserver: reapply whenever obfuscated code rewrites om-total ── */
-  function watchOmTotal() {
-    var el = document.getElementById('om-total');
-    if (!el) { setTimeout(watchOmTotal, 600); return; }
-
-    new MutationObserver(function() {
-      setTimeout(function() { applyFee(_fee); }, 40);
-    }).observe(el, { childList: true, subtree: true, characterData: true });
-
-    console.log('[DeliveryFee] MutationObserver on om-total active');
   }
 
   /* ── Wire admin save buttons ── */
@@ -5981,9 +5919,7 @@ waitFor(
   /* ── Bootstrap ── */
   function bootstrap() {
     console.log('[DeliveryFee] Bootstrap start');
-    watchOmTotal();
     wireAdminUI();
-    patchSubmitOrder();
     patchOpenOrderModal();
 
     waitForDB(function(db) {
@@ -6279,4 +6215,815 @@ waitFor(
 
 })();
 </script>
+
+<!-- ===== GFY UNIFIED FIRESTORE REALTIME SYNC SYSTEM ===== -->
+<script>
+(function GFYUnifiedFirestoreSync() {
+  'use strict';
+
+  // ── 1. MODULAR-TO-NAMESPACE SDK COMPATIBILITY LAYER ──────────────────
+  function doc(dbInstance, collectionPath, documentPath) {
+    return dbInstance.collection(collectionPath).doc(documentPath);
+  }
+  function collection(dbInstance, collectionPath) {
+    return dbInstance.collection(collectionPath);
+  }
+  async function setDoc(docRef, data) {
+    return docRef.set(data, { merge: true });
+  }
+  async function updateDoc(docRef, data) {
+    return docRef.update(data);
+  }
+  function onSnapshot(ref, callback, errorCallback) {
+    return ref.onSnapshot(callback, errorCallback);
+  }
+
+  // ── 2. ADMIN EDIT ITEM MODAL SETUP ──────────────────────────────────
+  function injectEditItemModal() {
+    if (document.getElementById('edit-item-modal-overlay')) return;
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'cat-modal-overlay';
+    overlay.id = 'edit-item-modal-overlay';
+    overlay.innerHTML = `
+      <div class="cat-modal">
+        <div class="cat-modal-head" style="background: linear-gradient(135deg, var(--brown), #1e7a3a);">
+          <h3>✏️ Edit Item</h3>
+          <button class="cat-modal-close" onclick="closeEditItemModal()">✕</button>
+        </div>
+        <div class="cat-modal-body" style="padding: 20px; max-height: 75dvh; overflow-y: auto;">
+          <div style="margin-bottom: 12px;">
+            <label class="aip-label" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Item Name</label>
+            <input type="text" id="edit-item-name" class="aip-input" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff;" />
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label class="aip-label" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Price (₹)</label>
+            <input type="number" id="edit-item-price" class="aip-input" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff;" />
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label class="aip-label" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Stock Status</label>
+            <select id="edit-item-stock" class="aip-select" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff; cursor: pointer;">
+              <option value="1">✅ In Stock</option>
+              <option value="0">❌ Out Of Stock</option>
+            </select>
+          </div>
+          <input type="hidden" id="edit-item-id" />
+          <div class="cat-modal-actions" style="display: flex; gap: 8px; margin-top: 20px;">
+            <button class="cat-cancel-btn" onclick="closeEditItemModal()" style="flex: 1; background: var(--cream); border: 1.5px solid var(--border); color: var(--brown); border-radius: 10px; padding: 11px; font-weight: 700; cursor: pointer;">Cancel</button>
+            <button class="cat-save-btn" onclick="saveEditedItem()" style="flex: 2; background: linear-gradient(90deg, var(--brown), var(--saffron)); color: #fff; border: none; border-radius: 10px; padding: 11px; font-family: 'Yeseva One', serif; font-size: .9rem; cursor: pointer;">Save Changes</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  window.openEditItemModal = function(itemId) {
+    const allItems = (typeof window.items !== 'undefined') ? window.items : [];
+    const item = allItems.find(i => i.id === itemId);
+    if (!item) {
+      if (typeof showToast === 'function') showToast('⚠️ Item not found', 2500);
+      return;
+    }
+    
+    injectEditItemModal();
+    
+    document.getElementById('edit-item-name').value = item.name || '';
+    document.getElementById('edit-item-price').value = item.price || 0;
+    document.getElementById('edit-item-stock').value = item.inStock ? '1' : '0';
+    document.getElementById('edit-item-id').value = itemId;
+
+    // Dynamically prefill choices for current categories list
+    const editItemCat = document.getElementById('edit-item-cat');
+    if (editItemCat) {
+      const allCats = (typeof window.categories !== 'undefined') ? window.categories : [];
+      editItemCat.innerHTML = allCats.map(cat => 
+        `<option value="${cat.id}">${cat.emoji} ${cat.name}</option>`
+      ).join('');
+      editItemCat.value = item.category || item.catId || '';
+    }
+    
+    document.getElementById('edit-item-modal-overlay').classList.add('open');
+    if (typeof window.lockBodyScroll === 'function') window.lockBodyScroll();
+  };
+
+  window.closeEditItemModal = function() {
+    const overlay = document.getElementById('edit-item-modal-overlay');
+    if (overlay) {
+      overlay.classList.remove('open');
+      if (typeof window.unlockBodyScroll === 'function') window.unlockBodyScroll();
+    }
+  };
+
+  // ── 3. ADMINISTRATIVE ACTIONS ──────────────────────────────────────────
+  
+  // Add New Item Function using setDoc
+  window.saveNewItem = async function() {
+    if (typeof currentRole !== 'undefined' && currentRole !== 'admin') {
+      if (typeof showToast === 'function') showToast('⚠️ Only admin can add items');
+      return;
+    }
+
+    const nameInput = document.getElementById('aip-name');
+    const priceInput = document.getElementById('aip-price');
+    const catSelect = document.getElementById('aip-cat');
+    const emojiCustom = document.getElementById('aip-emoji-custom');
+    const stockSelect = document.getElementById('aip-stock');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    const price = priceInput ? parseFloat(priceInput.value) : 0;
+    const category = catSelect ? catSelect.value : '';
+    const emoji = (emojiCustom && emojiCustom.value.trim()) || window.selectedEmoji || '🍎';
+    const inStock = stockSelect ? stockSelect.value === '1' : true;
+
+    if (!name) {
+      if (nameInput) nameInput.focus();
+      if (typeof showToast === 'function') showToast('⚠️ Please enter an item name');
+      return;
+    }
+    if (isNaN(price) || price <= 0) {
+      if (priceInput) priceInput.focus();
+      if (typeof showToast === 'function') showToast('⚠️ Please enter a valid price');
+      return;
+    }
+    if (!category) {
+      if (typeof showToast === 'function') showToast('⚠️ Please select a category');
+      return;
+    }
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+
+    if (!firebaseDB) {
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
+      return;
+    }
+
+    const itemId = 'item_' + Date.now();
+
+    try {
+      await setDoc(doc(firebaseDB, "menuItems", itemId), {
+        id: itemId,
+        name,
+        price,
+        category,
+        catId: category,
+        inStock,
+        emoji,
+        description: '',
+        type: '',
+        image: '',
+        discount: 0,
+        rating: 5.0,
+        ratingCount: 5,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      if (typeof showToast === 'function') showToast(`🎉 ${name} added successfully!`, 3000);
+
+      // Reset fields
+      if (nameInput) nameInput.value = '';
+      if (priceInput) priceInput.value = '';
+      if (emojiCustom) emojiCustom.value = '';
+      if (stockSelect) stockSelect.value = '1';
+      
+      window.selectedEmoji = '🍽';
+      const emojiOpts = document.querySelectorAll('.emoji-opt');
+      emojiOpts.forEach(opt => opt.classList.toggle('selected', opt.textContent === '🍽'));
+
+    } catch (err) {
+      console.error('[AddItem] Firestore write failed:', err);
+      const user = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth().currentUser : null;
+      const emailInfo = user ? ` (Logged in as: ${user.email})` : ' (Not logged in)';
+      if (typeof showToast === 'function') showToast('⚠️ Write failed: ' + (err.message || err) + emailInfo, 5000);
+    }
+  };
+
+  // Edit Item Function using updateDoc
+  window.saveEditedItem = async function() {
+    const itemId = document.getElementById('edit-item-id').value;
+    const name = document.getElementById('edit-item-name').value.trim();
+    const price = parseFloat(document.getElementById('edit-item-price').value);
+    const inStock = document.getElementById('edit-item-stock').value === '1';
+
+    if (!name) {
+      if (typeof showToast === 'function') showToast('⚠️ Please enter an item name');
+      return;
+    }
+    if (isNaN(price) || price <= 0) {
+      if (typeof showToast === 'function') showToast('⚠️ Please enter a valid price');
+      return;
+    }
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+
+    if (!firebaseDB) {
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
+      return;
+    }
+
+    try {
+      await updateDoc(doc(firebaseDB, "menuItems", itemId), {
+        name,
+        price,
+        inStock,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      if (typeof showToast === 'function') showToast('🎉 Item updated successfully!', 3000);
+      window.closeEditItemModal();
+    } catch (err) {
+      console.error('[EditItem] Firestore write failed:', err);
+      const user = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth().currentUser : null;
+      const emailInfo = user ? ` (Logged in as: ${user.email})` : ' (Not logged in)';
+      if (typeof showToast === 'function') showToast('⚠️ Update failed: ' + (err.message || err) + emailInfo, 5000);
+    }
+  };
+
+  // Toggle Item Stock Function using updateDoc
+  window.toggleItemStock = async function(itemId) {
+    if (currentRole !== 'admin') {
+      if (typeof showToast === 'function') showToast('⚠️ Only admin can change stock');
+      return;
+    }
+
+    const allItems = (typeof window.items !== 'undefined') ? window.items : [];
+    const item = allItems.find(i => i.id === itemId);
+    if (!item) return;
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+
+    if (!firebaseDB) {
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
+      return;
+    }
+
+    const inStock = !item.inStock;
+
+    try {
+      await updateDoc(doc(firebaseDB, "menuItems", itemId), {
+        name: item.name,
+        price: item.price,
+        inStock: inStock
+      });
+      if (typeof showToast === 'function') showToast(inStock ? '✅ Marked In Stock' : '❌ Marked Out of Stock', 2000);
+    } catch (err) {
+      console.error('[StockToggle] Firestore update failed:', err);
+      if (typeof showToast === 'function') showToast('⚠️ Could not update stock', 2500);
+    }
+  };
+
+  // Delete Item Function
+  window.deleteItem = async function(itemId) {
+    if (currentRole !== 'admin') {
+      if (typeof showToast === 'function') showToast('⚠️ Only admin can delete items');
+      return;
+    }
+    if (!confirm('Delete this item?')) return;
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+
+    if (!firebaseDB) {
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
+      return;
+    }
+
+    try {
+      await firebaseDB.collection('menuItems').doc(itemId).delete();
+      if (typeof showToast === 'function') showToast('🗑️ Item deleted successfully!', 2000);
+    } catch (err) {
+      console.error('[DeleteItem] Firestore delete failed:', err);
+      if (typeof showToast === 'function') showToast('⚠️ Could not delete item', 2500);
+    }
+  };
+
+  // Add New Category Function writing directly to Firestore
+  window.saveNewCategory = async function() {
+    if (currentRole !== 'admin') {
+      if (typeof showToast === 'function') showToast('⚠️ Only admin can add categories');
+      return;
+    }
+    const nameInput = document.getElementById('new-cat-name');
+    const emojiInput = document.getElementById('new-cat-emoji-custom');
+    
+    const name = nameInput ? nameInput.value.trim() : '';
+    const emoji = (emojiInput && emojiInput.value.trim()) || window.selectedCatEmoji || '📂';
+
+    if (!name) {
+      if (nameInput) nameInput.focus();
+      if (typeof showToast === 'function') showToast('⚠️ Enter category name');
+      return;
+    }
+
+    const catId = 'cat-' + name.replace(/\s+/g, '-').toLowerCase();
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+
+    if (!firebaseDB) {
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
+      return;
+    }
+
+    try {
+      await firebaseDB.collection('categories').doc(catId).set({
+        id: catId,
+        name: name,
+        emoji: emoji,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      if (typeof showToast === 'function') showToast(`🎉 Category "${name}" added successfully!`, 3000);
+      
+      if (typeof closeCatModal === 'function') closeCatModal();
+      if (nameInput) nameInput.value = '';
+      if (emojiInput) emojiInput.value = '';
+    } catch (err) {
+      console.error('[AddCategory] Firestore write failed:', err);
+      const user = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth().currentUser : null;
+      const emailInfo = user ? ` (Logged in as: ${user.email})` : ' (Not logged in)';
+      if (typeof showToast === 'function') showToast('⚠️ Category save failed: ' + (err.message || err) + emailInfo, 5000);
+    }
+  };
+
+  // ── 4. FAILSURE / ENHANCE ADMIN PANEL UI ───────────────────────────────
+  function enhanceManageListWithEditButtons() {
+    const container = document.getElementById('manage-items-list');
+    if (!container) return;
+
+    const cards = container.querySelectorAll('.mng-card');
+    cards.forEach(card => {
+      const delBtn = card.querySelector('.mng-del');
+      if (!delBtn) return;
+
+      const onclickStr = delBtn.getAttribute('onclick') || '';
+      const match = onclickStr.match(/deleteItem\(['"]([^'"]+)['"]\)/);
+      if (!match) return;
+      
+      const itemId = match[1];
+
+      if (card.querySelector('.mng-edit')) return;
+
+      const actions = card.querySelector('.mng-actions');
+      if (!actions) return;
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'mng-edit';
+      editBtn.innerHTML = '✏️';
+      editBtn.title = 'Edit Item';
+      editBtn.setAttribute('style', 'background: #eef7f2; border: 1.5px solid #c8e6c9; color: var(--brown); width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: .8rem; display: flex; align-items: center; justify-content: center; transition: all .2s;');
+
+      editBtn.onmouseenter = function() {
+        editBtn.style.background = 'var(--saffron)';
+        editBtn.style.color = '#fff';
+        editBtn.style.transform = 'scale(1.05)';
+      };
+      editBtn.onmouseleave = function() {
+        editBtn.style.background = '#eef7f2';
+        editBtn.style.color = 'var(--brown)';
+        editBtn.style.transform = 'scale(1)';
+      };
+
+      editBtn.onclick = function(e) {
+        e.stopPropagation();
+        window.openEditItemModal(itemId);
+      };
+
+      actions.insertBefore(editBtn, delBtn);
+    });
+  }
+
+  function setupFailsafeEnhancer() {
+    const manageList = document.getElementById('manage-items-list');
+    if (!manageList) {
+      setTimeout(setupFailsafeEnhancer, 300);
+      return;
+    }
+
+    const observer = new MutationObserver(function() {
+      enhanceManageListWithEditButtons();
+    });
+    observer.observe(manageList, { childList: true, subtree: true });
+
+    setInterval(enhanceManageListWithEditButtons, 500);
+    enhanceManageListWithEditButtons();
+  }
+
+  // ── 5. REALTIME SNAPSHOT LISTENERS ─────────────────────────────────────
+  const defaultCategories = [
+    { id: 'vegetables', name: 'Vegetables', emoji: '🥦' },
+    { id: 'fruits', name: 'Fruits', emoji: '🍎' },
+    { id: 'dairy', name: 'Dairy', emoji: '🥛' },
+    { id: 'grocery', name: 'Grocery', emoji: '🌾' },
+    { id: 'leafy', name: 'Leafy', emoji: '🥬' },
+    { id: 'snacks', name: 'Snacks', emoji: '🍿' },
+    { id: 'beverages', name: 'Beverages', emoji: '🥤' }
+  ];
+
+  function startCategoriesSync(firebaseDB) {
+    console.log('[FirestoreSync] Initializing realtime categories sync listener...');
+
+    onSnapshot(collection(firebaseDB, "categories"), (snapshot) => {
+      try {
+        const loadedCats = [];
+        if (snapshot && !snapshot.empty) {
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            loadedCats.push({
+              id: doc.id,
+              name: data.name || '',
+              emoji: data.emoji || '📂'
+            });
+          });
+        }
+
+        const mergedCats = [...defaultCategories];
+        loadedCats.forEach(lc => {
+          if (!mergedCats.some(mc => mc.id === lc.id)) {
+            mergedCats.push(lc);
+          }
+        });
+
+        // Update arrays in-place to preserve references
+        if (typeof categories !== 'undefined' && Array.isArray(categories)) {
+          categories.length = 0;
+          mergedCats.forEach(c => categories.push(c));
+        }
+        if (typeof window.categories !== 'undefined' && Array.isArray(window.categories)) {
+          window.categories.length = 0;
+          mergedCats.forEach(c => window.categories.push(c));
+        }
+
+        // Update Add Item Dropdown
+        const aipCat = document.getElementById('aip-cat');
+        if (aipCat) {
+          const currentVal = aipCat.value;
+          aipCat.innerHTML = mergedCats.map(cat => 
+            `<option value="${cat.id}">${cat.emoji} ${cat.name}</option>`
+          ).join('');
+          if (currentVal && mergedCats.some(c => c.id === currentVal)) {
+            aipCat.value = currentVal;
+          }
+        }
+
+        // Update Edit Item Dropdown (dynamic on load anyway but good for live feedback)
+        const editItemCat = document.getElementById('edit-item-cat');
+        if (editItemCat) {
+          const currentVal = editItemCat.value;
+          editItemCat.innerHTML = mergedCats.map(cat => 
+            `<option value="${cat.id}">${cat.emoji} ${cat.name}</option>`
+          ).join('');
+          if (currentVal && mergedCats.some(c => c.id === currentVal)) {
+            editItemCat.value = currentVal;
+          }
+        }
+
+        // Refresh UI
+        if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
+        if (typeof refreshManageList === 'function') refreshManageList();
+        if (typeof renderManagePage === 'function') renderManagePage();
+
+      } catch (err) {
+        console.error('[FirestoreSync] Categories sync apply error:', err);
+      }
+    }, (error) => {
+      console.error('[FirestoreSync] Categories listener error:', error);
+    });
+  }
+
+  function startRealtimeSync() {
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+
+    if (!firebaseDB) {
+      setTimeout(startRealtimeSync, 500);
+      return;
+    }
+
+    // Start category realtime sync
+    startCategoriesSync(firebaseDB);
+
+    console.log('[FirestoreSync] Initializing realtime menuItems sync listener...');
+
+    onSnapshot(collection(firebaseDB, "menuItems"), (snapshot) => {
+      try {
+        if (!snapshot) return;
+
+        console.log('[FirestoreSync] Realtime menu update received. Documents count:', snapshot.size);
+
+        const firestoreItems = [];
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const category = data.category || 'grocery';
+          
+          firestoreItems.push({
+            id: doc.id,
+            name: data.name || '',
+            price: Number(data.price) || 0,
+            category: category,
+            catId: category, // compatibility catId mapping
+            inStock: data.inStock !== false,
+            emoji: data.emoji || '🍎',
+            description: data.description || '',
+            type: data.description || '', // backward compatible description holder
+            rating: typeof data.rating === 'number' ? data.rating : 5.0,
+            ratingCount: typeof data.ratingCount === 'number' ? data.ratingCount : 5,
+            image: data.image || '',
+            discount: Number(data.discount) || 0
+          });
+        });
+
+        // Update items arrays in-place to preserve application references
+        if (Array.isArray(window.items)) {
+          window.items.length = 0;
+          firestoreItems.forEach(item => window.items.push(item));
+        }
+        if (Array.isArray(window.menuItems)) {
+          window.menuItems.length = 0;
+          firestoreItems.forEach(item => window.menuItems.push(item));
+        }
+        if (Array.isArray(window.allItems)) {
+          window.allItems.length = 0;
+          firestoreItems.forEach(item => window.allItems.push(item));
+        }
+        if (Array.isArray(window.products)) {
+          window.products.length = 0;
+          firestoreItems.forEach(item => window.products.push(item));
+        }
+        if (Array.isArray(window.menuData)) {
+          window.menuData.length = 0;
+          firestoreItems.forEach(item => window.menuData.push(item));
+        }
+
+        // Sync active cart in case of out of stock or price changes
+        if (window.cart) {
+          Object.keys(window.cart).forEach(itemId => {
+            const matched = firestoreItems.find(i => i.id === itemId);
+            if (matched) {
+              if (!matched.inStock) {
+                delete window.cart[itemId];
+              } else {
+                window.cart[itemId].name = matched.name;
+                window.cart[itemId].price = matched.price;
+              }
+            }
+          });
+        }
+
+        // Instantly refresh UI components
+        if (typeof window.refreshInventoryUI === 'function') {
+          window.refreshInventoryUI();
+        } else {
+          if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
+          if (typeof refreshManageList === 'function') refreshManageList();
+          if (typeof updateCart === 'function') updateCart();
+        }
+
+        console.log('[FirestoreSync] Customer & Admin UI updated instantly');
+
+      } catch (err) {
+        console.error('[FirestoreSync] Realtime sync apply error:', err);
+      }
+    }, (error) => {
+      console.error('[FirestoreSync] Realtime menuItems collection listener error:', error);
+    });
+  }
+
+  // Bootstrap execution
+  function init() {
+    injectEditItemModal();
+    setupFailsafeEnhancer();
+    startRealtimeSync();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    setTimeout(init, 100);
+  }
+
+})();
+</script>
+
+
+<!-- FINAL CHECKOUT + UPI TOTAL FIX -->
+<script>
+(function () {
+'use strict';
+
+if (window.__GFY_TOTAL_FIX_APPLIED__) return;
+window.__GFY_TOTAL_FIX_APPLIED__ = true;
+
+const DELIVERY_FEE = 30;
+
+function safeNumber(value) {
+    const num = Number(String(value || 0).replace(/[^\d.]/g, ''));
+    return isNaN(num) ? 0 : num;
+}
+
+function getCartItems() {
+    try {
+        if (Array.isArray(window.cart)) {
+            return window.cart;
+        }
+
+        if (window.cart && typeof window.cart === 'object') {
+            return Object.values(window.cart);
+        }
+
+        const stored =
+            localStorage.getItem('cart') ||
+            localStorage.getItem('gfy_cart') ||
+            '[]';
+
+        const parsed = JSON.parse(stored);
+
+        if (Array.isArray(parsed)) {
+            return parsed;
+        }
+
+        if (parsed && typeof parsed === 'object') {
+            return Object.values(parsed);
+        }
+    } catch (e) {}
+
+    return [];
+}
+
+function calculateTotals() {
+    let subtotal = 0;
+
+    const items = getCartItems();
+
+    items.forEach(function(item) {
+        const price = safeNumber(item.price);
+        const quantity = safeNumber(item.quantity || item.qty || 1);
+
+        subtotal += price * quantity;
+    });
+
+    subtotal = Number(subtotal.toFixed(2));
+
+    const deliveryFee = DELIVERY_FEE;
+    const grandTotal = Number((subtotal + deliveryFee).toFixed(2));
+
+    window.currentSubtotal = subtotal;
+    window.currentDeliveryFee = deliveryFee;
+    window.currentGrandTotal = grandTotal;
+    window.finalAmount = grandTotal;
+    window._pendingUPIAmount = grandTotal;
+    window._gfyGrandTotal = grandTotal;
+
+    return {
+        subtotal,
+        deliveryFee,
+        grandTotal
+    };
+}
+
+function updateElement(id, value) {
+    const el = document.getElementById(id);
+
+    if (!el) return;
+
+    const formatted = '₹' + value;
+
+    if (el.textContent !== formatted) {
+        el.textContent = formatted;
+    }
+}
+
+function syncTotalsUI() {
+    const totals = calculateTotals();
+
+    updateElement('om-subtotal', totals.subtotal);
+    updateElement('subtotal', totals.subtotal);
+    updateElement('cart-total', totals.subtotal);
+    updateElement('items-total', totals.subtotal);
+
+    updateElement('deliveryFee', totals.deliveryFee);
+    updateElement('delivery-fee', totals.deliveryFee);
+    updateElement('om-delivery-fee', totals.deliveryFee);
+
+    updateElement('om-total', totals.grandTotal);
+    updateElement('grand-total', totals.grandTotal);
+    updateElement('totalAmount', totals.grandTotal);
+
+    updateElement('upi-amount-display', totals.grandTotal);
+    updateElement('phonepe-qr-amount', totals.grandTotal);
+
+    document.querySelectorAll(
+        'input[name="amount"], #payment-amount, .payment-amount'
+    ).forEach(function(el) {
+        el.value = totals.grandTotal;
+    });
+
+    return totals;
+}
+
+window.calculateTotals = calculateTotals;
+window.syncTotalsUI = syncTotalsUI;
+window.getGrandTotal = function() {
+    return calculateTotals().grandTotal;
+};
+
+window.getSubtotal = function() {
+    return calculateTotals().subtotal;
+};
+
+window.deepLinkUPI = function(app) {
+    const totals = calculateTotals();
+    const upiAmount = totals.grandTotal;
+
+    const UPI_ID =
+        window.UPI_ID ||
+        'example@upi';
+
+    const baseLink =
+        'upi://pay?pa=' +
+        encodeURIComponent(UPI_ID) +
+        '&pn=' +
+        encodeURIComponent('CeryForYou') +
+        '&am=' +
+        upiAmount +
+        '&cu=INR';
+
+    const links = {
+        gpay: 'tez://upi/pay?' + baseLink.replace('upi://pay?', ''),
+        phonepe: 'phonepe://pay?' + baseLink.replace('upi://pay?', ''),
+        paytm: 'paytmmp://pay?' + baseLink.replace('upi://pay?', ''),
+        bhim: baseLink
+    };
+
+    window.location.href = links[app] || baseLink;
+};
+
+if (typeof window.openRazorpayCheckout === 'function') {
+    const originalCheckout = window.openRazorpayCheckout;
+
+    window.openRazorpayCheckout = function(amount, name, phone) {
+        const totals = calculateTotals();
+
+        return originalCheckout(
+            totals.grandTotal,
+            name,
+            phone
+        );
+    };
+}
+
+let rafScheduled = false;
+
+function requestTotalsRefresh() {
+    if (rafScheduled) return;
+
+    rafScheduled = true;
+
+    requestAnimationFrame(function() {
+        syncTotalsUI();
+        rafScheduled = false;
+    });
+}
+
+document.addEventListener('click', function(event) {
+    const target = event.target;
+
+    if (
+        target.closest('.qty-btn') ||
+        target.closest('.card-qty-btn') ||
+        target.closest('.add-btn') ||
+        target.closest('.checkout-btn')
+    ) {
+        setTimeout(requestTotalsRefresh, 0);
+    }
+}, true);
+
+window.addEventListener('storage', requestTotalsRefresh);
+
+const observer = new MutationObserver(function() {
+    requestTotalsRefresh();
+});
+
+observer.observe(document.body, {
+    childList: true,
+    subtree: true
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    syncTotalsUI();
+    setTimeout(syncTotalsUI, 300);
+});
+
+window.addEventListener('load', function() {
+    syncTotalsUI();
+});
+
+})();
+</script>
+
+</body>
 </html>

@@ -730,8 +730,20 @@
       .mng-card:hover{box-shadow:none}
 
       /* Admin sidebar — overlay mode on mobile */
-      .admin-sidebar{transform:translateX(-100%);display:flex!important;transition:transform .3s cubic-bezier(.4,0,.2,1)}
+      .admin-sidebar{
+        transform:translateX(-100%);
+        display:flex!important;
+        transition:transform .3s cubic-bezier(.4,0,.2,1);
+        top: 0 !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        z-index: 2000 !important;
+        box-shadow: 8px 0 40px rgba(0,0,0,0.5);
+      }
       .admin-sidebar.visible{transform:translateX(0)}
+      #admin-sidebar-overlay{
+        z-index: 1999 !important;
+      }
       body.admin-mode .main{margin-left:0}
       body.admin-mode .hero{margin-left:0}
       body.admin-mode .float-order-bar{left:0}
@@ -779,7 +791,7 @@
     .admin-sb-logo-text{font-family:'Yeseva One',serif;color:var(--turmeric);font-size:.95rem;line-height:1.2;}
     .admin-sb-logo-sub{font-size:.62rem;color:rgba(245,169,35,0.6);letter-spacing:1.5px;text-transform:uppercase;}
     .admin-sb-section{padding:10px 10px 4px;font-size:.58rem;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.3);text-transform:uppercase;}
-    .admin-sb-nav{flex:1;padding:6px 10px;display:flex;flex-direction:column;gap:3px;overflow-y:auto;}
+    .admin-sb-nav{flex:1;padding:6px 10px;display:flex;flex-direction:column;gap:3px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
     .admin-sb-nav::-webkit-scrollbar{width:3px;}
     .admin-sb-nav::-webkit-scrollbar-thumb{background:rgba(232,130,12,.35);border-radius:4px;}
     .admin-sb-item{
@@ -4563,29 +4575,43 @@ function toggleSidebar() {
     window.openOrderModal = function(...args) {
       // Fetch fresh delivery settings from Firestore before opening modal
       const showModal = () => {
-        const settings = getDeliverySettings();
-        if (!isStoreOpen(settings)) {
-          showToast('⚠️ Store is currently closed.', 5000);
-          return;
+        try {
+          const settings = getDeliverySettings();
+          if (!isStoreOpen(settings)) {
+            showToast('⚠️ Store is currently closed.', 5000);
+            return;
+          }
+          original.apply(this, args);
+          // Fire multiple times to ensure we override obfuscated code's delivery fee
+          [150, 450, 900, 1600, 2800].forEach(ms =>
+            setTimeout(updateDeliveryInfoDisplay, ms)
+          );
+        } catch (e) {
+          console.error('[openOrderModal] Error showing modal:', e);
+          original.apply(this, args);
         }
-        original.apply(this, args);
-        // Fire multiple times to ensure we override obfuscated code's delivery fee
-        [150, 450, 900, 1600, 2800].forEach(ms =>
-          setTimeout(updateDeliveryInfoDisplay, ms)
-        );
       };
-      // Fetch fresh settings from Firestore first
-      if (typeof db !== 'undefined' && db) {
-        db.collection('app_settings').doc('delivery_settings').get()
-          .then(docSnap => {
-            if (docSnap.exists) {
-              const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
-              localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
-            }
-          })
-          .catch(() => {})
-          .finally(() => showModal());
-      } else {
+
+      try {
+        // Fetch fresh settings from Firestore first
+        if (typeof db !== 'undefined' && db && typeof db.collection === 'function') {
+          db.collection('app_settings').doc('delivery_settings').get()
+            .then(docSnap => {
+              if (docSnap.exists) {
+                const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
+                localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
+              }
+              showModal();
+            })
+            .catch(err => {
+              console.error('[openOrderModal] Firestore get error:', err);
+              showModal();
+            });
+        } else {
+          showModal();
+        }
+      } catch (err) {
+        console.error('[openOrderModal] Sync check error:', err);
         showModal();
       }
     };

@@ -196,7 +196,7 @@
 
     /* ===== HERO ===== */
     .hero{background:linear-gradient(160deg,#0d3b1a 0%,#1e7a3a 40%,#00b04e 100%);padding:44px 20px 38px;text-align:center;position:relative;overflow:hidden;width:100%}
-.hero::before{content:"🥦";font-size:140px;opacity:.07;position:absolute;top:-20px;right:-10px;animation:float 4s ease-in-out infinite;pointer-events:none}
+`   1    .hero::before{content:"🥦";font-size:140px;opacity:.07;position:absolute;top:-20px;right:-10px;animation:float 4s ease-in-out infinite;pointer-events:none}
     @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
     .hero h1{font-family:"Yeseva One",serif;font-size:2.2rem;color:var(--turmeric);text-shadow:0 2px 12px rgba(0,0,0,0.5)}
     .hero p{color:#c8e6c9;font-size:1rem;margin-top:8px;font-style:italic}
@@ -209,7 +209,7 @@
     .section-title{font-family:"Yeseva One",serif;font-size:1.5rem;color:var(--brown);margin-bottom:18px;display:flex;align-items:center;gap:10px;border-left:4px solid var(--saffron);padding-left:12px}
     .page{display:none}
     .page.active{display:block}
-    .back-btn{background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);color:#fff;border-radius:20px;padding:7px 14px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .2s;font-family:"Lato",sans-serif;white-space:nowrap;flex-shrink:0}
+    .back-btn{background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);color:#fff;border-radius:20px;padding:7px 14px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .2s;font-family:"Lato",sans-serif}
     .back-btn:hover{background:rgba(255,255,255,0.28)}
     .back-btn-light{background:var(--cream);border:1.5px solid var(--border);color:var(--brown);border-radius:20px;padding:8px 16px;font-size:.85rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .2s;font-family:"Lato",sans-serif;margin-bottom:16px}
     .back-btn-light:hover{background:#f0e0c8}
@@ -320,9 +320,9 @@
     .order-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;align-items:center;justify-content:center;padding:10px}
     .order-modal-overlay.open{display:flex}
     .order-modal{background:#fff;border-radius:20px;width:100%;max-width:600px;max-height:96vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1)}
-    .om-header{background:linear-gradient(135deg,var(--brown),#1e7a3a);padding:35px 18px 18px;padding-top:calc(35px + env(safe-area-inset-top, 0px));border-radius:20px 20px 0 0;display:flex;justify-content:space-between;align-items:center;gap:10px}
-    .om-header h2{font-family:"Yeseva One",serif;color:var(--turmeric);font-size:1.25rem;text-align:center;margin:0;flex-grow:1}
-    .om-close{background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;line-height:1;padding:0 4px;flex-shrink:0}
+    .om-header{background:linear-gradient(135deg,var(--brown),#1e7a3a);padding:16px 18px;border-radius:20px 20px 0 0;display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .om-header h2{font-family:"Yeseva One",serif;color:var(--turmeric);font-size:1.2rem}
+    .om-close{background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;line-height:1;padding:0 4px}
     .om-body{padding:18px}
     .om-summary{background:var(--cream);border-radius:14px;padding:13px 14px;margin-bottom:18px;border:1px solid var(--border)}
     .om-summary-title{font-weight:800;color:var(--brown);font-size:.82rem;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
@@ -7317,90 +7317,6 @@ window.addEventListener('load', function() {
 });
 
 })();
-</script>
-
-
-<script>
-function calculateCartTotals() {
-    const cart = JSON.parse(localStorage.getItem("cart")) || [];
-    let subtotal = 0;
-
-    cart.forEach(item => {
-        const price = Number(item.price || 0);
-        const quantity = Number(item.quantity || 0);
-        subtotal += price * quantity;
-    });
-
-    const deliveryFee = subtotal > 0 ? 30 : 0;
-    const grandTotal = subtotal + deliveryFee;
-
-    return {
-        subtotal,
-        deliveryFee,
-        grandTotal
-    };
-}
-
-function updateAllTotalsUI() {
-    const totals = calculateCartTotals();
-
-    document.querySelectorAll('.items-total, .subtotal-amount').forEach(el => {
-        el.textContent = '₹' + totals.subtotal;
-    });
-
-    document.querySelectorAll('.delivery-fee').forEach(el => {
-        el.textContent = '₹' + totals.deliveryFee;
-    });
-
-    document.querySelectorAll('.grand-total, .total-amount, .cart-total-value').forEach(el => {
-        el.textContent = '₹' + totals.grandTotal;
-    });
-}
-
-function submitOrder() {
-    try {
-
-        const cart = JSON.parse(localStorage.getItem("cart")) || [];
-
-        if (!cart.length) {
-            alert("Cart is empty");
-            return;
-        }
-
-        const totals = calculateCartTotals();
-
-        console.log("Subtotal:", totals.subtotal);
-        console.log("Delivery:", totals.deliveryFee);
-        console.log("Grand Total:", totals.grandTotal);
-
-        localStorage.setItem("latestOrderTotal", totals.grandTotal);
-
-        alert(
-            "Order Placed Successfully\n\n" +
-            "Items Total: ₹" + totals.subtotal +
-            "\nDelivery Fee: ₹" + totals.deliveryFee +
-            "\nGrand Total: ₹" + totals.grandTotal
-        );
-
-        return true;
-
-    } catch (error) {
-        console.error(error);
-        alert("Checkout Error: " + error.message);
-    }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-
-    updateAllTotalsUI();
-
-    const placeBtn = document.getElementById("placeOrderBtn");
-
-    if (placeBtn) {
-        placeBtn.onclick = submitOrder;
-    }
-
-});
 </script>
 
 </body>

@@ -410,8 +410,7 @@ right:-30px;
 .stat-card.red::before{background:var(--red);}
     .stat-card.blu::before{background:var(--blu);}
    
-.stat-label{fo
-t-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin-bottom:.6rem;}
+.stat-label{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin-bottom:.6rem;}
     .stat-val{
      
 font-family:'Fraunces',serif;
@@ -624,8 +623,7 @@ align-items:flex-start;
 .page-sub{font-size:.8rem;color:var(--mute);margin-top:.25rem;}
 
    
-.btn{display:inline-flex;align-it
-ms:center;gap:.4rem;border:none;cursor:pointer;font-family:inherit;font-weight:700;border-radius:10px;transition:all .2s;}
+.btn{display:inline-flex;align-items:center;gap:.4rem;border:none;cursor:pointer;font-family:inherit;font-weight:700;border-radius:10px;transition:all .2s;}
    
 .btn-sm{font-size:.75rem;padding:.45rem 1rem;}
     .btn-md{font-size:.82rem;padding:.6rem 1.3rem;}
@@ -793,8 +791,7 @@ display:flex;align-items:center;justify-content:center;
    
 .ep-btn:hover,.ep-btn.sel{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.4);}
    
-.togg
-e-row{display:flex;align-items:center;justify-content:space-between;padding:.6rem .9rem;background:var(--card2);border:1.5px solid
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:.6rem .9rem;background:var(--card2);border:1.5px solid
 var(--line);border-radius:9px;}
     .toggle-lbl{font-size:.8rem;font-weight:600;color:var(--txt);}
    
@@ -957,7 +954,7 @@ font-size:1rem;flex-shrink:0;
 .pay-name{font-size:.78rem;font-weight:700;color:var(--wht);}
    
 .pay-date{font-size:.63rem;color:var(--mute);margin-top:1px;}
-.pay-amt{font-family:'Fraunces',serif;font-weight:700;font-size:.95rem;color:var(--wht);}
+.pay-amt{font-family::'Fraunces',serif;font-weight:700;font-size:.95rem;color:var(--wht);}
 
     .donut-wrap{
      
@@ -1058,8 +1055,7 @@ border-radius:16px;padding:1.2rem;
    
 .fc-sample{font-size:1.8rem;font-weight:900;color:var(--wht);margin-bottom:.4rem;line-height:1.1;}
    
-.fc-name{fo
-t-size:.7rem;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.08em;}
+.fc-name{font-size:.7rem;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.08em;}
    
 .fc-desc{font-size:.65rem;color:var(--mute);margin-top:.2rem;}
 
@@ -1360,5 +1356,57 @@ body {
 .products-grid {
     width: 100% !important;
     max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+
+
+/* APK WEBVIEW FIXES */
+html, body {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    overscroll-behavior-x: none;
+}
+
+button,
+a,
+input,
+select,
+textarea,
+.nav-item,
+.btn,
+.icon-btn {
+    pointer-events: auto !important;
+    touch-action: manipulation;
+}
+
+button:focus,
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+}
+
+/* Prevent overlay touch blocking */
+.modal-bg {
+    touch-action: auto;
+}
+
+/* Better scrolling for Android WebView */
+.sidebar,
+.content,
+.modal {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Fix sticky issues in some WebViews */
+.topbar {
+    position: sticky;
+    top: 0;
+}
+
+/* Prevent horizontal APK scrolling */
+body {
     overflow-x: hidden !important;
 }

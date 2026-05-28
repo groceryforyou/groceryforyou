@@ -610,7 +610,7 @@
     .place-order-btn:hover{opacity:.9}
 
     /* ===== MOBILE BOTTOM NAV ===== */
-    .mob-bottom-nav{display:none;position:fixed;left:0;right:0;bottom:env(safe-area-inset-bottom,0);z-index:99999;padding-bottom:calc(8px + env(safe-area-inset-bottom,0));}
+    .mob-bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:140;background:linear-gradient(135deg,var(--brown),#0d3b1a);box-shadow:0 -2px 16px rgba(0,0,0,0.3);padding-bottom:var(--safe-bottom)}
     .mob-nav-items{display:flex;justify-content:space-around;align-items:center;padding:8px 0 4px}
     .mob-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;cursor:pointer;border:none;background:transparent;color:rgba(255,255,255,0.65);font-size:.58rem;font-family:"Lato",sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.4px;transition:color .2s;touch-action:manipulation;min-height:50px;min-width:44px;justify-content:center;position:relative}
     .mob-nav-item .mni-icon{font-size:1.3rem;line-height:1;transition:transform .2s}
@@ -628,14 +628,14 @@
       .mob-bottom-nav{display:block}
 
       /* Spacing accounting for bottom nav */
-      .float-order-bar{bottom:calc(70px + env(safe-area-inset-bottom,0));padding:10px 14px;left:0;right:0;}
+      .float-order-bar{bottom:calc(var(--mob-nav-h) + var(--safe-bottom));padding:10px 14px;left:0;right:0}
       .toast{bottom:calc(var(--mob-nav-h) + 12px + var(--safe-bottom));max-width:calc(100vw - 32px)}
       .scroll-top-btn{bottom:calc(var(--mob-nav-h) + 14px + var(--safe-bottom));right:12px}
       .promo-banner-wrap{top:calc(var(--header-h) + 8px);right:8px;left:8px;max-width:100%}
 
       /* Layout */
-      .main{padding:14px 10px calc(90px + env(safe-area-inset-bottom,0));width:100%;overflow-x:hidden;}
-      
+      .main{padding:14px 10px calc(var(--mob-nav-h) + 40px + var(--safe-bottom));width:100%;overflow-x:hidden}
+
       /* Hero */
       .hero{padding:28px 14px 24px}
       .hero h1,.hero h2{font-size:1.55rem!important;line-height:1.2}

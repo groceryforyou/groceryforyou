@@ -7345,5 +7345,56 @@ window.addEventListener('load', function() {
 })();
 </script>
 
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  // Fix hamburger click
+  const menuBtn = document.querySelector('.hamburger, .menu-btn, #menuBtn');
+
+  if (menuBtn) {
+    menuBtn.style.pointerEvents = "auto";
+    menuBtn.style.zIndex = "99999";
+
+    menuBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+
+      const sidebar =
+        document.querySelector('.sidebar') ||
+        document.querySelector('.menu') ||
+        document.querySelector('#sidebar');
+
+      if (sidebar) {
+        sidebar.classList.toggle("active");
+        sidebar.style.display = "block";
+      }
+    });
+  }
+
+  // Fix Place Order button
+  const orderBtn =
+    document.querySelector('#placeOrderBtn') ||
+    document.querySelector('.place-order') ||
+    document.querySelector('.checkout-btn');
+
+  if (orderBtn) {
+    orderBtn.style.pointerEvents = "auto";
+    orderBtn.style.zIndex = "99999";
+
+    orderBtn.addEventListener("click", function () {
+
+      if (typeof submitOrder === "function") {
+        submitOrder();
+      } else if (typeof placeOrder === "function") {
+        placeOrder();
+      } else {
+        alert("Order function not found");
+      }
+
+    });
+  }
+
+});
+</script>
+
 </body>
 </html>

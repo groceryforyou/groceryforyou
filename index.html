@@ -140,9 +140,9 @@
     body{background:var(--cream);font-family:"Lato",sans-serif;color:var(--deep);overflow-x:hidden;-webkit-overflow-scrolling:touch;min-height:100vh;min-height:100dvh;max-width:100%}
     img,video{max-width:100%;height:auto;display:block}
     input,select,textarea{font-size:16px!important;-webkit-appearance:none;appearance:none}
-    button,a,[role="button"]{touch-action:manipulation;-webkit-tap-highlight-color:transparent;pointer-events:auto}
+    button,a,[role="button"]{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
     button:focus-visible,a:focus-visible{outline:2px solid var(--saffron);outline-offset:2px}
-    .menu-toggle{display:flex!important;background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;padding:6px;flex-shrink:0;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+    .menu-toggle{display:none!important}
 
     /* ===== HEADER ===== */
     header{background:linear-gradient(135deg,var(--brown) 0%,#0d3b1a 60%,#1e7a3a 100%);color:#fff;padding:0;position:sticky;top:0;z-index:1000;box-shadow:0 4px 20px rgba(0,0,0,0.35)}
@@ -241,10 +241,10 @@
     .item-rating .stars{color:#ffcc00}
 
     /* ===== CART ===== */
-    .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;pointer-events:none}
-    .overlay.open{display:block;pointer-events:auto}
-    .cart-panel{position:fixed;right:0;top:0;height:100vh;width:min(400px,100vw);background:#fff;z-index:201;box-shadow:-8px 0 40px rgba(0,0,0,0.2);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s;pointer-events:none}
-    .cart-panel.open{transform:translateX(0);pointer-events:auto}
+    .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200}
+    .overlay.open{display:block}
+    .cart-panel{position:fixed;right:0;top:0;height:100vh;width:min(400px,100vw);background:#fff;z-index:201;box-shadow:-8px 0 40px rgba(0,0,0,0.2);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s}
+    .cart-panel.open{transform:translateX(0)}
     .cart-header{background:var(--brown);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
     .cart-header h2{font-family:"Yeseva One",serif;font-size:1.2rem}
     .close-btn{background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:4px}
@@ -256,7 +256,7 @@
     .qty-btn{background:var(--cream);border:1px solid var(--border);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;touch-action:manipulation}
     .cart-footer{padding:16px 20px;border-top:2px solid var(--border)}
     .cart-total{font-family:"Yeseva One",serif;font-size:1.3rem;color:var(--brown);display:flex;justify-content:space-between;margin-bottom:14px}
-    .checkout-btn{width:100%;background:var(--saffron);color:#fff;border:none;border-radius:12px;padding:14px;font-size:.98rem;font-weight:700;cursor:pointer;font-family:"Yeseva One",serif;transition:background .2s;touch-action:manipulation;pointer-events:auto;z-index:10}
+    .checkout-btn{width:100%;background:var(--saffron);color:#fff;border:none;border-radius:12px;padding:14px;font-size:.98rem;font-weight:700;cursor:pointer;font-family:"Yeseva One",serif;transition:background .2s;touch-action:manipulation}
     .checkout-btn:hover{background:var(--brown)}
 
     /* ===== MANAGE ===== */
@@ -305,8 +305,8 @@
     .mfb-tab.active{background:var(--saffron);border-color:var(--saffron);color:#fff}
 
     /* ===== MODALS ===== */
-    .auth-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;padding:14px;pointer-events:none}
-    .auth-overlay.open{display:flex;pointer-events:auto}
+    .auth-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;padding:14px}
+    .auth-overlay.open{display:flex}
     .auth-modal{background:#fff;border-radius:20px;width:100%;max-width:420px;box-shadow:0 20px 80px rgba(0,0,0,0.4);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1);overflow:hidden;max-height:96vh;overflow-y:auto}
     .auth-modal-header{background:linear-gradient(135deg,var(--brown),#1e7a3a);padding:22px 20px;text-align:center}
     .auth-modal-header h2{font-family:"Yeseva One",serif;color:var(--turmeric);font-size:1.5rem;margin-bottom:5px}
@@ -317,9 +317,9 @@
     @keyframes modalIn{from{opacity:0;transform:scale(0.9) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
 
     /* ===== ORDER MODAL ===== */
-    .order-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;align-items:center;justify-content:center;padding:10px;pointer-events:none}
-    .order-modal-overlay.open{display:flex;pointer-events:auto}
-    .order-modal{pointer-events:auto}
+    .order-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;align-items:center;justify-content:center;padding:10px}
+    .order-modal-overlay.open{display:flex}
+    .order-modal{background:#fff;border-radius:20px;width:100%;max-width:600px;max-height:96vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1)}
     .om-header{background:linear-gradient(135deg,var(--brown),#1e7a3a);padding:16px 18px;border-radius:20px 20px 0 0;display:flex;justify-content:space-between;align-items:center;gap:10px}
     .om-header h2{font-family:"Yeseva One",serif;color:var(--turmeric);font-size:1.2rem}
     .om-close{background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;line-height:1;padding:0 4px}
@@ -336,7 +336,7 @@
     .om-form input:focus,.om-form textarea:focus{border-color:var(--saffron)}
     .om-actions{display:flex;gap:10px;margin-top:18px}
     .om-cancel{flex:1;background:var(--cream);color:var(--brown);border:1.5px solid var(--border);border-radius:12px;padding:12px;font-size:.88rem;font-weight:700;cursor:pointer;touch-action:manipulation}
-    .om-place{flex:2;background:linear-gradient(90deg,var(--brown),var(--saffron));color:#fff;border:none;border-radius:12px;padding:12px;font-family:"Yeseva One",serif;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;touch-action:manipulation;pointer-events:auto;z-index:10}
+    .om-place{flex:2;background:linear-gradient(90deg,var(--brown),var(--saffron));color:#fff;border:none;border-radius:12px;padding:12px;font-family:"Yeseva One",serif;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;touch-action:manipulation}
     .om-map-label{font-size:.75rem;font-weight:800;color:var(--brown);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;display:flex;align-items:center;gap:5px}
     .om-map-search{display:flex;gap:7px;margin-bottom:7px}
     .om-map-search input{flex:1;border:1.5px solid var(--border);border-radius:10px;padding:8px 11px;font-size:.83rem;font-family:"Lato",sans-serif;outline:none}
@@ -408,8 +408,8 @@
     .est-delivery-banner .edb-info .edb-time{font-family:"Yeseva One",serif;font-size:1.3rem;color:var(--brown)}
 
     /* ===== RATING MODAL ===== */
-    .rating-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:400;align-items:center;justify-content:center;padding:14px;pointer-events:none}
-    .rating-modal-overlay.open{display:flex;pointer-events:auto}
+    .rating-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:400;align-items:center;justify-content:center;padding:14px}
+    .rating-modal-overlay.open{display:flex}
     .rating-modal{background:#fff;border-radius:24px;width:100%;max-width:420px;padding:28px 22px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1)}
     .rating-modal h3{font-family:"Yeseva One",serif;color:var(--brown);font-size:1.3rem;margin-bottom:6px}
     .rating-stars-row{display:flex;gap:7px;justify-content:center;margin:16px 0}
@@ -441,8 +441,8 @@
     .txn-amount{font-family:"Yeseva One",serif;color:var(--green);font-size:1rem}
 
     /* ===== MODALS - COMMON ===== */
-    .cat-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;align-items:center;justify-content:center;padding:14px;pointer-events:none}
-    .cat-modal-overlay.open{display:flex;pointer-events:auto}
+    .cat-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;align-items:center;justify-content:center;padding:14px}
+    .cat-modal-overlay.open{display:flex}
     .cat-modal{background:#fff;border-radius:20px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.35);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1);overflow:hidden;max-height:96vh;overflow-y:auto}
     .cat-modal-head{background:linear-gradient(135deg,var(--brown),#1e7a3a);padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
     .cat-modal-head h3{font-family:"Yeseva One",serif;color:var(--turmeric);font-size:1.05rem}
@@ -466,8 +466,8 @@
     .promo-banner .pb-close{background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:.95rem;padding:0;margin-left:auto;flex-shrink:0}
 
     /* ===== ORDERS MODAL ===== */
-    .orders-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:600;align-items:center;justify-content:center;padding:10px;pointer-events:none}
-    .orders-overlay.open{display:flex;pointer-events:auto}
+    .orders-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:600;align-items:center;justify-content:center;padding:10px}
+    .orders-overlay.open{display:flex}
     .orders-modal{background:#fff;border-radius:20px;width:100%;max-width:860px;max-height:96vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 80px rgba(0,0,0,0.4);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1)}
     .orders-modal-header{background:linear-gradient(135deg,var(--brown),#1e7a3a);padding:16px 20px;display:flex;align-items:center;gap:10px}
     .orders-modal-header h2{font-family:"Yeseva One",serif;color:var(--turmeric);font-size:1.2rem;flex:1}
@@ -504,7 +504,7 @@
     .fob-summary{color:#c8e6c9;font-size:.85rem}
     .fob-summary strong{color:var(--turmeric);font-size:1rem;font-family:"Yeseva One",serif}
     .fob-items{color:#a5d6a7;font-size:.75rem}
-    .fob-btn{background:var(--turmeric);color:var(--deep);border:none;border-radius:12px;padding:11px 22px;font-family:"Yeseva One",serif;font-size:.95rem;cursor:pointer;white-space:nowrap;box-shadow:0 2px 12px rgba(0,0,0,0.25);transition:transform .15s;display:flex;align-items:center;gap:7px;touch-action:manipulation;pointer-events:auto;z-index:10;-webkit-user-select:none;user-select:none}
+    .fob-btn{background:var(--turmeric);color:var(--deep);border:none;border-radius:12px;padding:11px 22px;font-family:"Yeseva One",serif;font-size:.95rem;cursor:pointer;white-space:nowrap;box-shadow:0 2px 12px rgba(0,0,0,0.25);transition:transform .15s;display:flex;align-items:center;gap:7px;touch-action:manipulation}
     .fob-btn:hover{transform:scale(1.03)}
 
     /* ===== SCROLL TO TOP ===== */
@@ -519,8 +519,8 @@
     .toast.info{background:var(--blue)}
 
     /* ===== CUSTOMER ALERT MODAL ===== */
-    .customer-alert-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:2000;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);pointer-events:none}
-    .customer-alert-overlay.open{display:flex;animation:camFadeIn .3s ease;pointer-events:auto}
+    .customer-alert-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:2000;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+    .customer-alert-overlay.open{display:flex;animation:camFadeIn .3s ease}
     @keyframes camFadeIn{from{opacity:0}to{opacity:1}}
     .customer-alert-modal{background:#fff;border-radius:28px;width:100%;max-width:400px;padding:0;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,0.45);animation:camSlideUp .4s cubic-bezier(0.34,1.56,0.64,1);overflow:hidden}
     @keyframes camSlideUp{from{opacity:0;transform:translateY(60px) scale(0.88)}to{opacity:1;transform:translateY(0) scale(1)}}
@@ -576,8 +576,8 @@
     .support-card .sc-desc{font-size:.75rem;color:#888;margin-top:3px}
 
     /* UPI Redirect */
-    .upi-redirect-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:800;align-items:center;justify-content:center;padding:14px;pointer-events:none}
-    .upi-redirect-overlay.open{display:flex;pointer-events:auto}
+    .upi-redirect-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:800;align-items:center;justify-content:center;padding:14px}
+    .upi-redirect-overlay.open{display:flex}
     .upi-redirect-modal{background:#fff;border-radius:20px;width:100%;max-width:380px;padding:26px 20px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1)}
     .upi-redirect-modal h3{font-family:"Yeseva One",serif;color:var(--brown);font-size:1.3rem;margin-bottom:6px}
     .upi-amount-badge{background:var(--cream);border:2px solid var(--saffron);border-radius:12px;padding:9px 18px;font-family:"Yeseva One",serif;font-size:1.4rem;color:var(--brown);margin-bottom:16px;display:inline-block}
@@ -591,8 +591,8 @@
     .upi-app-redirect-btn .uar-name{font-size:.8rem;font-weight:700;color:var(--brown)}
     .upi-paid-btn{width:100%;background:var(--saffron);color:#fff;border:none;border-radius:12px;padding:12px;font-weight:700;font-size:.9rem;cursor:pointer;margin-top:8px;touch-action:manipulation}
     /* PhonePe QR Payment */
-    .phonepe-qr-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:900;align-items:center;justify-content:center;padding:14px;pointer-events:none}
-    .phonepe-qr-modal-overlay.open{display:flex;pointer-events:auto}
+    .phonepe-qr-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:900;align-items:center;justify-content:center;padding:14px}
+    .phonepe-qr-modal-overlay.open{display:flex}
     .phonepe-qr-modal{background:#111;border-radius:24px;width:100%;max-width:380px;padding:0;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1);overflow:hidden}
     .phonepe-qr-modal img{width:100%;display:block;border-radius:24px}
     .phonepe-qr-actions{padding:16px;background:#111;display:flex;gap:10px;flex-direction:column}
@@ -867,8 +867,8 @@
     .no-pay-warn{background:#f0faf4;border:2px solid var(--turmeric);border-radius:12px;padding:12px 15px;font-size:.85rem;color:var(--brown);margin-top:10px;text-align:center;font-weight:700}
 
     /* ===== FONT PICKER MODAL ===== */
-    .font-picker-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:2100;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(4px);pointer-events:none}
-    .font-picker-overlay.open{display:flex;pointer-events:auto}
+    .font-picker-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:2100;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(4px)}
+    .font-picker-overlay.open{display:flex}
     .font-picker-modal{background:#fff;border-radius:24px;width:100%;max-width:560px;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,0.45);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1)}
     body.dark-mode .font-picker-modal{background:#1a1008;}
     .fp-header{background:linear-gradient(135deg,var(--brown),#1e7a3a);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0}
@@ -990,8 +990,8 @@
     body.theme-mint .admin-sb-item::before{background:#00C896}
 
     /* ===== THEME PICKER MODAL ===== */
-    .theme-picker-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:2200;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(4px);pointer-events:none}
-    .theme-picker-overlay.open{display:flex;pointer-events:auto}
+    .theme-picker-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:2200;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(4px)}
+    .theme-picker-overlay.open{display:flex}
     .theme-picker-modal{background:#fff;border-radius:24px;width:100%;max-width:520px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,0.45);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1)}
     body.dark-mode .theme-picker-modal{background:#1a1008;}
     .tp-header{background:linear-gradient(135deg,var(--brown),var(--saffron));padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0}
@@ -1497,31 +1497,7 @@ animation:spinRefresh .7s linear infinite;
     window._ringtonePlaying    = false; // keep obfuscated flag in sync
   }
 
-  /* ===== WEBVIEW FIX: Ensure click events work properly in Android WebView ===== */
-  (function fixWebViewClicks(){
-    'use strict';
-    
-    // Fix for Android WebView: Ensure buttons respond to clicks
-    if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)){
-      // Enable fastclick-like behavior
-      document.addEventListener('touchstart', function(){}, false);
-      document.addEventListener('touchend', function(){}, false);
-      
-      // Ensure all buttons have proper event listeners as fallback
-      setTimeout(function(){
-        document.querySelectorAll('button, [role="button"]').forEach(function(btn){
-          if(!btn.__clickFixed){
-            btn.__clickFixed = true;
-            btn.addEventListener('touchend', function(e){
-              if(btn.onclick) btn.onclick.call(btn, e);
-            }, false);
-          }
-        });
-      }, 100);
-    }
-  })();
-
-  /* ===== PATCH: Support tickets and other fixes ===== */
+  /* Try immediately, then again after scripts settle */
   patch();
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', function(){ setTimeout(patch, 100); });
@@ -4489,6 +4465,10 @@ function toggleSidebar() {
     }
   }
 
+  function updateDeliveryInfoDisplay() {
+    updateCartDeliveryFee();
+  }
+
   function isWithinBusinessHours(settings) {
     if (!settings?.businessHoursEnabled) return true;
     const now = new Date();
@@ -4573,6 +4553,57 @@ function toggleSidebar() {
     }
   }
 
+  function hookOpenOrderModal() {
+    const original = window.openOrderModal;
+    if (typeof original !== 'function') {
+      setTimeout(hookOpenOrderModal, 400);
+      return;
+    }
+
+    window.openOrderModal = function(...args) {
+      // Fetch fresh delivery settings from Firestore before opening modal
+      const showModal = () => {
+        const settings = getDeliverySettings();
+        if (!isStoreOpen(settings)) {
+          showToast('⚠️ Store is currently closed.', 5000);
+          return;
+        }
+        original.apply(this, args);
+        // Fire multiple times to ensure we override obfuscated code's delivery fee
+        [150, 450, 900, 1600, 2800].forEach(ms =>
+          setTimeout(updateDeliveryInfoDisplay, ms)
+        );
+      };
+      // Fetch fresh settings from Firestore first
+      if (typeof db !== 'undefined' && db) {
+        db.collection('app_settings').doc('delivery_settings').get()
+          .then(docSnap => {
+            if (docSnap.exists) {
+              const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
+              localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
+            }
+          })
+          .catch(() => {})
+          .finally(() => showModal());
+      } else {
+        showModal();
+      }
+    };
+  }
+
+  function hookUpdateCartForDelivery() {
+    const original = window.updateCart;
+    if (typeof original !== 'function') {
+      setTimeout(hookUpdateCartForDelivery, 400);
+      return;
+    }
+
+    window.updateCart = function(...args) {
+      original.apply(this, args);
+      updateDeliveryInfoDisplay();
+    };
+  }
+
   /* ── bootstrap: run after DOM + Firebase ready ── */
   function bootstrap() {
     hookShowPage();
@@ -4580,6 +4611,8 @@ function toggleSidebar() {
     hookOpenSupportForm();
     hookSubmitTicket();
     renderDeliverySettings();
+    hookOpenOrderModal();
+    hookUpdateCartForDelivery();
 
     // Real-time Firestore listener: instantly push delivery setting changes to all clients
     const waitForDb = setInterval(() => {
@@ -4590,6 +4623,10 @@ function toggleSidebar() {
           if (docSnap.exists) {
             const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
             localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
+            // Overwrite with multiple retries in case obfuscated code re-renders after us
+            [0, 300, 700, 1400].forEach(ms =>
+              setTimeout(updateDeliveryInfoDisplay, ms)
+            );
             // Update admin panel UI if admin is viewing settings
             if (typeof renderDeliverySettings === 'function') {
               renderDeliverySettings().catch(err => console.warn('Failed to render delivery settings:', err));
@@ -4620,7 +4657,7 @@ function toggleSidebar() {
     const omTotalEl = document.getElementById('om-total');
     if (omTotalEl && typeof MutationObserver !== 'undefined') {
       new MutationObserver(() => {
-        // Fee update observer removed
+        setTimeout(updateDeliveryInfoDisplay, 50);
       }).observe(omTotalEl, { childList: true, subtree: true, characterData: true });
     }
 
@@ -4632,6 +4669,7 @@ function toggleSidebar() {
             if (docSnap.exists) {
               const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
               localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
+              updateDeliveryInfoDisplay();
             }
           }).catch(() => {});
       }
@@ -5840,6 +5878,29 @@ Object.defineProperty(window, 'currentUser', {
     }, 800);
   }
 
+  /* ── Patch openOrderModal: reapply fee after modal opens ── */
+  function patchOpenOrderModal() {
+    var orig = window.openOrderModal;
+    if (typeof orig !== 'function') { setTimeout(patchOpenOrderModal, 400); return; }
+
+    window.openOrderModal = function() {
+      // Ensure delivery fee is loaded before opening modal
+      if (window.currentDeliveryFee === undefined || window.currentDeliveryFee === null) {
+        var settings = typeof getDeliverySettings === 'function' ? getDeliverySettings() : {};
+        window.currentDeliveryFee = settings.feeEnabled ? (settings.feeAmount || 0) : 0;
+        _fee = window.currentDeliveryFee;
+        console.log('[DeliveryFee] Initialized currentDeliveryFee from settings:', window.currentDeliveryFee);
+      }
+      
+      orig.apply(this, arguments);
+      [100, 350, 700, 1200, 2000].forEach(function(ms) {
+        setTimeout(function() { applyFee(_fee); }, ms);
+      });
+    };
+
+    console.log('[DeliveryFee] openOrderModal patched');
+  }
+
   /* ── Wire admin save buttons ── */
   function wireAdminUI() {
     /* Override global function used by existing save buttons */
@@ -5906,6 +5967,7 @@ Object.defineProperty(window, 'currentUser', {
   function bootstrap() {
     console.log('[DeliveryFee] Bootstrap start');
     wireAdminUI();
+    patchOpenOrderModal();
 
     waitForDB(function(db) {
       // Sync and load delivery settings from Firestore at bootstrap
@@ -7255,47 +7317,6 @@ window.addEventListener('load', function() {
 });
 
 })();
-</script>
-
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-
-  // Fix hamburger menu in WebView
-  const menuBtn = document.querySelector(".menu-toggle");
-  const nav = document.querySelector(".nav");
-
-  if (menuBtn && nav) {
-    menuBtn.addEventListener("click", function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      nav.classList.toggle("active");
-    });
-  }
-
-  // Prevent double order clicks
-  const placeBtn = document.querySelector(".om-place");
-
-  if (placeBtn) {
-    let submitting = false;
-
-    placeBtn.addEventListener("click", function () {
-
-      if (submitting) return;
-
-      submitting = true;
-
-      placeBtn.disabled = true;
-      placeBtn.innerText = "Placing...";
-
-      setTimeout(() => {
-        submitting = false;
-        placeBtn.disabled = false;
-        placeBtn.innerText = "🛒 Place Order";
-      }, 8000);
-    });
-  }
-
-});
 </script>
 
 </body>

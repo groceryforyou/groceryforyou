@@ -4489,10 +4489,6 @@ function toggleSidebar() {
     }
   }
 
-  function updateDeliveryInfoDisplay() {
-    updateCartDeliveryFee();
-  }
-
   function isWithinBusinessHours(settings) {
     if (!settings?.businessHoursEnabled) return true;
     const now = new Date();
@@ -4577,57 +4573,6 @@ function toggleSidebar() {
     }
   }
 
-  function hookOpenOrderModal() {
-    const original = window.openOrderModal;
-    if (typeof original !== 'function') {
-      setTimeout(hookOpenOrderModal, 400);
-      return;
-    }
-
-    window.openOrderModal = function(...args) {
-      // Fetch fresh delivery settings from Firestore before opening modal
-      const showModal = () => {
-        const settings = getDeliverySettings();
-        if (!isStoreOpen(settings)) {
-          showToast('⚠️ Store is currently closed.', 5000);
-          return;
-        }
-        original.apply(this, args);
-        // Fire multiple times to ensure we override obfuscated code's delivery fee
-        [150, 450, 900, 1600, 2800].forEach(ms =>
-          setTimeout(updateDeliveryInfoDisplay, ms)
-        );
-      };
-      // Fetch fresh settings from Firestore first
-      if (typeof db !== 'undefined' && db) {
-        db.collection('app_settings').doc('delivery_settings').get()
-          .then(docSnap => {
-            if (docSnap.exists) {
-              const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
-              localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
-            }
-          })
-          .catch(() => {})
-          .finally(() => showModal());
-      } else {
-        showModal();
-      }
-    };
-  }
-
-  function hookUpdateCartForDelivery() {
-    const original = window.updateCart;
-    if (typeof original !== 'function') {
-      setTimeout(hookUpdateCartForDelivery, 400);
-      return;
-    }
-
-    window.updateCart = function(...args) {
-      original.apply(this, args);
-      updateDeliveryInfoDisplay();
-    };
-  }
-
   /* ── bootstrap: run after DOM + Firebase ready ── */
   function bootstrap() {
     hookShowPage();
@@ -4635,8 +4580,6 @@ function toggleSidebar() {
     hookOpenSupportForm();
     hookSubmitTicket();
     renderDeliverySettings();
-    hookOpenOrderModal();
-    hookUpdateCartForDelivery();
 
     // Real-time Firestore listener: instantly push delivery setting changes to all clients
     const waitForDb = setInterval(() => {
@@ -4647,10 +4590,6 @@ function toggleSidebar() {
           if (docSnap.exists) {
             const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
             localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
-            // Overwrite with multiple retries in case obfuscated code re-renders after us
-            [0, 300, 700, 1400].forEach(ms =>
-              setTimeout(updateDeliveryInfoDisplay, ms)
-            );
             // Update admin panel UI if admin is viewing settings
             if (typeof renderDeliverySettings === 'function') {
               renderDeliverySettings().catch(err => console.warn('Failed to render delivery settings:', err));
@@ -4681,7 +4620,7 @@ function toggleSidebar() {
     const omTotalEl = document.getElementById('om-total');
     if (omTotalEl && typeof MutationObserver !== 'undefined') {
       new MutationObserver(() => {
-        setTimeout(updateDeliveryInfoDisplay, 50);
+        // Fee update observer removed
       }).observe(omTotalEl, { childList: true, subtree: true, characterData: true });
     }
 
@@ -4693,7 +4632,6 @@ function toggleSidebar() {
             if (docSnap.exists) {
               const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
               localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
-              updateDeliveryInfoDisplay();
             }
           }).catch(() => {});
       }
@@ -5902,29 +5840,6 @@ Object.defineProperty(window, 'currentUser', {
     }, 800);
   }
 
-  /* ── Patch openOrderModal: reapply fee after modal opens ── */
-  function patchOpenOrderModal() {
-    var orig = window.openOrderModal;
-    if (typeof orig !== 'function') { setTimeout(patchOpenOrderModal, 400); return; }
-
-    window.openOrderModal = function() {
-      // Ensure delivery fee is loaded before opening modal
-      if (window.currentDeliveryFee === undefined || window.currentDeliveryFee === null) {
-        var settings = typeof getDeliverySettings === 'function' ? getDeliverySettings() : {};
-        window.currentDeliveryFee = settings.feeEnabled ? (settings.feeAmount || 0) : 0;
-        _fee = window.currentDeliveryFee;
-        console.log('[DeliveryFee] Initialized currentDeliveryFee from settings:', window.currentDeliveryFee);
-      }
-      
-      orig.apply(this, arguments);
-      [100, 350, 700, 1200, 2000].forEach(function(ms) {
-        setTimeout(function() { applyFee(_fee); }, ms);
-      });
-    };
-
-    console.log('[DeliveryFee] openOrderModal patched');
-  }
-
   /* ── Wire admin save buttons ── */
   function wireAdminUI() {
     /* Override global function used by existing save buttons */
@@ -5991,7 +5906,6 @@ Object.defineProperty(window, 'currentUser', {
   function bootstrap() {
     console.log('[DeliveryFee] Bootstrap start');
     wireAdminUI();
-    patchOpenOrderModal();
 
     waitForDB(function(db) {
       // Sync and load delivery settings from Firestore at bootstrap
@@ -7341,6 +7255,47 @@ window.addEventListener('load', function() {
 });
 
 })();
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  // Fix hamburger menu in WebView
+  const menuBtn = document.querySelector(".menu-toggle");
+  const nav = document.querySelector(".nav");
+
+  if (menuBtn && nav) {
+    menuBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      nav.classList.toggle("active");
+    });
+  }
+
+  // Prevent double order clicks
+  const placeBtn = document.querySelector(".om-place");
+
+  if (placeBtn) {
+    let submitting = false;
+
+    placeBtn.addEventListener("click", function () {
+
+      if (submitting) return;
+
+      submitting = true;
+
+      placeBtn.disabled = true;
+      placeBtn.innerText = "Placing...";
+
+      setTimeout(() => {
+        submitting = false;
+        placeBtn.disabled = false;
+        placeBtn.innerText = "🛒 Place Order";
+      }, 8000);
+    });
+  }
+
+});
 </script>
 
 </body>

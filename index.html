@@ -1453,6 +1453,28 @@ animation:spinRefresh .7s linear infinite;
   }
 }
 
+  /* Store Status Badge */
+  .section-title-with-status{gap:12px;flex-wrap:wrap;}
+  .category-status-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:6px 14px;
+    border-radius:999px;
+    font-size:.78rem;
+    font-weight:800;
+    letter-spacing:.04em;
+    color:#fff;
+    box-shadow:0 10px 24px rgba(0,0,0,0.12);
+    transition:transform .2s ease,box-shadow .2s ease,opacity .2s ease;
+    white-space:nowrap;
+  }
+  .category-status-badge.open{background:#21b167;}
+  .category-status-badge.closed{background:#d32f2f;}
+  .category-status-badge:hover{transform:translateY(-1px);box-shadow:0 14px 32px rgba(0,0,0,0.18);}
+  .category-status-badge:focus-visible{outline:2px solid rgba(255,255,255,0.9);outline-offset:2px;}
+
 </style>
 </head>
 <body>
@@ -7318,6 +7340,107 @@ window.addEventListener('load', function() {
     syncTotalsUI();
 });
 
+})();
+</script>
+<script>
+(function(){
+  'use strict';
+
+  const storeStatusConfig = {
+    openHour: 6,
+    closeHour: 22
+  };
+
+  function normalizeCategoryName(rawText) {
+    if (!rawText) return '';
+    return rawText
+      .replace(/([\uD800-\uDBFF][\uDC00-\uDFFF])/g, '')
+      .replace(/\b(OPEN|CLOSED)\b/gi, '')
+      .replace(/[^\w\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function getStoreStatusForCategory(categoryName) {
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const openMinutes = storeStatusConfig.openHour * 60;
+    const closeMinutes = storeStatusConfig.closeHour * 60;
+    const defaultOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+    const overrideKey = categoryName ? categoryName.toLowerCase().trim() : '';
+    const overrides = window.categoryAvailabilityOverrides;
+    if (overrides && typeof overrides === 'object' && overrideKey in overrides) {
+      return overrides[overrideKey]
+        ? { isOpen: true, label: 'OPEN', className: 'open' }
+        : { isOpen: false, label: 'CLOSED', className: 'closed' };
+    }
+    return defaultOpen
+      ? { isOpen: true, label: 'OPEN', className: 'open' }
+      : { isOpen: false, label: 'CLOSED', className: 'closed' };
+  }
+
+  function createCategoryStatusBadge(categoryName) {
+    const status = getStoreStatusForCategory(categoryName);
+    const badge = document.createElement('span');
+    badge.className = `category-status-badge ${status.className}`;
+    badge.textContent = status.label;
+    badge.setAttribute('role', 'status');
+    badge.setAttribute('aria-label', `${categoryName || 'Category'} is ${status.label}`);
+    return badge;
+  }
+
+  function attachCategoryStatusBadges(root = document) {
+    const headers = root.querySelectorAll('.menu-section .section-title');
+    headers.forEach(header => {
+      const categoryName = normalizeCategoryName(header.textContent || '');
+      const badge = createCategoryStatusBadge(categoryName);
+      const existing = header.querySelector('.category-status-badge');
+      if (existing) {
+        existing.replaceWith(badge);
+      } else {
+        header.appendChild(badge);
+      }
+      header.classList.add('section-title-with-status');
+    });
+  }
+
+  function observeMenuSections() {
+    const container = document.getElementById('menu-sections-container');
+    if (!container) return;
+    const observer = new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
+        mutation.addedNodes.forEach(node => {
+          if (!(node instanceof Element)) return;
+          if (node.matches('.menu-section') || node.querySelector('.menu-section')) {
+            attachCategoryStatusBadges(node);
+          }
+        });
+      });
+    });
+    observer.observe(container, { childList: true, subtree: true });
+  }
+
+  function wrapRenderMenuPage() {
+    if (typeof window.renderMenuPage !== 'function') return;
+    const original = window.renderMenuPage.bind(window);
+    window.renderMenuPage = function(...args) {
+      const result = original(...args);
+      attachCategoryStatusBadges();
+      return result;
+    };
+  }
+
+  function initStoreStatusBadgeSystem() {
+    wrapRenderMenuPage();
+    attachCategoryStatusBadges();
+    observeMenuSections();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initStoreStatusBadgeSystem);
+  } else {
+    initStoreStatusBadgeSystem();
+  }
 })();
 </script>
 </body>

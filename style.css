@@ -719,9 +719,7 @@ vertical-align:middle;
    
 .prod-name-cell .pw{font-size:.65rem;color:var(--mute);margin-top:2px;}
    
-.price-cell
-font-family:'Fraunces',serif;font-weight:700;font-size:.95rem;color:var(--wht);}
-   
+.price-cell { font-family:'Fraunces',serif;font-weight:700;font-size:.95rem;color:var(--wht); }
 .price-cell.tbd{color:var(--mute2);font-size:.75rem;font-family:inherit;font-weight:600;}
     .cat-chip{
       font-size:.62rem;font-weight:800;
@@ -1324,50 +1322,23 @@ html, body {
     width: 100%;
     max-width: 100%;
     overflow-x: hidden !important;
+}
+* {
+    box-sizing: border-box;
+}
+
+/* ==============================================================================
+   PROFESSIONAL ANDROID APK WEBVIEW COMPATIBILITY OVERRIDES
+   ============================================================================== */
+
+/* 1. Standard HTML and Body Layout Reset */
+html, body {
+    overflow-x: hidden !important;
     margin: 0;
     padding: 0;
 }
 
-* {
-    box-sizing: border-box;
-    max-width: 100%;
-}
-
-img,
-section,
-div,
-header,
-nav,
-main,
-footer {
-    max-width: 100%;
-}
-
-body {
-    position: relative;
-}
-.sidebar,
-.topbar,
-.navbar,
-.header,
-.container,
-.hero,
-.categories,
-.products-grid {
-    width: 100% !important;
-    max-width: 100% !important;
-    overflow-x: hidden !important;
-}
-
-
-
-/* APK WEBVIEW FIXES */
-html, body {
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    overscroll-behavior-x: none;
-}
-
+/* Ensure all interactive buttons, links, inputs, and tab triggers remain fully tap-clickable */
 button,
 a,
 input,
@@ -1375,38 +1346,87 @@ select,
 textarea,
 .nav-item,
 .btn,
-.icon-btn {
+.icon-btn,
+.sidebar-nav a,
+.hamburger-menu,
+.place-order,
+.payment-btn {
     pointer-events: auto !important;
-    touch-action: manipulation;
 }
 
-button:focus,
-a:focus,
-input:focus,
-select:focus,
-textarea:focus {
-    outline: none;
+/* Micro-interaction tap compression for high native-app responsiveness */
+button:active,
+a:active,
+.btn:active,
+.icon-btn:active,
+.place-order:active,
+.payment-btn:active {
+    opacity: 0.82;
+    transform: scale(0.98);
 }
 
-/* Prevent overlay touch blocking */
-.modal-bg {
-    touch-action: auto;
+/* 2. Critical Invisible Overlay / Touch Blocker Bypass */
+.modal-backdrop:not(.show),
+.overlay:not(.active),
+.overlay:not(.show),
+.overlay:not(.open),
+.sidebar-overlay:not(.active),
+.sidebar-overlay:not(.show),
+.menu-overlay:not(.active),
+.menu-overlay:not(.show),
+.modal-bg:not(.show),
+.modal-bg:not(.active) {
+    pointer-events: none !important;
+    display: none !important;
+    opacity: 0 !important;
+    z-index: -9999 !important;
 }
 
-/* Better scrolling for Android WebView */
+.modal-backdrop.show,
+.overlay.active,
+.overlay.show,
+.overlay.open,
+.sidebar-overlay.active,
+.menu-overlay.active,
+.modal-bg.show {
+    pointer-events: auto !important;
+    display: block !important;
+    z-index: 99998 !important;
+}
+
+/* 3. Hover-to-Touch Compatibility for Menus */
 .sidebar,
-.content,
-.modal {
-    -webkit-overflow-scrolling: touch;
+.sidebar-nav,
+.menu-item {
+    overflow-y: auto;
 }
 
-/* Fix sticky issues in some WebViews */
-.topbar {
-    position: sticky;
-    top: 0;
+/* Emulate active transitions when item is clicked or in focus */
+.menu-item:active,
+.menu-item.hover-active,
+.nav-item:active,
+.nav-item.hover-active {
+    opacity: 0.9;
 }
 
-/* Prevent horizontal APK scrolling */
+/* 4. Safe edge-to-edge system navigation padding */
+.sidebar-bottom,
+.bottom-nav,
+.bottom-bar,
+footer {
+    padding-bottom: 12px !important; 
+    box-sizing: border-box;
+}
+
+/* 5. Sticky and Scroll Fixes */
+.topbar,
+.navbar,
+.header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 99990 !important;
+}
+
 body {
     overflow-x: hidden !important;
 }

@@ -1,13 +1,11 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <script src="webview-patch.js"></script>
   <!-- Razorpay Checkout SDK -->
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover"/>
   <link rel="icon" href="./favicon.jpg" type="image/jpeg">
-  <link rel="stylesheet" href="webview-patch.css">
   <title>Grocery For You Sircilla | Best Grocery Home Delivery in Sircilla</title>
   <meta name="description" content="Grocery For You Sircilla — Best grocery home delivery in Sircilla. Order Fresh vegetables, fruits, dairy & staples online from Town Center. COD &amp; UPI. Fast delivery within 5km. Open 9 AM–10 PM daily."/>
   <meta name="keywords" content="Grocery For You Sircilla, groceryforyou sircilla, grocery for you sircilla, grocery delivery sircilla, grocery order online sircilla, fresh groceries sircilla, online grocery sircilla, Fresh Vegetables, Fresh Fruits, Dairy Products, Pacha Fresh Fruits, Town Center Sircilla, grocery near me sircilla, Rajanna Sircilla food delivery, grocery home delivery sircilla"/>
@@ -1452,28 +1450,6 @@ animation:spinRefresh .7s linear infinite;
     font-size:.9rem;
   }
 }
-
-  /* Store Status Badge */
-  .section-title-with-status{gap:12px;flex-wrap:wrap;}
-  .category-status-badge{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    gap:6px;
-    padding:6px 14px;
-    border-radius:999px;
-    font-size:.78rem;
-    font-weight:800;
-    letter-spacing:.04em;
-    color:#fff;
-    box-shadow:0 10px 24px rgba(0,0,0,0.12);
-    transition:transform .2s ease,box-shadow .2s ease,opacity .2s ease;
-    white-space:nowrap;
-  }
-  .category-status-badge.open{background:#21b167;}
-  .category-status-badge.closed{background:#d32f2f;}
-  .category-status-badge:hover{transform:translateY(-1px);box-shadow:0 14px 32px rgba(0,0,0,0.18);}
-  .category-status-badge:focus-visible{outline:2px solid rgba(255,255,255,0.9);outline-offset:2px;}
 
 </style>
 </head>
@@ -7342,111 +7318,6 @@ window.addEventListener('load', function() {
 
 })();
 </script>
-<script>
-(function(){
-  'use strict';
 
-  const storeStatusConfig = {
-    openHour: 6,
-    closeHour: 22
-  };
-
-  function normalizeCategoryName(rawText) {
-    if (!rawText) return '';
-    return rawText
-      .replace(/([\uD800-\uDBFF][\uDC00-\uDFFF])/g, '')
-      .replace(/\b(OPEN|CLOSED)\b/gi, '')
-      .replace(/[^\w\s]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  function getStoreStatusForCategory(categoryName) {
-    const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    const openMinutes = storeStatusConfig.openHour * 60;
-    const closeMinutes = storeStatusConfig.closeHour * 60;
-    const defaultOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
-    const overrideKey = categoryName ? categoryName.toLowerCase().trim() : '';
-    const overrides = window.categoryAvailabilityOverrides;
-    if (overrides && typeof overrides === 'object' && overrideKey in overrides) {
-      return overrides[overrideKey]
-        ? { isOpen: true, label: 'OPEN', className: 'open' }
-        : { isOpen: false, label: 'CLOSED', className: 'closed' };
-    }
-    return defaultOpen
-      ? { isOpen: true, label: 'OPEN', className: 'open' }
-      : { isOpen: false, label: 'CLOSED', className: 'closed' };
-  }
-
-  function createCategoryStatusBadge(categoryName) {
-    const status = getStoreStatusForCategory(categoryName);
-    const badge = document.createElement('span');
-    badge.className = `category-status-badge ${status.className}`;
-    badge.textContent = status.label;
-    badge.setAttribute('role', 'status');
-    badge.setAttribute('aria-label', `${categoryName || 'Category'} is ${status.label}`);
-    return badge;
-  }
-
-  function attachCategoryStatusBadges(root = document) {
-    const headers = root.querySelectorAll('#menu-sections-container .section-title, .menu-section .section-title, #menu-sections-container .menu-section-title');
-    headers.forEach(header => {
-      const rawText = Array.from(header.childNodes)
-        .filter(node => !(node instanceof Element && node.classList.contains('category-status-badge')))
-        .map(node => node.textContent || '')
-        .join('')
-        .trim();
-      const categoryName = normalizeCategoryName(rawText || header.textContent || '');
-      const badge = createCategoryStatusBadge(categoryName);
-      const existing = header.querySelector('.category-status-badge');
-      if (existing) {
-        existing.replaceWith(badge);
-      } else {
-        header.appendChild(badge);
-      }
-      header.classList.add('section-title-with-status');
-    });
-  }
-
-  function observeMenuSections() {
-    const container = document.getElementById('menu-sections-container');
-    if (!container) return;
-    const observer = new MutationObserver(mutations => {
-      mutations.forEach(mutation => {
-        mutation.addedNodes.forEach(node => {
-          if (!(node instanceof Element)) return;
-          if (node.matches('.menu-section') || node.matches('.section-title') || node.querySelector('.menu-section') || node.querySelector('.section-title')) {
-            attachCategoryStatusBadges(node);
-          }
-        });
-      });
-    });
-    observer.observe(container, { childList: true, subtree: true });
-  }
-
-  function wrapRenderMenuPage() {
-    if (typeof window.renderMenuPage !== 'function') return;
-    const original = window.renderMenuPage.bind(window);
-    window.renderMenuPage = function(...args) {
-      const result = original(...args);
-      attachCategoryStatusBadges();
-      return result;
-    };
-  }
-
-  function initStoreStatusBadgeSystem() {
-    wrapRenderMenuPage();
-    attachCategoryStatusBadges();
-    observeMenuSections();
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initStoreStatusBadgeSystem);
-  } else {
-    initStoreStatusBadgeSystem();
-  }
-})();
-</script>
 </body>
 </html>

@@ -7390,9 +7390,14 @@ window.addEventListener('load', function() {
   }
 
   function attachCategoryStatusBadges(root = document) {
-    const headers = root.querySelectorAll('.menu-section .section-title');
+    const headers = root.querySelectorAll('#menu-sections-container .section-title, .menu-section .section-title, #menu-sections-container .menu-section-title');
     headers.forEach(header => {
-      const categoryName = normalizeCategoryName(header.textContent || '');
+      const rawText = Array.from(header.childNodes)
+        .filter(node => !(node instanceof Element && node.classList.contains('category-status-badge')))
+        .map(node => node.textContent || '')
+        .join('')
+        .trim();
+      const categoryName = normalizeCategoryName(rawText || header.textContent || '');
       const badge = createCategoryStatusBadge(categoryName);
       const existing = header.querySelector('.category-status-badge');
       if (existing) {
@@ -7411,7 +7416,7 @@ window.addEventListener('load', function() {
       mutations.forEach(mutation => {
         mutation.addedNodes.forEach(node => {
           if (!(node instanceof Element)) return;
-          if (node.matches('.menu-section') || node.querySelector('.menu-section')) {
+          if (node.matches('.menu-section') || node.matches('.section-title') || node.querySelector('.menu-section') || node.querySelector('.section-title')) {
             attachCategoryStatusBadges(node);
           }
         });

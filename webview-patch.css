@@ -1,0 +1,114 @@
+/**
+ * Grocery For You - Android WebView Compatibility Patch (CSS)
+ * 
+ * Link this stylesheet inside your website's index.html <head> tag
+ * to optimize responsive layouts, improve tap/click feedback, and enforce
+ * a highly premium native-app feel inside the Android APK.
+ */
+
+/* ==============================================================================
+   1. GLOBAL WEBVIEW SPECIFIC OPTIMIZATIONS
+   ============================================================================== */
+body.is-android-webview {
+    /* Prevent default web scroll bouncing physics on older versions */
+    overscroll-behavior-y: contain;
+    
+    /* Disable default text selection to give a clean native feel */
+    -webkit-user-select: none;
+    user-select: none;
+    
+    /* Prevent web pages from resizing unpredictably when keyboard is toggled */
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+}
+
+/* Re-enable selection for text inputs, textareas, and editable areas */
+body.is-android-webview input,
+body.is-android-webview textarea,
+body.is-android-webview [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* ==============================================================================
+   2. TOUCH & INSTANT TAP RESPONSIVENESS (ONCLICK & TOUCHSTART)
+   ============================================================================== */
+body.is-android-webview button,
+body.is-android-webview a,
+body.is-android-webview .hamburger-menu,
+body.is-android-webview .cart-btn,
+body.is-android-webview .place-order,
+body.is-android-webview .payment-btn {
+    /* Disable the 300ms double-tap-to-zoom delay on mobile devices */
+    touch-action: manipulation !important;
+    
+    /* Remove the default ugly dark-blue/grey highlight overlay on tap */
+    -webkit-tap-highlight-color: transparent !important;
+    outline: none !important;
+}
+
+/* Smooth micro-interaction transitions for active states inside APK */
+body.is-android-webview button:active,
+body.is-android-webview a:active,
+body.is-android-webview .place-order:active,
+body.is-android-webview .payment-btn:active {
+    opacity: 0.82;
+    transform: scale(0.98);
+    transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+/* ==============================================================================
+   3. CRITICAL OVERLAY, Z-INDEX, & POINTER-EVENTS FIXES
+   ============================================================================== */
+/* Problem: Web templates often have transparent backdrop layers (.modal-backdrop or .overlay)
+   which have high z-indexes but are invisible. In WebView, these transparent overlays 
+   frequently intercept touch events, completely freezing the underlying "Place Order" 
+   and menu buttons.
+   Solution: Set pointer-events: none on any overlay when it is not explicitly open/active. */
+
+body.is-android-webview .modal-backdrop:not(.show),
+body.is-android-webview .overlay:not(.active):not(.show):not(.open),
+body.is-android-webview .backdrop:not(.active):not(.show):not(.open),
+body.is-android-webview [class*="overlay"]:not([class*="show"]):not([class*="active"]):not([class*="open"]):not([class*="visible"]) {
+    pointer-events: none !important;
+    display: none !important;
+    opacity: 0 !important;
+    z-index: -9999 !important;
+}
+
+/* Ensure active overlays have correct pointer events and sit securely on top */
+body.is-android-webview .modal-backdrop.show,
+body.is-android-webview .overlay.active,
+body.is-android-webview .overlay.show,
+body.is-android-webview .overlay.open {
+    pointer-events: auto !important;
+    display: block !important;
+    z-index: 99998 !important;
+}
+
+/* ==============================================================================
+   4. HOVER TO TOUCH COMPATIBILITY
+   ============================================================================== */
+/* Problem: If the menu uses CSS ':hover' triggers, it works on desktop, but remains
+   closed or gets cut off in WebView.
+   Solution: Bind active class selectors to emulate hover states on mobile touch. */
+body.is-android-webview .menu-item:hover,
+body.is-android-webview .hamburger-menu:hover {
+    background-color: transparent !important;
+}
+
+body.is-android-webview .menu-item:active,
+body.is-android-webview .menu-item.hover-active {
+    opacity: 0.9;
+}
+
+/* ==============================================================================
+   5. BOTTOM NAVIGATION & EDGE-TO-EDGE SAFETY
+   ============================================================================== */
+body.is-android-webview footer,
+body.is-android-webview .bottom-nav,
+body.is-android-webview .bottom-bar {
+    /* Add extra padding at the bottom to secure navigation clickable area */
+    padding-bottom: env(safe-area-inset-bottom, 12px) !important;
+    box-sizing: border-box;
+}

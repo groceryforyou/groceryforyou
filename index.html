@@ -178,7 +178,7 @@
     .user-menu-popup.open{display:block}
     .user-menu-head{padding:12px 14px;background:linear-gradient(135deg,#fff7ea 0%,#fff 70%);border-bottom:1px solid var(--border)}
     .user-menu-head .email{font-weight:900;color:var(--brown);font-size:.8rem;word-break:break-all}
-    .user-menu-actions{padding:8px;display:grid;gap:5px;max-height:70vh;overflow-y:auto}
+    .user-menu-actions{padding:8px;display:grid;gap:5px;max-height:480px;max-height:min(480px, 80vh);overflow-y:auto;-webkit-overflow-scrolling:touch}
     .user-menu-item{width:100%;text-align:left;padding:9px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-weight:700;color:var(--deep);font-size:.85rem;transition:all .15s}
     .user-menu-item:hover{border-color:rgba(232,130,12,0.5);background:#fffbf5}
     .user-menu-item.danger{border-color:#ffcccc;color:#a31212;background:#fff5f5}
@@ -314,7 +314,7 @@
     .auth-modal-body{padding:24px 20px}
     .google-signin-btn{width:100%;background:#fff;border:2px solid #e0e0e0;border-radius:12px;padding:13px 18px;font-size:.95rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;color:var(--brown);font-family:"Lato",sans-serif}
     .google-signin-btn:hover{background:#f8f8f8;border-color:var(--saffron)}
-    @keyframes modalIn{from{opacity:0;transform:scale(0.9) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+     @keyframes modalIn{from{opacity:0;transform:scale(0.9) translate3d(0,20px,0)}to{opacity:1;transform:scale(1) translate3d(0,0,0)}}
 
     /* ===== ORDER MODAL ===== */
     .order-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;align-items:center;justify-content:center;padding:10px}

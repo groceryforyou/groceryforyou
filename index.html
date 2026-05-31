@@ -243,8 +243,10 @@
     /* ===== CART ===== */
     .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200}
     .overlay.open{display:block}
-    .cart-panel{position:fixed;right:0;top:0;height:100vh;width:min(400px,100vw);background:#fff;z-index:201;box-shadow:-8px 0 40px rgba(0,0,0,0.2);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s}
-    .cart-panel.open{transform:translateX(0)}
+    .cart-panel{position:fixed;top:0;right:0;bottom:0;width:100vw;max-width:100vw;height:100%;background:#fff;z-index:9999;display:flex;flex-direction:column;overflow:hidden;transform:translateX(100%);transition:transform .3s ease;}
+    .cart-panel.open{
+    transform:translateX(0);
+}    .cart-panel.open{transform:translateX(0)}
     .cart-header{background:var(--brown);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
     .cart-header h2{font-family:"Yeseva One",serif;font-size:1.2rem}
     .close-btn{background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:4px}

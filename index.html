@@ -2408,7 +2408,11 @@ function startDeliverySettingsListener() {
           applyDsToAdminPage();
         }
 
-        updateCartDeliveryFee();
+        if (typeof updateCartDeliveryFee === 'function') {
+          updateCartDeliveryFee();
+        } else if (typeof window.updateCartDeliveryFee === 'function') {
+          window.updateCartDeliveryFee();
+        }
       }
     });
 }
@@ -4475,6 +4479,9 @@ function toggleSidebar() {
   function updateDeliveryInfoDisplay() {
     updateCartDeliveryFee();
   }
+
+  // Expose globally so earlier script blocks (startDeliverySettingsListener) can call it
+  window.updateCartDeliveryFee = updateCartDeliveryFee;
 
   function isWithinBusinessHours(settings) {
     if (!settings?.businessHoursEnabled) return true;

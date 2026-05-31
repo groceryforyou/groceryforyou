@@ -2323,8 +2323,8 @@ function updateDsPreview() {
 
 function onDsToggleChange() {
 
-  const enabled =
-    document.getElementById('ds-enabled-toggle').checked;
+  const toggleEl = document.getElementById('ds-enabled-toggle');
+  const enabled  = toggleEl ? toggleEl.checked : false;
 
   const feeIn =
     document.getElementById('ds-fee-amount');
@@ -2341,25 +2341,30 @@ function onDsToggleChange() {
 
 async function saveDsSettings() {
 
-  const enabled =
-    document.getElementById('ds-enabled-toggle').checked;
+  if (!db) { showToast('⚠️ Database not ready'); return; }
 
-  const fee =
-    Number(document.getElementById('ds-fee-amount').value) || 0;
+  const toggleEl = document.getElementById('ds-enabled-toggle');
+  const feeEl    = document.getElementById('ds-fee-amount');
+  const freeEl   = document.getElementById('ds-free-above');
 
-  const freeAbove =
-    Number(document.getElementById('ds-free-above').value) || 0;
+  const enabled   = toggleEl ? toggleEl.checked : false;
+  const fee       = Number(feeEl ? feeEl.value : 0) || 0;
+  const freeAbove = Number(freeEl ? freeEl.value : 0) || 0;
 
-  await db.collection('settings')
-    .doc('deliverySettings')
-    .set({
-      enabled,
-      fee,
-      freeAbove,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-
-  showToast('✅ Delivery settings saved');
+  try {
+    await db.collection('settings')
+      .doc('deliverySettings')
+      .set({
+        enabled,
+        fee,
+        freeAbove,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    showToast('✅ Delivery settings saved');
+  } catch (err) {
+    showToast('❌ Failed to save: ' + (err.message || err));
+    console.error('[saveDsSettings]', err);
+  }
 }
 
 function applyDsToAdminPage() {
@@ -2390,6 +2395,8 @@ function applyDsToAdminPage() {
 
 function startDeliverySettingsListener() {
 
+  if (!db) return;
+
   db.collection('settings')
     .doc('deliverySettings')
     .onSnapshot((snap) => {
@@ -2414,6 +2421,8 @@ function startDeliverySettingsListener() {
           window.updateCartDeliveryFee();
         }
       }
+    }, (err) => {
+      console.warn('[DeliverySettings] onSnapshot error:', err.code || err.message);
     });
 }
 
@@ -3153,7 +3162,6 @@ window.addEventListener('load',function(){
   calculateFinalTotal();
   patchUPIPayment();
 });
-})();
 </script>
 
 <script>

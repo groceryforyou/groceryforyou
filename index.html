@@ -1,31 +1,13 @@
 <!doctype html>
 <html lang="en">
+<link rel="stylesheet" href="webview-patch.css">
+<script src="webview-patch.js" defer></script>
 <head>
   <!-- Razorpay Checkout SDK -->
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover"/>
-  <link rel="icon" href="https://groceryforyou.github.io/favicon.jpg" type="image/jpeg">
-  <!-- webview-patch.css inlined — avoids 404 -->
-  <style>
-    body{-webkit-text-size-adjust:100%;text-size-adjust:100%}
-    input,select,textarea{font-size:16px!important}
-    *{-webkit-tap-highlight-color:transparent}
-  </style>
-  <!-- webview-patch.js inlined — avoids 404 -->
-  <script>
-    (function(){
-      var lastTouchEnd=0;
-      document.addEventListener('touchend',function(e){
-        var now=Date.now();
-        if(now-lastTouchEnd<=300){e.preventDefault();}
-        lastTouchEnd=now;
-      },{passive:false});
-      function setVh(){document.documentElement.style.setProperty('--vh',(window.innerHeight*0.01)+'px');}
-      setVh();
-      window.addEventListener('resize',setVh);
-    })();
-  </script>
+  <link rel="icon" href="./favicon.jpeg" type="image/jpeg">
   <title>Grocery For You Sircilla | Best Grocery Home Delivery in Sircilla</title>
   <meta name="description" content="Grocery For You Sircilla — Best grocery home delivery in Sircilla. Order Fresh vegetables, fruits, dairy & staples online from Town Center. COD &amp; UPI. Fast delivery within 5km. Open 9 AM–10 PM daily."/>
   <meta name="keywords" content="Grocery For You Sircilla, groceryforyou sircilla, grocery for you sircilla, grocery delivery sircilla, grocery order online sircilla, fresh groceries sircilla, online grocery sircilla, Fresh Vegetables, Fresh Fruits, Dairy Products, Pacha Fresh Fruits, Town Center Sircilla, grocery near me sircilla, Rajanna Sircilla food delivery, grocery home delivery sircilla"/>
@@ -3453,7 +3435,7 @@ Customer: ${order.customerName || order.name || 'Customer'}
 Grand Total: ₹${order.grandTotal || order.total || 0}
 Payment: ${order.paymentMethod || 'N/A'}`;
       const showNow = () => {
-        new Notification('🛒 New Order Received', { body, icon: './favicon.jpg' });
+        new Notification('🛒 New Order Received', { body });
       };
       if ('Notification' in window) {
         if (Notification.permission === 'granted') {
@@ -5467,7 +5449,7 @@ window.GFY_submitRating=async function(itemId,stars,reviewText){
 function gfyNotif(title,body){
   if(!('Notification'in window))return;
   if(Notification.permission==='granted'){
-    try{new Notification(title,{body,icon:'https://groceryforyou.github.io/favicon.ico'});}catch(e){}
+    try{new Notification(title,{body});}catch(e){}
   }else if(Notification.permission==='default'){
     Notification.requestPermission().then(p=>{
       if(p==='granted')try{new Notification(title,{body});}catch(e){}

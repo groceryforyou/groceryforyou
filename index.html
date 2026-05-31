@@ -1,7 +1,5 @@
 <!doctype html>
 <html lang="en">
-<link rel="stylesheet" href="webview-patch.css">
-<script src="webview-patch.js" defer></script>
 <head>
   <!-- Razorpay Checkout SDK -->
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
@@ -1527,8 +1525,6 @@ animation:spinRefresh .7s linear infinite;
 <!-- HEADER -->
 <header>
   <div class="header-inner">
-    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-
         <div class="logo" onclick="showPage('menu')">
       <span class="logo-icon">🛒</span>
       <div>
@@ -7294,44 +7290,6 @@ document.addEventListener('DOMContentLoaded', function() {
     syncTotalsUI();
     setTimeout(syncTotalsUI, 300);
 
-    // Prevent duplicate order placement from multiple clicks (double-submitting)
-    if (typeof window.submitOrder === 'function') {
-        const originalSubmitOrder = window.submitOrder;
-        let isSubmitting = false;
-        window.submitOrder = function() {
-            if (isSubmitting) return;
-            isSubmitting = true;
-            
-            const btn = document.querySelector('.om-place');
-            const originalText = btn ? btn.innerText : '🛍️ Place Order';
-            if (btn) {
-                btn.disabled = true;
-                btn.innerText = '⏳ Placing...';
-                btn.style.opacity = '0.7';
-            }
-            
-            try {
-                originalSubmitOrder();
-            } catch (err) {
-                isSubmitting = false;
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerText = originalText;
-                    btn.style.opacity = '';
-                }
-            }
-            
-            // Safety timeout to reset button if order placement fails silently or payment checkout is closed
-            setTimeout(function() {
-                isSubmitting = false;
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerText = originalText;
-                    btn.style.opacity = '';
-                }
-            }, 6000);
-        };
-    }
 });
 
 window.addEventListener('load', function() {

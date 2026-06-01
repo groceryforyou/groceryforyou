@@ -1,13 +1,11 @@
 <!doctype html>
 <html lang="en">
-<link rel="stylesheet" href="webview-patch.css">
-<script src="webview-patch.js" defer></script>
 <head>
   <!-- Razorpay Checkout SDK -->
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover"/>
-  <link rel="icon" href="./favicon.jpeg" type="image/jpeg">
+  <link rel="icon" href="./favicon.jpg" type="image/jpeg">
   <title>Grocery For You Sircilla | Best Grocery Home Delivery in Sircilla</title>
   <meta name="description" content="Grocery For You Sircilla — Best grocery home delivery in Sircilla. Order Fresh vegetables, fruits, dairy & staples online from Town Center. COD &amp; UPI. Fast delivery within 5km. Open 9 AM–10 PM daily."/>
   <meta name="keywords" content="Grocery For You Sircilla, groceryforyou sircilla, grocery for you sircilla, grocery delivery sircilla, grocery order online sircilla, fresh groceries sircilla, online grocery sircilla, Fresh Vegetables, Fresh Fruits, Dairy Products, Pacha Fresh Fruits, Town Center Sircilla, grocery near me sircilla, Rajanna Sircilla food delivery, grocery home delivery sircilla"/>
@@ -180,7 +178,7 @@
     .user-menu-popup.open{display:block}
     .user-menu-head{padding:12px 14px;background:linear-gradient(135deg,#fff7ea 0%,#fff 70%);border-bottom:1px solid var(--border)}
     .user-menu-head .email{font-weight:900;color:var(--brown);font-size:.8rem;word-break:break-all}
-    .user-menu-actions{padding:8px;display:grid;gap:5px;max-height:480px;max-height:min(480px, 80vh);overflow-y:auto;-webkit-overflow-scrolling:touch}
+    .user-menu-actions{padding:8px;display:grid;gap:5px;max-height:70vh;overflow-y:auto}
     .user-menu-item{width:100%;text-align:left;padding:9px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-weight:700;color:var(--deep);font-size:.85rem;transition:all .15s}
     .user-menu-item:hover{border-color:rgba(232,130,12,0.5);background:#fffbf5}
     .user-menu-item.danger{border-color:#ffcccc;color:#a31212;background:#fff5f5}
@@ -245,13 +243,8 @@
     /* ===== CART ===== */
     .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200}
     .overlay.open{display:block}
-    .cart-panel{position:fixed;top:0;right:0;bottom:0;width:100vw;max-width:100vw;height:100%;background:#fff;z-index:9999;display:flex;flex-direction:column;overflow:hidden;transform:translateX(100%);transition:transform .3s ease;}
-    .cart-panel.open{
-    transform:translateX(0);
-}
-    .cart-panel.open{
-    transform:translateX(0);
-}    .cart-panel.open{transform:translateX(0)}
+    .cart-panel{position:fixed;right:0;top:0;height:100vh;width:min(400px,100vw);background:#fff;z-index:201;box-shadow:-8px 0 40px rgba(0,0,0,0.2);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s}
+    .cart-panel.open{transform:translateX(0)}
     .cart-header{background:var(--brown);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
     .cart-header h2{font-family:"Yeseva One",serif;font-size:1.2rem}
     .close-btn{background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:4px}
@@ -321,7 +314,7 @@
     .auth-modal-body{padding:24px 20px}
     .google-signin-btn{width:100%;background:#fff;border:2px solid #e0e0e0;border-radius:12px;padding:13px 18px;font-size:.95rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;color:var(--brown);font-family:"Lato",sans-serif}
     .google-signin-btn:hover{background:#f8f8f8;border-color:var(--saffron)}
-     @keyframes modalIn{from{opacity:0;transform:scale(0.9) translate3d(0,20px,0)}to{opacity:1;transform:scale(1) translate3d(0,0,0)}}
+    @keyframes modalIn{from{opacity:0;transform:scale(0.9) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
 
     /* ===== ORDER MODAL ===== */
     .order-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;align-items:center;justify-content:center;padding:10px}
@@ -1527,6 +1520,8 @@ animation:spinRefresh .7s linear infinite;
 <!-- HEADER -->
 <header>
   <div class="header-inner">
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
         <div class="logo" onclick="showPage('menu')">
       <span class="logo-icon">🛒</span>
       <div>
@@ -1784,8 +1779,6 @@ animation:spinRefresh .7s linear infinite;
 
 <!-- MAIN -->
 <div class="main">
-
-
 
   <!-- MENU PAGE -->
   <div class="page active" id="page-menu">
@@ -2323,8 +2316,8 @@ function updateDsPreview() {
 
 function onDsToggleChange() {
 
-  const toggleEl = document.getElementById('ds-enabled-toggle');
-  const enabled  = toggleEl ? toggleEl.checked : false;
+  const enabled =
+    document.getElementById('ds-enabled-toggle').checked;
 
   const feeIn =
     document.getElementById('ds-fee-amount');
@@ -2341,30 +2334,25 @@ function onDsToggleChange() {
 
 async function saveDsSettings() {
 
-  if (!db) { showToast('⚠️ Database not ready'); return; }
+  const enabled =
+    document.getElementById('ds-enabled-toggle').checked;
 
-  const toggleEl = document.getElementById('ds-enabled-toggle');
-  const feeEl    = document.getElementById('ds-fee-amount');
-  const freeEl   = document.getElementById('ds-free-above');
+  const fee =
+    Number(document.getElementById('ds-fee-amount').value) || 0;
 
-  const enabled   = toggleEl ? toggleEl.checked : false;
-  const fee       = Number(feeEl ? feeEl.value : 0) || 0;
-  const freeAbove = Number(freeEl ? freeEl.value : 0) || 0;
+  const freeAbove =
+    Number(document.getElementById('ds-free-above').value) || 0;
 
-  try {
-    await db.collection('settings')
-      .doc('deliverySettings')
-      .set({
-        enabled,
-        fee,
-        freeAbove,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-    showToast('✅ Delivery settings saved');
-  } catch (err) {
-    showToast('❌ Failed to save: ' + (err.message || err));
-    console.error('[saveDsSettings]', err);
-  }
+  await db.collection('settings')
+    .doc('deliverySettings')
+    .set({
+      enabled,
+      fee,
+      freeAbove,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+  showToast('✅ Delivery settings saved');
 }
 
 function applyDsToAdminPage() {
@@ -2395,8 +2383,6 @@ function applyDsToAdminPage() {
 
 function startDeliverySettingsListener() {
 
-  if (!db) return;
-
   db.collection('settings')
     .doc('deliverySettings')
     .onSnapshot((snap) => {
@@ -2415,14 +2401,8 @@ function startDeliverySettingsListener() {
           applyDsToAdminPage();
         }
 
-        if (typeof updateCartDeliveryFee === 'function') {
-          updateCartDeliveryFee();
-        } else if (typeof window.updateCartDeliveryFee === 'function') {
-          window.updateCartDeliveryFee();
-        }
+        updateCartDeliveryFee();
       }
-    }, (err) => {
-      console.warn('[DeliverySettings] onSnapshot error:', err.code || err.message);
     });
 }
 
@@ -2507,10 +2487,11 @@ document.addEventListener('DOMContentLoaded', () => {
         <div id="om-fee-note" style="display:none;color:#555;font-size:.88rem;line-height:1.5;margin-top:8px;border:1px dashed #d7ccc8;border-radius:10px;padding:10px;background:#fff8e1;"></div>
       </div>
       <div class="om-form" id="om-form-fields">
-        <div><label for="om-name">Your Name *</label><input type="text" id="om-name" ...></div>
-        <div><label for="om-phone">Phone *</label><input type="tel" id="om-phone" ...></div>
-        <div class="full"><label for="om-email">Email * (to link past orders)</label><input type="email" id="om-email" ...></div>
-        <label for="om-saved-address">Saved Address</label>
+        <div><label>Your Name *</label><input type="text" id="om-name" placeholder="Full name"/></div>
+        <div><label>Phone *</label><input type="tel" id="om-phone" placeholder="10-digit mobile number" maxlength="10" pattern="[0-9]{10}" inputmode="numeric"/></div>
+        <div class="full"><label>Email * (to link past orders)</label><input type="email" id="om-email" placeholder="your@email.com"/></div>
+        <div class="full" id="om-saved-address-wrap" style="display:none">
+          <label>Saved Address</label>
           <div class="om-address-picker">
             <div class="om-address-picker-row">
               <select id="om-saved-address" onchange="handleOrderAddressChange(this.value)"></select>
@@ -2521,8 +2502,8 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="full" id="om-manual-address-wrap">
           <div class="om-manual-address-grid">
-            <div class="full"><label for="om-address">Delivery Address *</label><textarea id="om-address" rows="2" placeholder="House No., Street, Area..."></textarea></div>
-            <div><label for="om-landmark">Landmark</label><input type="text" id="om-landmark" placeholder="Near school..."/></div>
+            <div class="full"><label>Delivery Address *</label><textarea id="om-address" rows="2" placeholder="House No., Street, Area..."></textarea></div>
+            <div><label>Landmark</label><input type="text" id="om-landmark" placeholder="Near school..."/></div>
             <div class="full" style="margin-top:4px">
               <div class="om-map-label">📍 Pin Your Location <span style="font-weight:400;color:#888;font-size:.7rem;text-transform:none">(tap map to pin)</span></div>
               <div class="om-map-search"><input type="text" id="om-map-search-input" placeholder="Search area in Sircilla..."/><button onclick="omMapSearch()">🔍</button></div>
@@ -2536,8 +2517,8 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           </div>
         </div>
-        <div><label for="om-time">Delivery Time</label><select id="om-time"><option>ASAP (~30 mins)</option><option>In 1 hour</option><option>Schedule for later</option></select></div>
-        <div class="full"><label for="om-note">Special Instructions</label><textarea id="om-note" rows="2" placeholder="Extra spicy, less oil..."></textarea></div>
+        <div><label>Delivery Time</label><select id="om-time"><option>ASAP (~30 mins)</option><option>In 1 hour</option><option>Schedule for later</option></select></div>
+        <div class="full"><label>Special Instructions</label><textarea id="om-note" rows="2" placeholder="Extra spicy, less oil..."></textarea></div>
         <div class="full">
           <div class="payment-section">
             <div class="payment-title">💳 Payment Method</div>
@@ -3075,6 +3056,19 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 (function() {
   'use strict';
 
+  // Store the original showPage function
+  const originalShowPage = window.showPage;
+
+  // Override showPage to save the current page
+  window.showPage = function(page) {
+    // Call the original function
+    if (originalShowPage) {
+      originalShowPage.apply(this, arguments);
+    }
+    // Save to localStorage
+    localStorage.setItem('currentPage', page);
+  };
+
   // On page load, check for saved page
   document.addEventListener('DOMContentLoaded', function() {
     const savedPage = localStorage.getItem('currentPage');
@@ -3148,6 +3142,7 @@ window.addEventListener('load',function(){
   calculateFinalTotal();
   patchUPIPayment();
 });
+})();
 </script>
 
 <script>
@@ -3423,7 +3418,7 @@ Customer: ${order.customerName || order.name || 'Customer'}
 Grand Total: ₹${order.grandTotal || order.total || 0}
 Payment: ${order.paymentMethod || 'N/A'}`;
       const showNow = () => {
-        new Notification('🛒 New Order Received', { body });
+        new Notification('🛒 New Order Received', { body, icon: './favicon.jpg' });
       };
       if ('Notification' in window) {
         if (Notification.permission === 'granted') {
@@ -3694,7 +3689,23 @@ function toggleSidebar() {
     }
   }
 
-  window.saveActivePage = saveActivePage;
+  /* ── patch showPage to trigger ticket loading and persist page state ── */
+  function hookShowPage() {
+    const original = window.showPage;
+    if (typeof original !== 'function') {
+      // showPage not yet defined — retry
+      setTimeout(hookShowPage, 400);
+      return;
+    }
+    window.showPage = function(page, ...rest) {
+      original.call(this, page, ...rest);
+      saveActivePage(page);
+      if (page === 'support') {
+        // Small delay so the page element is visible first
+        setTimeout(loadTickets, 80);
+      }
+    };
+  }
 
   /* ── patch openSupportForm so it shows the ticket form ── */
   function hookOpenSupportForm() {
@@ -4458,9 +4469,6 @@ function toggleSidebar() {
     updateCartDeliveryFee();
   }
 
-  // Expose globally so earlier script blocks (startDeliverySettingsListener) can call it
-  window.updateCartDeliveryFee = updateCartDeliveryFee;
-
   function isWithinBusinessHours(settings) {
     if (!settings?.businessHoursEnabled) return true;
     const now = new Date();
@@ -4598,6 +4606,7 @@ function toggleSidebar() {
 
   /* ── bootstrap: run after DOM + Firebase ready ── */
   function bootstrap() {
+    hookShowPage();
     restoreLastActivePage();
     hookOpenSupportForm();
     hookSubmitTicket();
@@ -5420,7 +5429,7 @@ window.GFY_submitRating=async function(itemId,stars,reviewText){
 function gfyNotif(title,body){
   if(!('Notification'in window))return;
   if(Notification.permission==='granted'){
-    try{new Notification(title,{body});}catch(e){}
+    try{new Notification(title,{body,icon:'https://groceryforyou.github.io/favicon.ico'});}catch(e){}
   }else if(Notification.permission==='default'){
     Notification.requestPermission().then(p=>{
       if(p==='granted')try{new Notification(title,{body});}catch(e){}
@@ -6608,11 +6617,10 @@ Object.defineProperty(window, 'currentUser', {
       </div>
     `).join('');
 
-    const overlay = document.getElementById('manage-cats-modal-overlay');
-    if (overlay) overlay.classList.add('open');
+    document.getElementById('manage-cats-modal-overlay').classList.add('open');
     if (typeof window.lockBodyScroll === 'function') window.lockBodyScroll();
   };
- 
+
   window.closeManageCatsModal = function() {
     const overlay = document.getElementById('manage-cats-modal-overlay');
     if (overlay) {
@@ -6620,20 +6628,17 @@ Object.defineProperty(window, 'currentUser', {
       if (typeof window.unlockBodyScroll === 'function') window.unlockBodyScroll();
     }
   };
- 
+
   window.openEditCatModal = function(catId) {
     const allCats = (typeof window.categories !== 'undefined') ? window.categories : [];
     const cat = allCats.find(c => c.id === catId);
     if (!cat) return;
- 
-    const editId = document.getElementById('edit-cat-id');
-    const editName = document.getElementById('edit-cat-name');
-    const editEmoji = document.getElementById('edit-cat-emoji-custom');
-    if (editId) editId.value = cat.id;
-    if (editName) editName.value = cat.name;
-    if (editEmoji) editEmoji.value = cat.emoji;
+
+    document.getElementById('edit-cat-id').value = cat.id;
+    document.getElementById('edit-cat-name').value = cat.name;
+    document.getElementById('edit-cat-emoji-custom').value = cat.emoji;
     window.selectedEditCatEmoji = cat.emoji;
- 
+
     // Render emojis in the row
     const emojiRow = document.getElementById('edit-cat-emoji-row');
     if (emojiRow) {
@@ -6642,15 +6647,13 @@ Object.defineProperty(window, 'currentUser', {
         <span class="cat-emoji-opt ${emoji === cat.emoji ? 'selected' : ''}" onclick="selectEditCatEmoji('${emoji}')">${emoji}</span>
       `).join('');
     }
- 
+
     // Close manage modal first so only one modal is open
-    const manageOverlay = document.getElementById('manage-cats-modal-overlay');
-    if (manageOverlay) manageOverlay.classList.remove('open');
- 
-    const editOverlay = document.getElementById('edit-cat-modal-overlay');
-    if (editOverlay) editOverlay.classList.add('open');
+    document.getElementById('manage-cats-modal-overlay').classList.remove('open');
+
+    document.getElementById('edit-cat-modal-overlay').classList.add('open');
   };
- 
+
   window.selectEditCatEmoji = function(emoji) {
     window.selectedEditCatEmoji = emoji;
     document.querySelectorAll('#edit-cat-emoji-row .cat-emoji-opt').forEach(opt => {
@@ -6659,10 +6662,9 @@ Object.defineProperty(window, 'currentUser', {
     const customInput = document.getElementById('edit-cat-emoji-custom');
     if (customInput) customInput.value = emoji;
   };
- 
+
   window.closeEditCatModal = function() {
-    const editOverlay = document.getElementById('edit-cat-modal-overlay');
-    if (editOverlay) editOverlay.classList.remove('open');
+    document.getElementById('edit-cat-modal-overlay').classList.remove('open');
     // Reopen manage modal
     window.openManageCatsModal();
   };
@@ -7270,6 +7272,44 @@ document.addEventListener('DOMContentLoaded', function() {
     syncTotalsUI();
     setTimeout(syncTotalsUI, 300);
 
+    // Prevent duplicate order placement from multiple clicks (double-submitting)
+    if (typeof window.submitOrder === 'function') {
+        const originalSubmitOrder = window.submitOrder;
+        let isSubmitting = false;
+        window.submitOrder = function() {
+            if (isSubmitting) return;
+            isSubmitting = true;
+            
+            const btn = document.querySelector('.om-place');
+            const originalText = btn ? btn.innerText : '🛍️ Place Order';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = '⏳ Placing...';
+                btn.style.opacity = '0.7';
+            }
+            
+            try {
+                originalSubmitOrder();
+            } catch (err) {
+                isSubmitting = false;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                    btn.style.opacity = '';
+                }
+            }
+            
+            // Safety timeout to reset button if order placement fails silently or payment checkout is closed
+            setTimeout(function() {
+                isSubmitting = false;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                    btn.style.opacity = '';
+                }
+            }, 6000);
+        };
+    }
 });
 
 window.addEventListener('load', function() {
@@ -7279,100 +7319,5 @@ window.addEventListener('load', function() {
 })();
 </script>
 
-<script>
-/* ── showPage APK bridge ────────────────────────────────────────────────
-   Intercepts APK-native calls (cart, checkout) and maps bare page names
-   to the correct page IDs used in the HTML. The original showPage (which
-   already knows about page-menu, page-tracking, etc.) is called for all
-   real page transitions so there is no double hide/show conflict.
-──────────────────────────────────────────────────────────────────────── */
-(function () {
-  // Map bare APK names → the name the original showPage understands
-  var PAGE_NAME_MAP = {
-    'home'             : 'menu',
-    'cart'             : 'menu',        // cart is a slide-over, not a page
-    'cart-page'        : 'menu',
-    'cart-content'     : 'menu',
-    'cart-section'     : 'menu',
-    'checkout'         : 'menu',        // checkout opens a modal
-    'order'            : 'menu',
-    'place-order'      : 'menu',
-    'profile'          : 'menu',        // profile is a modal
-    // pass-throughs (same name already works with the original)
-    'menu'             : 'menu',
-    'tracking'         : 'tracking',
-    'orders'           : 'orders',
-    'support'          : 'support',
-    'dashboard'        : 'dashboard',
-    'manage'           : 'manage',
-    'payments'         : 'payments',
-    'customers'        : 'customers',
-    'delivery'         : 'delivery',
-    'admin-support'    : 'admin-support',
-    'business-hours'   : 'business-hours',
-    'delivery-settings': 'delivery-settings'
-  };
-
-  var _orig = window.showPage;
-
-  window.showPage = function (page) {
-    if (!page) return;
-
-    // 1. Intercept cart — open the slide-over panel instead of switching page
-    if (page === 'cart' || page === 'cart-page' || page === 'cart-content' || page === 'cart-section') {
-      if (typeof openCart === 'function') openCart();
-      else if (typeof window.openCart === 'function') window.openCart();
-      if (typeof setMobNav === 'function') setMobNav('menu');
-      page = 'menu';
-    }
-
-    // 2. Intercept checkout/order — open the order modal instead
-    if (page === 'checkout' || page === 'order' || page === 'place-order') {
-      if (typeof openOrderModal === 'function') openOrderModal();
-      else if (typeof window.openOrderModal === 'function') window.openOrderModal();
-      page = 'menu';
-    }
-
-    // 3. Normalise name (home → menu, etc.)
-    var mapped = PAGE_NAME_MAP[page];
-    if (mapped !== undefined) page = mapped;
-
-    // 4. Delegate 100% to the original showPage (it handles hide/show/init correctly)
-    if (typeof _orig === 'function' && _orig !== window.showPage) {
-      try {
-        _orig.call(this, page);
-        return; // original handled it — we are done
-      } catch (e) {
-        console.warn('[showPage bridge] original crashed for "' + page + '", using fallback.', e);
-      }
-    }
-
-    // 5. Pure fallback (only reached if original is absent or threw)
-    var ALL_PAGE_IDS = [
-      'page-menu','page-tracking','page-orders','page-support',
-      'page-dashboard','page-manage','page-payments','page-customers',
-      'page-delivery','page-admin-support','page-business-hours',
-      'page-delivery-settings'
-    ];
-    ALL_PAGE_IDS.forEach(function (id) {
-      var el = document.getElementById(id);
-      if (el) { el.classList.remove('active'); el.style.display = 'none'; }
-    });
-    var target = document.getElementById('page-' + page) || document.getElementById(page);
-    if (target) {
-      target.classList.add('active');
-      target.style.display = '';
-    } else {
-      console.error('[showPage bridge] No element found for page: "' + page + '"');
-    }
-
-    // 6. Persist state
-    try { localStorage.setItem('currentPage', page); } catch(e) {}
-    if (typeof window.saveActivePage === 'function') {
-      try { window.saveActivePage(page); } catch(e) {}
-    }
-  };
-})();
-</script>
 </body>
 </html>

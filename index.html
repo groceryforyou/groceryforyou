@@ -7280,129 +7280,96 @@ window.addEventListener('load', function() {
 </script>
 
 <script>
-/* ── showPage central unified implementation ───────────────────────────
-   This is the single central authority for handling showPage transitions.
-   - It intercepts natively triggered cart & checkout calls from APK environment.
-   - It runs native transition fallback with absolute element null-safety.
-   - It persists page state via standard localStorage and window.saveActivePage.
-   - It triggers support ticket loads on transitioning to the support page.
+/* ── showPage APK bridge ────────────────────────────────────────────────
+   Intercepts APK-native calls (cart, checkout) and maps bare page names
+   to the correct page IDs used in the HTML. The original showPage (which
+   already knows about page-menu, page-tracking, etc.) is called for all
+   real page transitions so there is no double hide/show conflict.
 ──────────────────────────────────────────────────────────────────────── */
 (function () {
-  // Map of bare name → real element ID in the HTML
-  var PAGE_ID_MAP = {
-    'home'            : 'page-menu',
-    'menu'            : 'page-menu',
-    'cart'            : 'page-menu',       // cart is a slide-over panel, not a page
-    'orders'          : 'page-orders',
-    'profile'         : 'page-menu',       // profile uses a modal, not a page div
-    'support'         : 'page-support',
-    'tracking'        : 'page-tracking',
-    'dashboard'       : 'page-dashboard',
-    'manage'          : 'page-manage',
-    'payments'        : 'page-payments',
-    'customers'       : 'page-customers',
-    'delivery'        : 'page-delivery',
-    'admin-support'   : 'page-admin-support',
-    'business-hours'  : 'page-business-hours',
-    'delivery-settings': 'page-delivery-settings'
+  // Map bare APK names → the name the original showPage understands
+  var PAGE_NAME_MAP = {
+    'home'             : 'menu',
+    'cart'             : 'menu',        // cart is a slide-over, not a page
+    'cart-page'        : 'menu',
+    'cart-content'     : 'menu',
+    'cart-section'     : 'menu',
+    'checkout'         : 'menu',        // checkout opens a modal
+    'order'            : 'menu',
+    'place-order'      : 'menu',
+    'profile'          : 'menu',        // profile is a modal
+    // pass-throughs (same name already works with the original)
+    'menu'             : 'menu',
+    'tracking'         : 'tracking',
+    'orders'           : 'orders',
+    'support'          : 'support',
+    'dashboard'        : 'dashboard',
+    'manage'           : 'manage',
+    'payments'         : 'payments',
+    'customers'        : 'customers',
+    'delivery'         : 'delivery',
+    'admin-support'    : 'admin-support',
+    'business-hours'   : 'business-hours',
+    'delivery-settings': 'delivery-settings'
   };
-
-  var ALL_PAGE_IDS = [
-    'page-menu','page-tracking','page-orders','page-support',
-    'page-dashboard','page-manage','page-payments','page-customers',
-    'page-delivery','page-admin-support','page-business-hours',
-    'page-delivery-settings'
-  ];
-
-  function resolveEl(name) {
-    if (!name) return null;
-    // 1. Try the map
-    var mappedId = PAGE_ID_MAP[name];
-    if (mappedId) {
-      var el = document.getElementById(mappedId);
-      if (el) return el;
-    }
-    // 2. Try page-{name}
-    var el2 = document.getElementById('page-' + name);
-    if (el2) return el2;
-    // 3. Try bare name
-    var el3 = document.getElementById(name);
-    if (el3) return el3;
-    return null;
-  }
 
   var _orig = window.showPage;
 
   window.showPage = function (page) {
     if (!page) return;
 
-    // 1. Intercept Cart-related pages called natively
+    // 1. Intercept cart — open the slide-over panel instead of switching page
     if (page === 'cart' || page === 'cart-page' || page === 'cart-content' || page === 'cart-section') {
-      if (typeof openCart === 'function') {
-        openCart();
-      } else if (typeof window.openCart === 'function') {
-        window.openCart();
-      }
-      if (typeof setMobNav === 'function') {
-        setMobNav('menu');
-      }
-      page = 'menu'; // Fallback to menu background
-    }
-
-    // 2. Intercept Checkout/Order related pages called natively
-    if (page === 'checkout' || page === 'order' || page === 'place-order') {
-      if (typeof openOrderModal === 'function') {
-        openOrderModal();
-      } else if (typeof window.openOrderModal === 'function') {
-        window.openOrderModal();
-      }
+      if (typeof openCart === 'function') openCart();
+      else if (typeof window.openCart === 'function') window.openCart();
+      if (typeof setMobNav === 'function') setMobNav('menu');
       page = 'menu';
     }
 
-    // 3. Try original chained wrappers first (if any are left)
-    var targetEl = resolveEl(page);
-    if (targetEl && typeof _orig === 'function' && _orig !== window.showPage) {
+    // 2. Intercept checkout/order — open the order modal instead
+    if (page === 'checkout' || page === 'order' || page === 'place-order') {
+      if (typeof openOrderModal === 'function') openOrderModal();
+      else if (typeof window.openOrderModal === 'function') window.openOrderModal();
+      page = 'menu';
+    }
+
+    // 3. Normalise name (home → menu, etc.)
+    var mapped = PAGE_NAME_MAP[page];
+    if (mapped !== undefined) page = mapped;
+
+    // 4. Delegate 100% to the original showPage (it handles hide/show/init correctly)
+    if (typeof _orig === 'function' && _orig !== window.showPage) {
       try {
         _orig.call(this, page);
+        return; // original handled it — we are done
       } catch (e) {
-        console.warn('[showPage] original crashed for "' + page + '", using fallback.', e);
+        console.warn('[showPage bridge] original crashed for "' + page + '", using fallback.', e);
       }
     }
 
-    // 4. Force/Fallback switch to prevent blank screens
+    // 5. Pure fallback (only reached if original is absent or threw)
+    var ALL_PAGE_IDS = [
+      'page-menu','page-tracking','page-orders','page-support',
+      'page-dashboard','page-manage','page-payments','page-customers',
+      'page-delivery','page-admin-support','page-business-hours',
+      'page-delivery-settings'
+    ];
     ALL_PAGE_IDS.forEach(function (id) {
       var el = document.getElementById(id);
-      if (el) {
-        el.classList.remove('active');
-        el.style.display = 'none';
-      }
+      if (el) { el.classList.remove('active'); el.style.display = 'none'; }
     });
-
-    var target = resolveEl(page);
+    var target = document.getElementById('page-' + page) || document.getElementById(page);
     if (target) {
       target.classList.add('active');
       target.style.display = '';
     } else {
-      console.error('[showPage] No element found for page: "' + page + '"');
+      console.error('[showPage bridge] No element found for page: "' + page + '"');
     }
 
-    // 5. Persist Page State
-    try {
-      localStorage.setItem('currentPage', page);
-    } catch(e) {}
+    // 6. Persist state
+    try { localStorage.setItem('currentPage', page); } catch(e) {}
     if (typeof window.saveActivePage === 'function') {
-      try { window.saveActivePage(page); } catch (e) {}
-    }
-
-    // 6. Trigger Support tickets loading if page is support
-    if (page === 'support') {
-      setTimeout(function() {
-        if (typeof loadTickets === 'function') {
-          loadTickets();
-        } else if (typeof window.loadTickets === 'function') {
-          window.loadTickets();
-        }
-      }, 80);
+      try { window.saveActivePage(page); } catch(e) {}
     }
   };
 })();

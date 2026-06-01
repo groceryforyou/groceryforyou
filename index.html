@@ -7367,7 +7367,7 @@ window.addEventListener('load', function() {
     // 3. Try original chained wrappers first (if any are left)
     if (typeof _orig === 'function' && _orig !== window.showPage) {
       try {
-        _orig.apply(this, arguments);
+        _orig.call(this, page);
       } catch (e) {
         console.warn('[showPage] original crashed for "' + page + '", using fallback.', e);
       }

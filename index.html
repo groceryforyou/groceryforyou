@@ -1785,6 +1785,8 @@ animation:spinRefresh .7s linear infinite;
 <!-- MAIN -->
 <div class="main">
 
+
+
   <!-- MENU PAGE -->
   <div class="page active" id="page-menu">
     <div class="menu-filter-bar" id="menu-filter-bar"></div>
@@ -3074,19 +3076,6 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 (function() {
   'use strict';
 
-  // Store the original showPage function
-  const originalShowPage = window.showPage;
-
-  // Override showPage to save the current page
-  window.showPage = function(page) {
-    // Call the original function
-    if (originalShowPage) {
-      originalShowPage.apply(this, arguments);
-    }
-    // Save to localStorage
-    localStorage.setItem('currentPage', page);
-  };
-
   // On page load, check for saved page
   document.addEventListener('DOMContentLoaded', function() {
     const savedPage = localStorage.getItem('currentPage');
@@ -3706,23 +3695,7 @@ function toggleSidebar() {
     }
   }
 
-  /* ── patch showPage to trigger ticket loading and persist page state ── */
-  function hookShowPage() {
-    const original = window.showPage;
-    if (typeof original !== 'function') {
-      // showPage not yet defined — retry
-      setTimeout(hookShowPage, 400);
-      return;
-    }
-    window.showPage = function(page, ...rest) {
-      original.call(this, page, ...rest);
-      saveActivePage(page);
-      if (page === 'support') {
-        // Small delay so the page element is visible first
-        setTimeout(loadTickets, 80);
-      }
-    };
-  }
+  window.saveActivePage = saveActivePage;
 
   /* ── patch openSupportForm so it shows the ticket form ── */
   function hookOpenSupportForm() {
@@ -4626,7 +4599,6 @@ function toggleSidebar() {
 
   /* ── bootstrap: run after DOM + Firebase ready ── */
   function bootstrap() {
-    hookShowPage();
     restoreLastActivePage();
     hookOpenSupportForm();
     hookSubmitTicket();
@@ -6637,10 +6609,11 @@ Object.defineProperty(window, 'currentUser', {
       </div>
     `).join('');
 
-    document.getElementById('manage-cats-modal-overlay').classList.add('open');
+    const overlay = document.getElementById('manage-cats-modal-overlay');
+    if (overlay) overlay.classList.add('open');
     if (typeof window.lockBodyScroll === 'function') window.lockBodyScroll();
   };
-
+ 
   window.closeManageCatsModal = function() {
     const overlay = document.getElementById('manage-cats-modal-overlay');
     if (overlay) {
@@ -6648,17 +6621,20 @@ Object.defineProperty(window, 'currentUser', {
       if (typeof window.unlockBodyScroll === 'function') window.unlockBodyScroll();
     }
   };
-
+ 
   window.openEditCatModal = function(catId) {
     const allCats = (typeof window.categories !== 'undefined') ? window.categories : [];
     const cat = allCats.find(c => c.id === catId);
     if (!cat) return;
-
-    document.getElementById('edit-cat-id').value = cat.id;
-    document.getElementById('edit-cat-name').value = cat.name;
-    document.getElementById('edit-cat-emoji-custom').value = cat.emoji;
+ 
+    const editId = document.getElementById('edit-cat-id');
+    const editName = document.getElementById('edit-cat-name');
+    const editEmoji = document.getElementById('edit-cat-emoji-custom');
+    if (editId) editId.value = cat.id;
+    if (editName) editName.value = cat.name;
+    if (editEmoji) editEmoji.value = cat.emoji;
     window.selectedEditCatEmoji = cat.emoji;
-
+ 
     // Render emojis in the row
     const emojiRow = document.getElementById('edit-cat-emoji-row');
     if (emojiRow) {
@@ -6667,13 +6643,15 @@ Object.defineProperty(window, 'currentUser', {
         <span class="cat-emoji-opt ${emoji === cat.emoji ? 'selected' : ''}" onclick="selectEditCatEmoji('${emoji}')">${emoji}</span>
       `).join('');
     }
-
+ 
     // Close manage modal first so only one modal is open
-    document.getElementById('manage-cats-modal-overlay').classList.remove('open');
-
-    document.getElementById('edit-cat-modal-overlay').classList.add('open');
+    const manageOverlay = document.getElementById('manage-cats-modal-overlay');
+    if (manageOverlay) manageOverlay.classList.remove('open');
+ 
+    const editOverlay = document.getElementById('edit-cat-modal-overlay');
+    if (editOverlay) editOverlay.classList.add('open');
   };
-
+ 
   window.selectEditCatEmoji = function(emoji) {
     window.selectedEditCatEmoji = emoji;
     document.querySelectorAll('#edit-cat-emoji-row .cat-emoji-opt').forEach(opt => {
@@ -6682,9 +6660,10 @@ Object.defineProperty(window, 'currentUser', {
     const customInput = document.getElementById('edit-cat-emoji-custom');
     if (customInput) customInput.value = emoji;
   };
-
+ 
   window.closeEditCatModal = function() {
-    document.getElementById('edit-cat-modal-overlay').classList.remove('open');
+    const editOverlay = document.getElementById('edit-cat-modal-overlay');
+    if (editOverlay) editOverlay.classList.remove('open');
     // Reopen manage modal
     window.openManageCatsModal();
   };
@@ -7302,11 +7281,12 @@ window.addEventListener('load', function() {
 </script>
 
 <script>
-/* ── showPage null-safety fix ──────────────────────────────────────────
-   The obfuscated showPage() calls getElementById(page) expecting IDs
-   like "menu", "cart" etc. — but the real divs use "page-menu",
-   "page-cart" etc. This wrapper translates bare names → real IDs,
-   hides all pages, then shows the target so classList never hits null.
+/* ── showPage central unified implementation ───────────────────────────
+   This is the single central authority for handling showPage transitions.
+   - It intercepts natively triggered cart & checkout calls from APK environment.
+   - It runs native transition fallback with absolute element null-safety.
+   - It persists page state via standard localStorage and window.saveActivePage.
+   - It triggers support ticket loads on transitioning to the support page.
 ──────────────────────────────────────────────────────────────────────── */
 (function () {
   // Map of bare name → real element ID in the HTML
@@ -7336,6 +7316,7 @@ window.addEventListener('load', function() {
   ];
 
   function resolveEl(name) {
+    if (!name) return null;
     // 1. Try the map
     var mappedId = PAGE_ID_MAP[name];
     if (mappedId) {
@@ -7354,16 +7335,42 @@ window.addEventListener('load', function() {
   var _orig = window.showPage;
 
   window.showPage = function (page) {
-    // Try original first
-    if (typeof _orig === 'function') {
+    if (!page) return;
+
+    // 1. Intercept Cart-related pages called natively
+    if (page === 'cart' || page === 'cart-page' || page === 'cart-content' || page === 'cart-section') {
+      if (typeof openCart === 'function') {
+        openCart();
+      } else if (typeof window.openCart === 'function') {
+        window.openCart();
+      }
+      if (typeof setMobNav === 'function') {
+        setMobNav('menu');
+      }
+      page = 'menu'; // Fallback to menu background
+    }
+
+    // 2. Intercept Checkout/Order related pages called natively
+    if (page === 'checkout' || page === 'order' || page === 'place-order') {
+      if (typeof openOrderModal === 'function') {
+        openOrderModal();
+      } else if (typeof window.openOrderModal === 'function') {
+        window.openOrderModal();
+      }
+      page = 'menu';
+    }
+
+    // 3. Try original chained wrappers first (if any are left)
+    var targetEl = resolveEl(page);
+    if (targetEl && typeof _orig === 'function' && _orig !== window.showPage) {
       try {
-        return _orig.apply(this, arguments);
+        _orig.call(this, page);
       } catch (e) {
         console.warn('[showPage] original crashed for "' + page + '", using fallback.', e);
       }
     }
 
-    // Fallback: manual page switch
+    // 4. Force/Fallback switch to prevent blank screens
     ALL_PAGE_IDS.forEach(function (id) {
       var el = document.getElementById(id);
       if (el) {
@@ -7380,8 +7387,24 @@ window.addEventListener('load', function() {
       console.error('[showPage] No element found for page: "' + page + '"');
     }
 
-    // Persist
-    try { localStorage.setItem('currentPage', page); } catch(e) {}
+    // 5. Persist Page State
+    try {
+      localStorage.setItem('currentPage', page);
+    } catch(e) {}
+    if (typeof window.saveActivePage === 'function') {
+      try { window.saveActivePage(page); } catch (e) {}
+    }
+
+    // 6. Trigger Support tickets loading if page is support
+    if (page === 'support') {
+      setTimeout(function() {
+        if (typeof loadTickets === 'function') {
+          loadTickets();
+        } else if (typeof window.loadTickets === 'function') {
+          window.loadTickets();
+        }
+      }, 80);
+    }
   };
 })();
 </script>

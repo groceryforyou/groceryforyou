@@ -1785,6 +1785,12 @@ animation:spinRefresh .7s linear infinite;
 <!-- MAIN -->
 <div class="main">
 
+  <!-- Compatibility DOM elements for null-safety with native/APK wrappers -->
+  <div id="cart" class="page" style="display:none"></div>
+  <div id="cart-page" class="page" style="display:none"></div>
+  <div id="cart-content" class="page" style="display:none"></div>
+  <div id="cart-section" class="page" style="display:none"></div>
+
   <!-- MENU PAGE -->
   <div class="page active" id="page-menu">
     <div class="menu-filter-bar" id="menu-filter-bar"></div>
@@ -3079,12 +3085,17 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 
   // Override showPage to save the current page
   window.showPage = function(page) {
-    // Call the original function
-    if (originalShowPage) {
-      originalShowPage.apply(this, arguments);
+    if (page) {
+      // Call the original function safely
+      if (originalShowPage) {
+        try {
+          originalShowPage.apply(this, arguments);
+        } catch (e) {
+          console.warn('[showPage] originalShowPage crashed for: ' + page, e);
+        }
+      }
+      try { localStorage.setItem('currentPage', page); } catch(e) {}
     }
-    // Save to localStorage
-    localStorage.setItem('currentPage', page);
   };
 
   // On page load, check for saved page
@@ -3715,11 +3726,23 @@ function toggleSidebar() {
       return;
     }
     window.showPage = function(page, ...rest) {
-      original.call(this, page, ...rest);
-      saveActivePage(page);
-      if (page === 'support') {
-        // Small delay so the page element is visible first
-        setTimeout(loadTickets, 80);
+      if (page) {
+        if (typeof original === 'function') {
+          try {
+            original.call(this, page, ...rest);
+          } catch (e) {
+            console.warn('[showPage] original call crashed inside hookShowPage for: ' + page, e);
+          }
+        }
+        if (typeof saveActivePage === 'function') {
+          saveActivePage(page);
+        }
+        if (page === 'support') {
+          // Small delay so the page element is visible first
+          setTimeout(function() {
+            if (typeof loadTickets === 'function') loadTickets();
+          }, 80);
+        }
       }
     };
   }
@@ -6637,10 +6660,11 @@ Object.defineProperty(window, 'currentUser', {
       </div>
     `).join('');
 
-    document.getElementById('manage-cats-modal-overlay').classList.add('open');
+    const overlay = document.getElementById('manage-cats-modal-overlay');
+    if (overlay) overlay.classList.add('open');
     if (typeof window.lockBodyScroll === 'function') window.lockBodyScroll();
   };
-
+ 
   window.closeManageCatsModal = function() {
     const overlay = document.getElementById('manage-cats-modal-overlay');
     if (overlay) {
@@ -6648,17 +6672,20 @@ Object.defineProperty(window, 'currentUser', {
       if (typeof window.unlockBodyScroll === 'function') window.unlockBodyScroll();
     }
   };
-
+ 
   window.openEditCatModal = function(catId) {
     const allCats = (typeof window.categories !== 'undefined') ? window.categories : [];
     const cat = allCats.find(c => c.id === catId);
     if (!cat) return;
-
-    document.getElementById('edit-cat-id').value = cat.id;
-    document.getElementById('edit-cat-name').value = cat.name;
-    document.getElementById('edit-cat-emoji-custom').value = cat.emoji;
+ 
+    const editId = document.getElementById('edit-cat-id');
+    const editName = document.getElementById('edit-cat-name');
+    const editEmoji = document.getElementById('edit-cat-emoji-custom');
+    if (editId) editId.value = cat.id;
+    if (editName) editName.value = cat.name;
+    if (editEmoji) editEmoji.value = cat.emoji;
     window.selectedEditCatEmoji = cat.emoji;
-
+ 
     // Render emojis in the row
     const emojiRow = document.getElementById('edit-cat-emoji-row');
     if (emojiRow) {
@@ -6667,13 +6694,15 @@ Object.defineProperty(window, 'currentUser', {
         <span class="cat-emoji-opt ${emoji === cat.emoji ? 'selected' : ''}" onclick="selectEditCatEmoji('${emoji}')">${emoji}</span>
       `).join('');
     }
-
+ 
     // Close manage modal first so only one modal is open
-    document.getElementById('manage-cats-modal-overlay').classList.remove('open');
-
-    document.getElementById('edit-cat-modal-overlay').classList.add('open');
+    const manageOverlay = document.getElementById('manage-cats-modal-overlay');
+    if (manageOverlay) manageOverlay.classList.remove('open');
+ 
+    const editOverlay = document.getElementById('edit-cat-modal-overlay');
+    if (editOverlay) editOverlay.classList.add('open');
   };
-
+ 
   window.selectEditCatEmoji = function(emoji) {
     window.selectedEditCatEmoji = emoji;
     document.querySelectorAll('#edit-cat-emoji-row .cat-emoji-opt').forEach(opt => {
@@ -6682,9 +6711,10 @@ Object.defineProperty(window, 'currentUser', {
     const customInput = document.getElementById('edit-cat-emoji-custom');
     if (customInput) customInput.value = emoji;
   };
-
+ 
   window.closeEditCatModal = function() {
-    document.getElementById('edit-cat-modal-overlay').classList.remove('open');
+    const editOverlay = document.getElementById('edit-cat-modal-overlay');
+    if (editOverlay) editOverlay.classList.remove('open');
     // Reopen manage modal
     window.openManageCatsModal();
   };
@@ -7307,6 +7337,8 @@ window.addEventListener('load', function() {
    like "menu", "cart" etc. — but the real divs use "page-menu",
    "page-cart" etc. This wrapper translates bare names → real IDs,
    hides all pages, then shows the target so classList never hits null.
+   Additionally, it routes cart-related and checkout-related natively-triggered
+   calls to their appropriate overlay functions without crashing.
 ──────────────────────────────────────────────────────────────────────── */
 (function () {
   // Map of bare name → real element ID in the HTML
@@ -7336,6 +7368,7 @@ window.addEventListener('load', function() {
   ];
 
   function resolveEl(name) {
+    if (!name) return null;
     // 1. Try the map
     var mappedId = PAGE_ID_MAP[name];
     if (mappedId) {
@@ -7354,16 +7387,41 @@ window.addEventListener('load', function() {
   var _orig = window.showPage;
 
   window.showPage = function (page) {
-    // Try original first
+    if (!page) return;
+
+    // 1. Intercept Cart-related pages called natively
+    if (page === 'cart' || page === 'cart-page' || page === 'cart-content' || page === 'cart-section') {
+      if (typeof openCart === 'function') {
+        openCart();
+      } else if (typeof window.openCart === 'function') {
+        window.openCart();
+      }
+      if (typeof setMobNav === 'function') {
+        setMobNav('menu');
+      }
+      page = 'menu'; // Fallback to menu background
+    }
+
+    // 2. Intercept Checkout/Order related pages called natively
+    if (page === 'checkout' || page === 'order' || page === 'place-order') {
+      if (typeof openOrderModal === 'function') {
+        openOrderModal();
+      } else if (typeof window.openOrderModal === 'function') {
+        window.openOrderModal();
+      }
+      page = 'menu';
+    }
+
+    // 3. Try original chained wrappers first
     if (typeof _orig === 'function') {
       try {
-        return _orig.apply(this, arguments);
+        _orig.apply(this, arguments);
       } catch (e) {
         console.warn('[showPage] original crashed for "' + page + '", using fallback.', e);
       }
     }
 
-    // Fallback: manual page switch
+    // 4. Force/Fallback switch to prevent blank screens
     ALL_PAGE_IDS.forEach(function (id) {
       var el = document.getElementById(id);
       if (el) {
@@ -7380,7 +7438,7 @@ window.addEventListener('load', function() {
       console.error('[showPage] No element found for page: "' + page + '"');
     }
 
-    // Persist
+    // Persist Page State
     try { localStorage.setItem('currentPage', page); } catch(e) {}
   };
 })();

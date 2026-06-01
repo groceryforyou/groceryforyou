@@ -3080,24 +3080,6 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
 (function() {
   'use strict';
 
-  // Store the original showPage function
-  const originalShowPage = window.showPage;
-
-  // Override showPage to save the current page
-  window.showPage = function(page) {
-    if (page) {
-      // Call the original function safely
-      if (originalShowPage) {
-        try {
-          originalShowPage.apply(this, arguments);
-        } catch (e) {
-          console.warn('[showPage] originalShowPage crashed for: ' + page, e);
-        }
-      }
-      try { localStorage.setItem('currentPage', page); } catch(e) {}
-    }
-  };
-
   // On page load, check for saved page
   document.addEventListener('DOMContentLoaded', function() {
     const savedPage = localStorage.getItem('currentPage');
@@ -3717,35 +3699,7 @@ function toggleSidebar() {
     }
   }
 
-  /* ── patch showPage to trigger ticket loading and persist page state ── */
-  function hookShowPage() {
-    const original = window.showPage;
-    if (typeof original !== 'function') {
-      // showPage not yet defined — retry
-      setTimeout(hookShowPage, 400);
-      return;
-    }
-    window.showPage = function(page, ...rest) {
-      if (page) {
-        if (typeof original === 'function') {
-          try {
-            original.call(this, page, ...rest);
-          } catch (e) {
-            console.warn('[showPage] original call crashed inside hookShowPage for: ' + page, e);
-          }
-        }
-        if (typeof saveActivePage === 'function') {
-          saveActivePage(page);
-        }
-        if (page === 'support') {
-          // Small delay so the page element is visible first
-          setTimeout(function() {
-            if (typeof loadTickets === 'function') loadTickets();
-          }, 80);
-        }
-      }
-    };
-  }
+  window.saveActivePage = saveActivePage;
 
   /* ── patch openSupportForm so it shows the ticket form ── */
   function hookOpenSupportForm() {
@@ -4649,7 +4603,6 @@ function toggleSidebar() {
 
   /* ── bootstrap: run after DOM + Firebase ready ── */
   function bootstrap() {
-    hookShowPage();
     restoreLastActivePage();
     hookOpenSupportForm();
     hookSubmitTicket();
@@ -7332,13 +7285,12 @@ window.addEventListener('load', function() {
 </script>
 
 <script>
-/* ── showPage null-safety fix ──────────────────────────────────────────
-   The obfuscated showPage() calls getElementById(page) expecting IDs
-   like "menu", "cart" etc. — but the real divs use "page-menu",
-   "page-cart" etc. This wrapper translates bare names → real IDs,
-   hides all pages, then shows the target so classList never hits null.
-   Additionally, it routes cart-related and checkout-related natively-triggered
-   calls to their appropriate overlay functions without crashing.
+/* ── showPage central unified implementation ───────────────────────────
+   This is the single central authority for handling showPage transitions.
+   - It intercepts natively triggered cart & checkout calls from APK environment.
+   - It runs native transition fallback with absolute element null-safety.
+   - It persists page state via standard localStorage and window.saveActivePage.
+   - It triggers support ticket loads on transitioning to the support page.
 ──────────────────────────────────────────────────────────────────────── */
 (function () {
   // Map of bare name → real element ID in the HTML
@@ -7412,8 +7364,8 @@ window.addEventListener('load', function() {
       page = 'menu';
     }
 
-    // 3. Try original chained wrappers first
-    if (typeof _orig === 'function') {
+    // 3. Try original chained wrappers first (if any are left)
+    if (typeof _orig === 'function' && _orig !== window.showPage) {
       try {
         _orig.apply(this, arguments);
       } catch (e) {
@@ -7438,8 +7390,24 @@ window.addEventListener('load', function() {
       console.error('[showPage] No element found for page: "' + page + '"');
     }
 
-    // Persist Page State
-    try { localStorage.setItem('currentPage', page); } catch(e) {}
+    // 5. Persist Page State
+    try {
+      localStorage.setItem('currentPage', page);
+    } catch(e) {}
+    if (typeof window.saveActivePage === 'function') {
+      try { window.saveActivePage(page); } catch (e) {}
+    }
+
+    // 6. Trigger Support tickets loading if page is support
+    if (page === 'support') {
+      setTimeout(function() {
+        if (typeof loadTickets === 'function') {
+          loadTickets();
+        } else if (typeof window.loadTickets === 'function') {
+          window.loadTickets();
+        }
+      }, 80);
+    }
   };
 })();
 </script>

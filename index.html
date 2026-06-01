@@ -7301,5 +7301,89 @@ window.addEventListener('load', function() {
 })();
 </script>
 
+<script>
+/* ── showPage null-safety fix ──────────────────────────────────────────
+   The obfuscated showPage() calls getElementById(page) expecting IDs
+   like "menu", "cart" etc. — but the real divs use "page-menu",
+   "page-cart" etc. This wrapper translates bare names → real IDs,
+   hides all pages, then shows the target so classList never hits null.
+──────────────────────────────────────────────────────────────────────── */
+(function () {
+  // Map of bare name → real element ID in the HTML
+  var PAGE_ID_MAP = {
+    'home'            : 'page-menu',
+    'menu'            : 'page-menu',
+    'cart'            : 'page-menu',       // cart is a slide-over panel, not a page
+    'orders'          : 'page-orders',
+    'profile'         : 'page-menu',       // profile uses a modal, not a page div
+    'support'         : 'page-support',
+    'tracking'        : 'page-tracking',
+    'dashboard'       : 'page-dashboard',
+    'manage'          : 'page-manage',
+    'payments'        : 'page-payments',
+    'customers'       : 'page-customers',
+    'delivery'        : 'page-delivery',
+    'admin-support'   : 'page-admin-support',
+    'business-hours'  : 'page-business-hours',
+    'delivery-settings': 'page-delivery-settings'
+  };
+
+  var ALL_PAGE_IDS = [
+    'page-menu','page-tracking','page-orders','page-support',
+    'page-dashboard','page-manage','page-payments','page-customers',
+    'page-delivery','page-admin-support','page-business-hours',
+    'page-delivery-settings'
+  ];
+
+  function resolveEl(name) {
+    // 1. Try the map
+    var mappedId = PAGE_ID_MAP[name];
+    if (mappedId) {
+      var el = document.getElementById(mappedId);
+      if (el) return el;
+    }
+    // 2. Try page-{name}
+    var el2 = document.getElementById('page-' + name);
+    if (el2) return el2;
+    // 3. Try bare name
+    var el3 = document.getElementById(name);
+    if (el3) return el3;
+    return null;
+  }
+
+  var _orig = window.showPage;
+
+  window.showPage = function (page) {
+    // Try original first
+    if (typeof _orig === 'function') {
+      try {
+        return _orig.apply(this, arguments);
+      } catch (e) {
+        console.warn('[showPage] original crashed for "' + page + '", using fallback.', e);
+      }
+    }
+
+    // Fallback: manual page switch
+    ALL_PAGE_IDS.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.classList.remove('active');
+        el.style.display = 'none';
+      }
+    });
+
+    var target = resolveEl(page);
+    if (target) {
+      target.classList.add('active');
+      target.style.display = '';
+    } else {
+      console.error('[showPage] No element found for page: "' + page + '"');
+    }
+
+    // Persist
+    try { localStorage.setItem('currentPage', page); } catch(e) {}
+  };
+})();
+</script>
 </body>
 </html>

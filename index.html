@@ -7365,7 +7365,8 @@ window.addEventListener('load', function() {
     }
 
     // 3. Try original chained wrappers first (if any are left)
-    if (typeof _orig === 'function' && _orig !== window.showPage) {
+    var targetEl = resolveEl(page);
+    if (targetEl && typeof _orig === 'function' && _orig !== window.showPage) {
       try {
         _orig.call(this, page);
       } catch (e) {

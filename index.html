@@ -244,12 +244,7 @@
     .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200}
     .overlay.open{display:block}
     .cart-panel{position:fixed;top:0;right:0;bottom:0;width:100vw;max-width:100vw;height:100%;background:#fff;z-index:9999;display:flex;flex-direction:column;overflow:hidden;transform:translateX(100%);transition:transform .3s ease;}
-    .cart-panel.open{
-    transform:translateX(0);
-}
-    .cart-panel.open{
-    transform:translateX(0);
-}    .cart-panel.open{transform:translateX(0)}
+    .cart-panel.open{transform:translateX(0);}
     .cart-header{background:var(--brown);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
     .cart-header h2{font-family:"Yeseva One",serif;font-size:1.2rem}
     .close-btn{background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:4px}
@@ -5141,10 +5136,19 @@ function toggleSidebar() {
         return;
       }
 
+      var finalAmount = Number(amount);
+      if (isNaN(finalAmount) || finalAmount <= 0) {
+        if (typeof showToast === 'function') {
+          showToast('⚠️ Invalid payment amount. Please refresh and try again.', 3000);
+        }
+        return;
+      }
+
       var options = {
         key:         RZP_KEY,
-        amount:      Math.round(amount * 100),   /* paise */
+        amount:      Math.round(finalAmount * 100),   /* paise */
         currency:    'INR',
+        order_id:    window.RZP_ORDER_ID || undefined,
         name:        'Grocery For You Sircilla',
         description: 'Grocery Order Payment',
         prefill: {

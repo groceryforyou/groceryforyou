@@ -1905,13 +1905,13 @@ animation:spinRefresh .7s linear infinite;
     <div class="add-item-panel">
       <h3>➕ Add New Item</h3>
       <div class="aip-grid">
-        <div><label class="aip-label">Category *</label><select class="aip-select" id="aip-cat"></select></div>
-        <div class="half2"><label class="aip-label">Item Name *</label><input class="aip-input" type="text" id="aip-name" placeholder="e.g. Fresh Tomatoes"/></div>
-        <div><label class="aip-label">Price (₹) *</label><input class="aip-input" type="number" id="aip-price" placeholder="e.g. 20" min="1"/></div>
-        <div><label class="aip-label">Sub-label</label><input class="aip-input" type="text" id="aip-type" placeholder="e.g. 500g bag"/></div>
-        <div><label class="aip-label">Stock</label><select class="aip-select" id="aip-stock"><option value="1">✅ In Stock</option><option value="0">❌ Out of Stock</option></select></div>
+        <div><label class="aip-label" for="aip-cat">Category *</label><select class="aip-select" id="aip-cat"></select></div>
+        <div class="half2"><label class="aip-label" for="aip-name">Item Name *</label><input class="aip-input" type="text" id="aip-name" placeholder="e.g. Fresh Tomatoes"/></div>
+        <div><label class="aip-label" for="aip-price">Price (₹) *</label><input class="aip-input" type="number" id="aip-price" placeholder="e.g. 20" min="1"/></div>
+        <div><label class="aip-label" for="aip-type">Sub-label</label><input class="aip-input" type="text" id="aip-type" placeholder="e.g. 500g bag"/></div>
+        <div><label class="aip-label" for="aip-stock">Stock</label><select class="aip-select" id="aip-stock"><option value="1">✅ In Stock</option><option value="0">❌ Out of Stock</option></select></div>
         <div class="full">
-          <label class="aip-label">Choose Emoji</label>
+          <label class="aip-label" for="aip-emoji-custom">Choose Emoji</label>
           <div class="emoji-picker" id="aip-emoji-picker"></div>
           <input class="aip-input" type="text" id="aip-emoji-custom" placeholder="Or type any emoji: 🥗" style="margin-top:8px;width:180px"/>
         </div>
@@ -2076,9 +2076,9 @@ animation:spinRefresh .7s linear infinite;
     <div class="revenue-section">
       <div class="section-title" style="margin-bottom:14px">📢 Send Promo</div>
       <div class="form-grid">
-        <div class="form-group"><label>Title</label><input type="text" id="promo-title" placeholder="🎉 Special offer!"/></div>
-        <div class="form-group"><label>Icon</label><input type="text" id="promo-icon" placeholder="🎉" style="width:70px"/></div>
-        <div class="form-group full"><label>Message</label><textarea id="promo-body" rows="2" placeholder="Order now and get 50% off!"></textarea></div>
+        <div class="form-group"><label for="promo-title">Title</label><input type="text" id="promo-title" placeholder="🎉 Special offer!"/></div>
+        <div class="form-group"><label for="promo-icon">Icon</label><input type="text" id="promo-icon" placeholder="🎉" style="width:70px"/></div>
+        <div class="form-group full"><label for="promo-body">Message</label><textarea id="promo-body" rows="2" placeholder="Order now and get 50% off!"></textarea></div>
       </div>
       <button class="aip-save" style="margin-top:14px;max-width:220px" onclick="sendPromoNotification()">📣 Send Notification</button>
     </div>
@@ -2131,9 +2131,9 @@ animation:spinRefresh .7s linear infinite;
       </div>
       <div class="section-title" style="margin-bottom:14px">📝 Submit a Ticket</div>
       <div class="form-grid">
-        <div class="form-group"><label>Issue Type</label><select id="support-type"><option>Missing Items</option><option>Late Delivery</option><option>Food Quality</option><option>Wrong Order</option><option>Refund Request</option><option>Other</option></select></div>
-        <div class="form-group"><label>Order ID *</label><input type="text" id="support-order-id" placeholder="CE-XXXXXX"/></div>
-        <div class="form-group full"><label>Description *</label><textarea id="support-desc" rows="3" placeholder="Describe your issue..."></textarea></div>
+        <div class="form-group"><label for="support-type">Issue Type</label><select id="support-type"><option>Missing Items</option><option>Late Delivery</option><option>Food Quality</option><option>Wrong Order</option><option>Refund Request</option><option>Other</option></select></div>
+        <div class="form-group"><label for="support-order-id">Order ID *</label><input type="text" id="support-order-id" placeholder="CE-XXXXXX"/></div>
+        <div class="form-group full"><label for="support-desc">Description *</label><textarea id="support-desc" rows="3" placeholder="Describe your issue..."></textarea></div>
       </div>
       <div style="display:flex;gap:10px;margin-top:14px">
         <button class="om-cancel" id="support-cancel-btn" style="display:none;flex:1" onclick="closeSupportForm()">Cancel</button>
@@ -2215,7 +2215,7 @@ animation:spinRefresh .7s linear infinite;
       <div class="ds-fee-row">
 
         <div class="ds-fee-group">
-          <label>Delivery Fee (₹)</label>
+          <label for="ds-fee-amount">Delivery Fee (₹)</label>
 
           <input
             type="number"
@@ -2229,7 +2229,7 @@ animation:spinRefresh .7s linear infinite;
         </div>
 
         <div class="ds-fee-group">
-          <label>Free Delivery Above (₹)</label>
+          <label for="ds-free-above">Free Delivery Above (₹)</label>
 
           <input
             type="number"
@@ -2504,11 +2504,11 @@ document.addEventListener('DOMContentLoaded', () => {
         <div id="om-fee-note" style="display:none;color:#555;font-size:.88rem;line-height:1.5;margin-top:8px;border:1px dashed #d7ccc8;border-radius:10px;padding:10px;background:#fff8e1;"></div>
       </div>
       <div class="om-form" id="om-form-fields">
-        <div><label>Your Name *</label><input type="text" id="om-name" placeholder="Full name"/></div>
-        <div><label>Phone *</label><input type="tel" id="om-phone" placeholder="10-digit mobile number" maxlength="10" pattern="[0-9]{10}" inputmode="numeric"/></div>
-        <div class="full"><label>Email * (to link past orders)</label><input type="email" id="om-email" placeholder="your@email.com"/></div>
+        <div><label for="om-name">Your Name *</label><input type="text" id="om-name" placeholder="Full name"/></div>
+        <div><label for="om-phone">Phone *</label><input type="tel" id="om-phone" placeholder="10-digit mobile number" maxlength="10" pattern="[0-9]{10}" inputmode="numeric"/></div>
+        <div class="full"><label for="om-email">Email * (to link past orders)</label><input type="email" id="om-email" placeholder="your@email.com"/></div>
         <div class="full" id="om-saved-address-wrap" style="display:none">
-          <label>Saved Address</label>
+          <label for="om-saved-address">Saved Address</label>
           <div class="om-address-picker">
             <div class="om-address-picker-row">
               <select id="om-saved-address" onchange="handleOrderAddressChange(this.value)"></select>
@@ -2519,8 +2519,8 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="full" id="om-manual-address-wrap">
           <div class="om-manual-address-grid">
-            <div class="full"><label>Delivery Address *</label><textarea id="om-address" rows="2" placeholder="House No., Street, Area..."></textarea></div>
-            <div><label>Landmark</label><input type="text" id="om-landmark" placeholder="Near school..."/></div>
+            <div class="full"><label for="om-address">Delivery Address *</label><textarea id="om-address" rows="2" placeholder="House No., Street, Area..."></textarea></div>
+            <div><label for="om-landmark">Landmark</label><input type="text" id="om-landmark" placeholder="Near school..."/></div>
             <div class="full" style="margin-top:4px">
               <div class="om-map-label">📍 Pin Your Location <span style="font-weight:400;color:#888;font-size:.7rem;text-transform:none">(tap map to pin)</span></div>
               <div class="om-map-search"><input type="text" id="om-map-search-input" placeholder="Search area in Sircilla..."/><button onclick="omMapSearch()">🔍</button></div>
@@ -2534,8 +2534,8 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           </div>
         </div>
-        <div><label>Delivery Time</label><select id="om-time"><option>ASAP (~30 mins)</option><option>In 1 hour</option><option>Schedule for later</option></select></div>
-        <div class="full"><label>Special Instructions</label><textarea id="om-note" rows="2" placeholder="Extra spicy, less oil..."></textarea></div>
+        <div><label for="om-time">Delivery Time</label><select id="om-time"><option>ASAP (~30 mins)</option><option>In 1 hour</option><option>Schedule for later</option></select></div>
+        <div class="full"><label for="om-note">Special Instructions</label><textarea id="om-note" rows="2" placeholder="Extra spicy, less oil..."></textarea></div>
         <div class="full">
           <div class="payment-section">
             <div class="payment-title">💳 Payment Method</div>
@@ -2652,9 +2652,9 @@ document.addEventListener('DOMContentLoaded', () => {
   <div class="cat-modal">
     <div class="cat-modal-head"><h3>➕ New Category</h3><button class="cat-modal-close" onclick="closeCatModal()">✕</button></div>
     <div class="cat-modal-body">
-      <label class="aip-label">Category Name *</label>
+      <label class="aip-label" for="new-cat-name">Category Name *</label>
       <input class="aip-input" type="text" id="new-cat-name" placeholder="e.g. Special Grocerys, Drinks..." style="margin-bottom:12px"/>
-      <label class="aip-label">Choose Icon</label>
+      <label class="aip-label" for="new-cat-emoji-custom">Choose Icon</label>
       <div class="cat-emoji-row" id="cat-emoji-row"></div>
       <input class="aip-input" type="text" id="new-cat-emoji-custom" placeholder="Or type any emoji: 🥙"/>
       <div class="cat-modal-actions">
@@ -2692,9 +2692,9 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
     <div class="cat-modal-body" style="padding: 20px;">
       <input type="hidden" id="edit-cat-id" />
-      <label class="aip-label">Category Name *</label>
+      <label class="aip-label" for="edit-cat-name">Category Name *</label>
       <input class="aip-input" type="text" id="edit-cat-name" placeholder="e.g. Special Grocerys" style="margin-bottom:12px"/>
-      <label class="aip-label">Choose Icon</label>
+      <label class="aip-label" for="edit-cat-emoji-custom">Choose Icon</label>
       <div class="cat-emoji-row" id="edit-cat-emoji-row"></div>
       <input class="aip-input" type="text" id="edit-cat-emoji-custom" placeholder="Or type any emoji: 🥙"/>
       <div class="cat-modal-actions" style="display: flex; gap: 8px; margin-top:20px;">
@@ -2714,13 +2714,13 @@ document.addEventListener('DOMContentLoaded', () => {
         <div style="font-size:.75rem;color:#888;font-weight:700;text-transform:uppercase">Available Balance</div>
         <div style="font-family:'Yeseva One',serif;font-size:1.8rem;color:var(--brown)" id="withdraw-avail-bal">₹0</div>
       </div>
-      <label class="aip-label">Bank Account Number</label>
+      <label class="aip-label" for="wd-acct">Bank Account Number</label>
       <input class="aip-input" type="text" id="wd-acct" placeholder="XXXXXXXXXXXXXXXX" style="margin-bottom:10px"/>
-      <label class="aip-label">IFSC Code</label>
+      <label class="aip-label" for="wd-ifsc">IFSC Code</label>
       <input class="aip-input" type="text" id="wd-ifsc" placeholder="SBIN0001234" style="margin-bottom:10px"/>
-      <label class="aip-label">Account Holder Name</label>
+      <label class="aip-label" for="wd-name">Account Holder Name</label>
       <input class="aip-input" type="text" id="wd-name" placeholder="Name on account" style="margin-bottom:10px"/>
-      <label class="aip-label">Withdraw Amount (₹)</label>
+      <label class="aip-label" for="wd-amount">Withdraw Amount (₹)</label>
       <input class="aip-input" type="number" id="wd-amount" placeholder="Enter amount" style="margin-bottom:10px"/>
       <div class="cat-modal-actions">
         <button class="cat-cancel-btn" onclick="closeWithdrawModal()">Cancel</button>
@@ -2751,9 +2751,9 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="auth-modal-body">
       <button class="back-btn-light" type="button" onclick="closeAddressEditor()">← Back</button>
       <div class="form-grid">
-        <div class="form-group"><label>Label *</label><input id="addr-label" type="text" placeholder="Home / Office"/></div>
-        <div class="form-group"><label>Phone (optional)</label><input id="addr-phone" type="tel" placeholder="+91 XXXXX"/></div>
-        <div class="form-group full"><label>Full Address *</label><textarea id="addr-line" rows="2" placeholder="House No., Street, Area..."></textarea></div>
+        <div class="form-group"><label for="addr-label">Label *</label><input id="addr-label" type="text" placeholder="Home / Office"/></div>
+        <div class="form-group"><label for="addr-phone">Phone (optional)</label><input id="addr-phone" type="tel" placeholder="+91 XXXXX"/></div>
+        <div class="form-group full"><label for="addr-line">Full Address *</label><textarea id="addr-line" rows="2" placeholder="House No., Street, Area..."></textarea></div>
         <div class="form-group full">
           <div style="font-weight:800;color:var(--brown);margin-bottom:8px;font-size:.85rem">📍 Pin Location</div>
           <button class="om-gps-btn" type="button" onclick="addrUseMyLocation()">🎯 Use My Location</button>
@@ -6289,15 +6289,15 @@ Object.defineProperty(window, 'currentUser', {
         </div>
         <div class="cat-modal-body" style="padding: 20px; max-height: 75dvh; overflow-y: auto;">
           <div style="margin-bottom: 12px;">
-            <label class="aip-label" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Item Name</label>
+            <label class="aip-label" for="edit-item-name" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Item Name</label>
             <input type="text" id="edit-item-name" class="aip-input" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff;" />
           </div>
           <div style="margin-bottom: 12px;">
-            <label class="aip-label" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Price (₹)</label>
+            <label class="aip-label" for="edit-item-price" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Price (₹)</label>
             <input type="number" id="edit-item-price" class="aip-input" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff;" />
           </div>
           <div style="margin-bottom: 12px;">
-            <label class="aip-label" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Stock Status</label>
+            <label class="aip-label" for="edit-item-stock" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Stock Status</label>
             <select id="edit-item-stock" class="aip-select" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff; cursor: pointer;">
               <option value="1">✅ In Stock</option>
               <option value="0">❌ Out Of Stock</option>

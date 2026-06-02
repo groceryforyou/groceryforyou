@@ -3127,15 +3127,7 @@ function patchUPIPayment(){
     }catch(e){}
   });
 
-  if(window.Razorpay){
-    const originalOpen=window.Razorpay;
-    window.Razorpay=function(options){
-      try{
-        options.amount=Math.round(total*100);
-      }catch(e){}
-      return new originalOpen(options);
-    }
-  }
+  /* Razorpay amount sync handled by dedicated IIFE — no re-wrap here */
 }
 
 setInterval(function(){
@@ -7214,19 +7206,7 @@ window.deepLinkUPI = function(app) {
     window.location.href = links[app] || baseLink;
 };
 
-if (typeof window.openRazorpayCheckout === 'function') {
-    const originalCheckout = window.openRazorpayCheckout;
-
-    window.openRazorpayCheckout = function(amount, name, phone) {
-        const totals = calculateTotals();
-
-        return originalCheckout(
-            totals.grandTotal,
-            name,
-            phone
-        );
-    };
-}
+/* openRazorpayCheckout is already patched by patchRazorpayUPI — no duplicate re-wrap */
 
 let rafScheduled = false;
 

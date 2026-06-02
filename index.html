@@ -1,6 +1,108 @@
 <!doctype html>
 <html lang="en">
 <head>
+
+  <!-- Runtime network guard: blocks dead localhost PNG probes and Razorpay metrics noise -->
+  <script>
+  (function(){
+    'use strict';
+    if (window.__GFY_RUNTIME_GUARD__) return;
+    window.__GFY_RUNTIME_GUARD__ = true;
+
+    var EMPTY_PNG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+    var BAD_LOCAL_IMAGE = /^(?:https?:)?\/\/localhost(?::(?:7070|7071|37857))?\/\d+\.png(?:[?#].*)?$/i;
+    var RAZORPAY_METRICS = /\/\/lumberjack-metrics\.razorpay\.com\//i;
+
+    function toText(input){
+      try { return typeof input === 'string' ? input : (input && input.url) || String(input || ''); }
+      catch(e){ return ''; }
+    }
+    function shouldBlock(url){
+      url = toText(url);
+      return BAD_LOCAL_IMAGE.test(url) || RAZORPAY_METRICS.test(url);
+    }
+    function safeUrl(url){
+      return shouldBlock(url) ? EMPTY_PNG : url;
+    }
+
+    // Block fetch/XHR/beacon calls that create console ERR_CONNECTION_REFUSED spam.
+    if (window.fetch) {
+      var nativeFetch = window.fetch.bind(window);
+      window.fetch = function(input, init){
+        if (shouldBlock(input)) return Promise.resolve(new Response('', {status:204, statusText:'No Content'}));
+        return nativeFetch(input, init);
+      };
+    }
+    if (navigator.sendBeacon) {
+      var nativeBeacon = navigator.sendBeacon.bind(navigator);
+      navigator.sendBeacon = function(url, data){
+        if (shouldBlock(url)) return true;
+        return nativeBeacon(url, data);
+      };
+    }
+    if (window.XMLHttpRequest) {
+      var nativeOpen = XMLHttpRequest.prototype.open;
+      XMLHttpRequest.prototype.open = function(method, url){
+        this.__gfyBlockedUrl = shouldBlock(url);
+        if (this.__gfyBlockedUrl) url = EMPTY_PNG;
+        return nativeOpen.apply(this, arguments.length > 1 ? [method, url].concat([].slice.call(arguments, 2)) : arguments);
+      };
+    }
+
+    // Block dynamically assigned <img src="http://localhost:707x/123.png">.
+    try {
+      var imgSrc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+      if (imgSrc && imgSrc.set) {
+        Object.defineProperty(HTMLImageElement.prototype, 'src', {
+          configurable: true,
+          enumerable: imgSrc.enumerable,
+          get: imgSrc.get,
+          set: function(value){ return imgSrc.set.call(this, safeUrl(value)); }
+        });
+      }
+    } catch(e) {}
+
+    var nativeSetAttribute = Element.prototype.setAttribute;
+    Element.prototype.setAttribute = function(name, value){
+      if (this && this.tagName === 'IMG' && String(name).toLowerCase() === 'src') value = safeUrl(value);
+      return nativeSetAttribute.call(this, name, value);
+    };
+
+    // Last-chance cleanup for any image elements created before the hook runs.
+    function cleanImages(root){
+      try {
+        (root || document).querySelectorAll('img[src]').forEach(function(img){
+          if (shouldBlock(img.getAttribute('src') || img.src)) img.src = EMPTY_PNG;
+        });
+      } catch(e) {}
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+      cleanImages(document);
+      try {
+        new MutationObserver(function(records){
+          records.forEach(function(r){
+            (r.addedNodes || []).forEach(function(n){
+              if (n && n.nodeType === 1) {
+                if (n.tagName === 'IMG' && shouldBlock(n.getAttribute('src') || n.src)) n.src = EMPTY_PNG;
+                cleanImages(n);
+              }
+            });
+          });
+        }).observe(document.documentElement, {childList:true, subtree:true});
+      } catch(e) {}
+    });
+
+    // Hide only known third-party noise; real app errors still show.
+    ['error','warn'].forEach(function(level){
+      var nativeLog = console[level];
+      console[level] = function(){
+        var msg = [].slice.call(arguments).join(' ');
+        if (/lumberjack-metrics\.razorpay\.com|unsafe header|Permissions policy violation|deviceorientation events are blocked/i.test(msg)) return;
+        return nativeLog.apply(console, arguments);
+      };
+    });
+  })();
+  </script>
   <link rel="stylesheet" href="webview-patch.css">
   <script src="webview-patch.js" defer></script>
   <meta charset="UTF-8"/>
@@ -109,93 +211,6 @@
   <link rel="preconnect" href="https://www.gstatic.com"/>
   <link rel="dns-prefetch" href="https://unpkg.com"/>
   <link rel="dns-prefetch" href="https://checkout.razorpay.com"/>
-  <script>
-    /* Runtime safety patch: prevents dead localhost image URLs and Razorpay metrics noise without changing checkout/payment flow. */
-    (function(){
-      'use strict';
-      var blockedImageUrl = /^https?:\/\/(?:localhost|127\.0\.0\.1):(?:7070|7071|37857)\/.*\.png(?:[?#].*)?$/i;
-      var transparentPixel = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
-
-      function normalizeImageSource(value){
-        if (typeof value === 'string' && blockedImageUrl.test(value)) return transparentPixel;
-        return value;
-      }
-
-      try {
-        var srcDescriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
-        if (srcDescriptor && srcDescriptor.set && srcDescriptor.get) {
-          Object.defineProperty(HTMLImageElement.prototype, 'src', {
-            configurable: true,
-            enumerable: srcDescriptor.enumerable,
-            get: function(){ return srcDescriptor.get.call(this); },
-            set: function(value){ return srcDescriptor.set.call(this, normalizeImageSource(value)); }
-          });
-        }
-
-        var nativeSetAttribute = Element.prototype.setAttribute;
-        Element.prototype.setAttribute = function(name, value){
-          if (this && this.tagName === 'IMG' && String(name).toLowerCase() === 'src') {
-            value = normalizeImageSource(value);
-          }
-          return nativeSetAttribute.call(this, name, value);
-        };
-
-        function cleanBadImages(root){
-          var scope = root && root.querySelectorAll ? root : document;
-          scope.querySelectorAll('img[src]').forEach(function(img){
-            if (blockedImageUrl.test(img.getAttribute('src') || '')) img.src = transparentPixel;
-          });
-        }
-
-        document.addEventListener('DOMContentLoaded', function(){
-          cleanBadImages(document);
-          new MutationObserver(function(records){
-            records.forEach(function(record){
-              record.addedNodes.forEach(function(node){
-                if (node && node.nodeType === 1) {
-                  if (node.tagName === 'IMG') node.src = normalizeImageSource(node.getAttribute('src') || node.src || '');
-                  cleanBadImages(node);
-                }
-              });
-            });
-          }).observe(document.documentElement, {childList:true, subtree:true});
-        });
-      } catch (e) {}
-
-      function isRazorpayMetrics(url){
-        return typeof url === 'string' && /lumberjack-metrics\.razorpay\.com\/v1\/frontend-metrics/i.test(url);
-      }
-
-      if (window.fetch) {
-        var nativeFetch = window.fetch.bind(window);
-        window.fetch = function(input, init){
-          var url = typeof input === 'string' ? input : (input && input.url) || '';
-          if (isRazorpayMetrics(url)) return Promise.resolve(new Response(null, {status:204, statusText:'No Content'}));
-          return nativeFetch(input, init);
-        };
-      }
-
-      if (navigator.sendBeacon) {
-        var nativeSendBeacon = navigator.sendBeacon.bind(navigator);
-        navigator.sendBeacon = function(url, data){
-          if (isRazorpayMetrics(String(url || ''))) return true;
-          return nativeSendBeacon(url, data);
-        };
-      }
-
-      var nativeOpen = XMLHttpRequest.prototype.open;
-      var nativeSend = XMLHttpRequest.prototype.send;
-      XMLHttpRequest.prototype.open = function(method, url){
-        this.__gfyuBlockedMetrics = isRazorpayMetrics(String(url || ''));
-        if (this.__gfyuBlockedMetrics) return;
-        return nativeOpen.apply(this, arguments);
-      };
-      XMLHttpRequest.prototype.send = function(){
-        if (this.__gfyuBlockedMetrics) return;
-        return nativeSend.apply(this, arguments);
-      };
-    })();
-  </script>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <!-- Optimized Google Fonts with font-display=swap -->
   <link href="https://fonts.googleapis.com/css2?family=Yeseva+One&family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@0,700;1,400&family=Poppins:wght@300;400;700&family=Roboto:wght@300;400;700&family=Nunito:wght@300;400;700&family=Merriweather:wght@300;400;700&family=Josefin+Sans:wght@300;400;700&family=Raleway:wght@300;400;700&family=Dancing+Script:wght@700&family=Ubuntu:wght@300;400;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'"/>
@@ -3270,7 +3285,7 @@ window.addEventListener('load',function(){
       el.setAttribute('value', total.toFixed(2));
     });
 
-    if (window.GFY_DEBUG) console.debug('UPI Grand Total Synced:', total);
+    if (window.__GFY_DEBUG__) console.log('UPI Grand Total Synced:', total);
   }
 
   // Auto sync whenever totals change

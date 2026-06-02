@@ -1,148 +1,6 @@
 <!doctype html>
 <html lang="en">
 <head>
-
-  <!-- Runtime network guard: blocks dead localhost image probes and page-context Razorpay metrics noise -->
-  <script>
-  (function(){
-    'use strict';
-    if (window.__GFY_RUNTIME_GUARD__) return;
-    window.__GFY_RUNTIME_GUARD__ = true;
-
-    var EMPTY_PNG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
-    // Block every dev/local image endpoint seen in production console.
-    // The old guard only matched numeric PNG names; Firestore/cache can contain other PNG names.
-    var BAD_LOCAL_IMAGE = /^(?:https?:)?\/\/(?:localhost|127\.0\.0\.1)(?::(?:7070|7071|37857))?\/.*(?:\.(?:png|jpe?g|webp|gif|svg)(?:[?#].*)?|$)/i;
-    var BAD_LOCAL_PORT = /^(?:https?:)?\/\/(?:localhost|127\.0\.0\.1):(?:7070|7071|37857)\//i;
-    var RAZORPAY_METRICS = /\/\/lumberjack-metrics\.razorpay\.com\//i;
-
-    function toText(input){
-      try { return typeof input === 'string' ? input : (input && input.url) || String(input || ''); }
-      catch(e){ return ''; }
-    }
-    function shouldBlock(url){
-      url = toText(url).trim();
-      return BAD_LOCAL_IMAGE.test(url) || BAD_LOCAL_PORT.test(url) || RAZORPAY_METRICS.test(url);
-    }
-    function safeUrl(url){
-      return shouldBlock(url) ? EMPTY_PNG : url;
-    }
-    function safeSrcset(value){
-      try {
-        return String(value || '').split(',').map(function(part){
-          var trimmed = part.trim();
-          var firstSpace = trimmed.search(/\s/);
-          var url = firstSpace === -1 ? trimmed : trimmed.slice(0, firstSpace);
-          var suffix = firstSpace === -1 ? '' : trimmed.slice(firstSpace);
-          return safeUrl(url) + suffix;
-        }).join(', ');
-      } catch(e) { return value; }
-    }
-    window.GFY_isBlockedLocalAsset = shouldBlock;
-    window.GFY_cleanImageUrl = safeUrl;
-    window.GFY_EMPTY_IMAGE = EMPTY_PNG;
-
-    // Block fetch/XHR/beacon calls that create console ERR_CONNECTION_REFUSED spam.
-    if (window.fetch) {
-      var nativeFetch = window.fetch.bind(window);
-      window.fetch = function(input, init){
-        if (shouldBlock(input)) return Promise.resolve(new Response('', {status:204, statusText:'No Content'}));
-        return nativeFetch(input, init);
-      };
-    }
-    if (navigator.sendBeacon) {
-      var nativeBeacon = navigator.sendBeacon.bind(navigator);
-      navigator.sendBeacon = function(url, data){
-        if (shouldBlock(url)) return true;
-        return nativeBeacon(url, data);
-      };
-    }
-    if (window.XMLHttpRequest) {
-      var nativeOpen = XMLHttpRequest.prototype.open;
-      XMLHttpRequest.prototype.open = function(method, url){
-        this.__gfyBlockedUrl = shouldBlock(url);
-        if (this.__gfyBlockedUrl) url = EMPTY_PNG;
-        return nativeOpen.apply(this, arguments.length > 1 ? [method, url].concat([].slice.call(arguments, 2)) : arguments);
-      };
-    }
-
-    // Block dynamically assigned <img src="http://localhost:707x/123.png">.
-    try {
-      var imgSrc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
-      if (imgSrc && imgSrc.set) {
-        Object.defineProperty(HTMLImageElement.prototype, 'src', {
-          configurable: true,
-          enumerable: imgSrc.enumerable,
-          get: imgSrc.get,
-          set: function(value){ return imgSrc.set.call(this, safeUrl(value)); }
-        });
-      }
-    } catch(e) {}
-
-    var nativeSetAttribute = Element.prototype.setAttribute;
-    Element.prototype.setAttribute = function(name, value){
-      if (this && this.tagName === 'IMG') {
-        var attrName = String(name).toLowerCase();
-        if (attrName === 'src') value = safeUrl(value);
-        if (attrName === 'srcset') value = safeSrcset(value);
-      }
-      return nativeSetAttribute.call(this, name, value);
-    };
-
-    // Last-chance cleanup for any image elements created before the hook runs.
-    function cleanImages(root){
-      try {
-        (root || document).querySelectorAll('img').forEach(function(img){
-          if (shouldBlock(img.getAttribute('src') || img.src)) img.src = EMPTY_PNG;
-          if (img.getAttribute('srcset')) img.setAttribute('srcset', safeSrcset(img.getAttribute('srcset')));
-        });
-      } catch(e) {}
-    }
-    document.addEventListener('DOMContentLoaded', function(){
-      cleanImages(document);
-      try {
-        new MutationObserver(function(records){
-          records.forEach(function(r){
-            (r.addedNodes || []).forEach(function(n){
-              if (n && n.nodeType === 1) {
-                if (n.tagName === 'IMG' && shouldBlock(n.getAttribute('src') || n.src)) n.src = EMPTY_PNG;
-                cleanImages(n);
-              }
-            });
-          });
-        }).observe(document.documentElement, {childList:true, subtree:true, attributes:true, attributeFilter:['src','srcset']});
-      } catch(e) {}
-    });
-
-    // Hide only known third-party noise; real app errors still show.
-    var THIRD_PARTY_NOISE = /lumberjack-metrics\.razorpay\.com|unsafe header|Permissions policy violation|deviceorientation events are blocked/i;
-    ['error','warn'].forEach(function(level){
-      var nativeLog = console[level];
-      console[level] = function(){
-        var msg = [].slice.call(arguments).join(' ');
-        if (THIRD_PARTY_NOISE.test(msg)) return;
-        return nativeLog.apply(console, arguments);
-      };
-    });
-
-    // Suppress async Razorpay telemetry promise/error events generated in the page context.
-    window.addEventListener('error', function(event){
-      var msg = [event.message, event.filename, event.error && event.error.message].join(' ');
-      if (THIRD_PARTY_NOISE.test(msg)) {
-        event.preventDefault();
-        return false;
-      }
-    }, true);
-    window.addEventListener('unhandledrejection', function(event){
-      var reason = event.reason || '';
-      var msg = typeof reason === 'string' ? reason : [reason.message, reason.stack].join(' ');
-      if (THIRD_PARTY_NOISE.test(msg)) {
-        event.preventDefault();
-        return false;
-      }
-    }, true);
-  })();
-  </script>
   <link rel="stylesheet" href="webview-patch.css">
   <script src="webview-patch.js" defer></script>
   <meta charset="UTF-8"/>
@@ -159,7 +17,7 @@
   <meta name="apple-mobile-web-app-title" content="Grocery For You"/>
   <meta name="application-name" content="Grocery For You"/>
   <meta name="geo.region" content="IN-TS"/>
-  <meta name="geo.placename" content="Sircilla, Rajanna Sircilla District, Telangana, India"/>
+  <meta name="geo.placename" content="Sicsilla, Rajanna Sircilla District, Telangana, India"/>
   <meta name="geo.position" content="18.38973;78.812042"/>
   <meta name="ICBM" content="18.38973, 78.812042"/>
   <link rel="canonical" href="https://groceryforyou.github.io/"/>
@@ -338,7 +196,7 @@
 
     /* ===== HERO ===== */
     .hero{background:linear-gradient(160deg,#0d3b1a 0%,#1e7a3a 40%,#00b04e 100%);padding:44px 20px 38px;text-align:center;position:relative;overflow:hidden;width:100%}
-    .hero::before{content:"🥦";font-size:140px;opacity:.07;position:absolute;top:-20px;right:-10px;animation:float 4s ease-in-out infinite;pointer-events:none}
+`   1    .hero::before{content:"🥦";font-size:140px;opacity:.07;position:absolute;top:-20px;right:-10px;animation:float 4s ease-in-out infinite;pointer-events:none}
     @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
     .hero h1{font-family:"Yeseva One",serif;font-size:2.2rem;color:var(--turmeric);text-shadow:0 2px 12px rgba(0,0,0,0.5)}
     .hero p{color:#c8e6c9;font-size:1rem;margin-top:8px;font-style:italic}
@@ -386,7 +244,12 @@
     .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200}
     .overlay.open{display:block}
     .cart-panel{position:fixed;top:0;right:0;bottom:0;width:100vw;max-width:100vw;height:100%;background:#fff;z-index:9999;display:flex;flex-direction:column;overflow:hidden;transform:translateX(100%);transition:transform .3s ease;}
-    .cart-panel.open{transform:translateX(0)}
+    .cart-panel.open{
+    transform:translateX(0);
+}
+    .cart-panel.open{
+    transform:translateX(0);
+}    .cart-panel.open{transform:translateX(0)}
     .cart-header{background:var(--brown);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
     .cart-header h2{font-family:"Yeseva One",serif;font-size:1.2rem}
     .close-btn{background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:4px}
@@ -3325,7 +3188,7 @@ window.addEventListener('load',function(){
       el.setAttribute('value', total.toFixed(2));
     });
 
-    if (window.__GFY_DEBUG__) console.log('UPI Grand Total Synced:', total);
+    console.log('UPI Grand Total Synced:', total);
   }
 
   // Auto sync whenever totals change
@@ -7081,7 +6944,7 @@ Object.defineProperty(window, 'currentUser', {
             type: data.description || '', // backward compatible description holder
             rating: typeof data.rating === 'number' ? data.rating : 5.0,
             ratingCount: typeof data.ratingCount === 'number' ? data.ratingCount : 5,
-            image: (typeof window.GFY_cleanImageUrl === 'function' ? window.GFY_cleanImageUrl(data.image || '') : (data.image || '')),
+            image: data.image || '',
             discount: Number(data.discount) || 0
           });
         });
@@ -7107,13 +6970,6 @@ Object.defineProperty(window, 'currentUser', {
           window.menuData.length = 0;
           firestoreItems.forEach(item => window.menuData.push(item));
         }
-
-        // Final defensive cleanup: never allow old Firestore/local cache localhost image URLs into UI state.
-        firestoreItems.forEach(function(item) {
-          if (typeof window.GFY_isBlockedLocalAsset === 'function' && window.GFY_isBlockedLocalAsset(item.image)) {
-            item.image = '';
-          }
-        });
 
         // Sync active cart in case of out of stock or price changes
         if (window.cart) {
@@ -7550,285 +7406,5 @@ window.addEventListener('load', function() {
   };
 })();
 </script>
-
-<script>
-(function(){
-  'use strict';
-  function bad(v){ return typeof window.GFY_isBlockedLocalAsset === 'function' && window.GFY_isBlockedLocalAsset(v); }
-  function scrubValue(value){
-    if (typeof value === 'string') return bad(value) ? '' : value;
-    if (Array.isArray(value)) return value.map(scrubValue);
-    if (value && typeof value === 'object') {
-      Object.keys(value).forEach(function(k){
-        if (/^(image|img|src|url|photo|thumbnail)$/i.test(k) && bad(value[k])) value[k] = '';
-        else value[k] = scrubValue(value[k]);
-      });
-    }
-    return value;
-  }
-  try {
-    Object.keys(localStorage).forEach(function(k){
-      var raw = localStorage.getItem(k);
-      if (!raw || raw.indexOf('localhost') === -1) return;
-      try {
-        var parsed = JSON.parse(raw);
-        var cleaned = scrubValue(parsed);
-        localStorage.setItem(k, JSON.stringify(cleaned));
-      } catch(e) {
-        if (bad(raw)) localStorage.removeItem(k);
-      }
-    });
-  } catch(e) {}
-})();
-</script>
-
-
-<!-- ✅ Place Order / Razorpay final fix: robust amount + visible validation + no silent click -->
-<script>
-(function gfyPlaceOrderRazorpayFinalFix(){
-  'use strict';
-  if (window.__GFY_PLACE_ORDER_RZP_FINAL_FIX__) return;
-  window.__GFY_PLACE_ORDER_RZP_FINAL_FIX__ = true;
-
-  function toast(msg, ms){
-    try { if (typeof showToast === 'function') return showToast(msg, ms || 2500); } catch(e) {}
-    alert(msg);
-  }
-
-  function val(id){
-    var el = document.getElementById(id);
-    return el && typeof el.value === 'string' ? el.value.trim() : '';
-  }
-
-  function focusId(id){
-    var el = document.getElementById(id);
-    if (el && typeof el.focus === 'function') el.focus();
-  }
-
-  function cartSubtotal(){
-    try {
-      if (typeof cart === 'undefined' || !cart) return 0;
-      return Object.keys(cart).reduce(function(sum, id){
-        var item = cart[id] || {};
-        return sum + (Number(item.price) || 0) * (Number(item.qty) || 0);
-      }, 0);
-    } catch(e) { return 0; }
-  }
-
-  function deliveryFeeFor(subtotal){
-    var fee = 0;
-    try {
-      if (typeof window.currentDeliveryFee !== 'undefined') fee = Number(window.currentDeliveryFee) || 0;
-      else if (typeof currentDeliveryFee !== 'undefined') fee = Number(currentDeliveryFee) || 0;
-      else if (typeof window._gfyDeliveryFee !== 'undefined') fee = Number(window._gfyDeliveryFee) || 0;
-    } catch(e) {}
-    return fee;
-  }
-
-  function safeAmount(){
-    var subtotal = cartSubtotal();
-    var fee = deliveryFeeFor(subtotal);
-    var computed = subtotal + fee;
-    var candidates = [
-      window.finalAmount,
-      window.currentGrandTotal,
-      window._gfyGrandTotal,
-      window._pendingUPIAmount,
-      computed
-    ];
-    for (var i = 0; i < candidates.length; i++) {
-      var n = Number(candidates[i]);
-      if (isFinite(n) && n > 0) return Math.round(n * 100) / 100;
-    }
-    return 0;
-  }
-
-  function isPinOk(){
-    try { return typeof omPinLatLng !== 'undefined' && !!omPinLatLng; } catch(e) { return false; }
-  }
-
-  function selectedPay(){
-    try { return selectedPaymentMethod || ''; } catch(e) { return ''; }
-  }
-
-  function normalizePayMethod(m){
-    m = String(m || '').toLowerCase();
-    if (m === 'card' || m === 'razorpay') return 'upi';
-    return m;
-  }
-
-  function patchedSubmitOrder(){
-    try {
-      if (typeof syncCartWithInventory === 'function') {
-        var removed = syncCartWithInventory(true);
-        if (removed && removed.length) return;
-      }
-    } catch(e) {}
-
-    var name = val('om-name');
-    var phone = val('om-phone');
-    var email = val('om-email').toLowerCase();
-    var address = val('om-address');
-
-    if (!Object.keys((typeof cart !== 'undefined' && cart) ? cart : {}).length) {
-      toast('🛒 Cart is empty. Add items first.', 2500);
-      return;
-    }
-    if (!name) { toast('Please enter your name.', 2500); focusId('om-name'); return; }
-    if (!phone) { toast('Please enter your phone number.', 2500); focusId('om-phone'); return; }
-    if (!/^[0-9]{10}$/.test(phone)) { toast('Please enter a valid 10 digit phone number.', 2500); focusId('om-phone'); return; }
-    if (!email) { toast('Please enter your email.', 2500); focusId('om-email'); return; }
-    if (!address) { toast('Please enter delivery address.', 2500); focusId('om-address'); return; }
-    if (!isPinOk()) { toast('📍 Please select delivery location on the map.', 3000); return; }
-
-    try {
-      if (typeof isServiceableLatLng === 'function' && !isServiceableLatLng(omPinLatLng.lat, omPinLatLng.lng)) {
-        toast('⚠️ This location is outside delivery area.', 3000);
-        return;
-      }
-    } catch(e) {}
-
-    var amount = safeAmount();
-    if (!amount || amount <= 0) {
-      toast('Amount error. Please reopen cart and try again.', 3000);
-      console.error('[PlaceOrderFix] Invalid amount', {
-        finalAmount: window.finalAmount,
-        currentGrandTotal: window.currentGrandTotal,
-        subtotal: cartSubtotal(),
-        deliveryFee: deliveryFeeFor(cartSubtotal())
-      });
-      return;
-    }
-
-    window.finalAmount = amount;
-    window.currentGrandTotal = amount;
-    window._pendingUPIAmount = amount;
-    window._gfyGrandTotal = amount;
-
-    var method = normalizePayMethod(selectedPay());
-    console.log('[PlaceOrderFix] submitOrder', {method: method, amount: amount, name: name, phone: phone});
-
-    if (method === 'qr') {
-      if (typeof showPhonePeQR === 'function') showPhonePeQR(amount);
-      else if (typeof showUPIRedirect === 'function') showUPIRedirect(amount);
-      else toast('QR payment is not available. Choose another payment method.', 3000);
-      return;
-    }
-
-    if (method === 'upi') {
-      if (typeof openRazorpayCheckout === 'function') {
-        openRazorpayCheckout(amount, name, phone);
-      } else {
-        toast('Razorpay function not loaded. Refresh and try again.', 3000);
-        console.error('[PlaceOrderFix] openRazorpayCheckout is not a function');
-      }
-      return;
-    }
-
-    if (typeof finalizeOrder === 'function') finalizeOrder(method || 'cod', false);
-    else toast('Order system not loaded. Refresh and try again.', 3000);
-  }
-
-  function install(){
-    window.submitOrder = patchedSubmitOrder;
-    var btn = document.querySelector('.om-place');
-    if (btn) {
-      btn.onclick = patchedSubmitOrder;
-      btn.removeAttribute('disabled');
-      btn.dataset.placeOrderFixed = 'true';
-    }
-    console.log('[PlaceOrderFix] ✅ Place Order button patched');
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);
-  else install();
-  [300, 1000, 2500, 5000].forEach(function(ms){ setTimeout(install, ms); });
-})();
-</script>
-
-
-
-<script>
-/* ===== GFY Razorpay console-safe test helper =====
-   Fixes manual console error: "options is not defined".
-   This does not change normal checkout. It only exposes a safe global
-   options object and testRazorpayCheckout() for APK/WebView testing. */
-(function(){
-  'use strict';
-  if (window.__GFY_RAZORPAY_TEST_HELPER__) return;
-  window.__GFY_RAZORPAY_TEST_HELPER__ = true;
-
-  function getRazorpayKey(){
-    try {
-      if (typeof RZP_KEY !== 'undefined' && RZP_KEY) return RZP_KEY;
-    } catch(e) {}
-    return 'rzp_live_SmqNRvEpkEJ49k';
-  }
-
-  window.createRazorpayOptions = function(amount, name, phone){
-    amount = Number(amount || 100);
-    name = name || 'Test User';
-    phone = phone || '9876543210';
-
-    var emailEl = document.getElementById('om-email');
-    var email = emailEl && emailEl.value ? emailEl.value.trim() : 'test@example.com';
-
-    return {
-      key: getRazorpayKey(),
-      amount: Math.round(amount * 100),
-      currency: 'INR',
-      name: 'Grocery For You Sircilla',
-      description: 'Test Payment',
-      prefill: {
-        name: name,
-        contact: phone,
-        email: email
-      },
-      notes: {
-        source: 'console-test'
-      },
-      theme: {
-        color: '#00b04e'
-      },
-      handler: function(response){
-        console.log('[GFY Razorpay Test Success]', response);
-        if (typeof showToast === 'function') showToast('✅ Razorpay test payment returned response', 2500);
-      },
-      modal: {
-        ondismiss: function(){
-          console.log('[GFY Razorpay Test] popup closed');
-        }
-      }
-    };
-  };
-
-  /* This makes manual console code work:
-     console.log(options); const rzp = new Razorpay(options); rzp.open(); */
-  window.options = window.createRazorpayOptions(100, 'Test User', '9876543210');
-
-  window.testRazorpayCheckout = function(amount, name, phone){
-    if (typeof Razorpay === 'undefined') {
-      console.error('[GFY Razorpay Test] Razorpay SDK is not loaded. Check checkout.js/WebView/network.');
-      if (typeof showToast === 'function') showToast('Razorpay SDK not loaded. Refresh and try again.', 3000);
-      return null;
-    }
-    var opts = window.createRazorpayOptions(amount || 100, name || 'Test User', phone || '9876543210');
-    window.options = opts;
-    try {
-      var instance = new Razorpay(opts);
-      window.rzp = instance;
-      instance.open();
-      return instance;
-    } catch (e) {
-      console.error('[GFY Razorpay Test] open failed:', e);
-      if (typeof showToast === 'function') showToast('Razorpay open failed: ' + (e.message || e), 3500);
-      return null;
-    }
-  };
-
-  console.log('[GFY] Razorpay console helper ready. Use testRazorpayCheckout() or openRazorpayCheckout(100,"Test User","9876543210").');
-})();
-</script>
-
 </body>
 </html>

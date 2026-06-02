@@ -10,7 +10,10 @@
     window.__GFY_RUNTIME_GUARD__ = true;
 
     var EMPTY_PNG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
-    var BAD_LOCAL_IMAGE = /^(?:https?:)?\/\/localhost(?::(?:7070|7071|37857))?\/\d+\.png(?:[?#].*)?$/i;
+    // Block every dev/local image endpoint seen in production console.
+    // The old guard only matched numeric PNG names; Firestore/cache can contain other PNG names.
+    var BAD_LOCAL_IMAGE = /^(?:https?:)?\/\/(?:localhost|127\.0\.0\.1)(?::(?:7070|7071|37857))?\/.*(?:\.(?:png|jpe?g|webp|gif|svg)(?:[?#].*)?|$)/i;
+    var BAD_LOCAL_PORT = /^(?:https?:)?\/\/(?:localhost|127\.0\.0\.1):(?:7070|7071|37857)\//i;
     var RAZORPAY_METRICS = /\/\/lumberjack-metrics\.razorpay\.com\//i;
 
     function toText(input){
@@ -18,12 +21,26 @@
       catch(e){ return ''; }
     }
     function shouldBlock(url){
-      url = toText(url);
-      return BAD_LOCAL_IMAGE.test(url) || RAZORPAY_METRICS.test(url);
+      url = toText(url).trim();
+      return BAD_LOCAL_IMAGE.test(url) || BAD_LOCAL_PORT.test(url) || RAZORPAY_METRICS.test(url);
     }
     function safeUrl(url){
       return shouldBlock(url) ? EMPTY_PNG : url;
     }
+    function safeSrcset(value){
+      try {
+        return String(value || '').split(',').map(function(part){
+          var trimmed = part.trim();
+          var firstSpace = trimmed.search(/\s/);
+          var url = firstSpace === -1 ? trimmed : trimmed.slice(0, firstSpace);
+          var suffix = firstSpace === -1 ? '' : trimmed.slice(firstSpace);
+          return safeUrl(url) + suffix;
+        }).join(', ');
+      } catch(e) { return value; }
+    }
+    window.GFY_isBlockedLocalAsset = shouldBlock;
+    window.GFY_cleanImageUrl = safeUrl;
+    window.GFY_EMPTY_IMAGE = EMPTY_PNG;
 
     // Block fetch/XHR/beacon calls that create console ERR_CONNECTION_REFUSED spam.
     if (window.fetch) {
@@ -64,15 +81,20 @@
 
     var nativeSetAttribute = Element.prototype.setAttribute;
     Element.prototype.setAttribute = function(name, value){
-      if (this && this.tagName === 'IMG' && String(name).toLowerCase() === 'src') value = safeUrl(value);
+      if (this && this.tagName === 'IMG') {
+        var attrName = String(name).toLowerCase();
+        if (attrName === 'src') value = safeUrl(value);
+        if (attrName === 'srcset') value = safeSrcset(value);
+      }
       return nativeSetAttribute.call(this, name, value);
     };
 
     // Last-chance cleanup for any image elements created before the hook runs.
     function cleanImages(root){
       try {
-        (root || document).querySelectorAll('img[src]').forEach(function(img){
+        (root || document).querySelectorAll('img').forEach(function(img){
           if (shouldBlock(img.getAttribute('src') || img.src)) img.src = EMPTY_PNG;
+          if (img.getAttribute('srcset')) img.setAttribute('srcset', safeSrcset(img.getAttribute('srcset')));
         });
       } catch(e) {}
     }
@@ -88,7 +110,7 @@
               }
             });
           });
-        }).observe(document.documentElement, {childList:true, subtree:true});
+        }).observe(document.documentElement, {childList:true, subtree:true, attributes:true, attributeFilter:['src','srcset']});
       } catch(e) {}
     });
 
@@ -7041,7 +7063,7 @@ Object.defineProperty(window, 'currentUser', {
             type: data.description || '', // backward compatible description holder
             rating: typeof data.rating === 'number' ? data.rating : 5.0,
             ratingCount: typeof data.ratingCount === 'number' ? data.ratingCount : 5,
-            image: data.image || '',
+            image: (typeof window.GFY_cleanImageUrl === 'function' ? window.GFY_cleanImageUrl(data.image || '') : (data.image || '')),
             discount: Number(data.discount) || 0
           });
         });
@@ -7067,6 +7089,13 @@ Object.defineProperty(window, 'currentUser', {
           window.menuData.length = 0;
           firestoreItems.forEach(item => window.menuData.push(item));
         }
+
+        // Final defensive cleanup: never allow old Firestore/local cache localhost image URLs into UI state.
+        firestoreItems.forEach(function(item) {
+          if (typeof window.GFY_isBlockedLocalAsset === 'function' && window.GFY_isBlockedLocalAsset(item.image)) {
+            item.image = '';
+          }
+        });
 
         // Sync active cart in case of out of stock or price changes
         if (window.cart) {
@@ -7501,6 +7530,37 @@ window.addEventListener('load', function() {
       }, 80);
     }
   };
+})();
+</script>
+
+<script>
+(function(){
+  'use strict';
+  function bad(v){ return typeof window.GFY_isBlockedLocalAsset === 'function' && window.GFY_isBlockedLocalAsset(v); }
+  function scrubValue(value){
+    if (typeof value === 'string') return bad(value) ? '' : value;
+    if (Array.isArray(value)) return value.map(scrubValue);
+    if (value && typeof value === 'object') {
+      Object.keys(value).forEach(function(k){
+        if (/^(image|img|src|url|photo|thumbnail)$/i.test(k) && bad(value[k])) value[k] = '';
+        else value[k] = scrubValue(value[k]);
+      });
+    }
+    return value;
+  }
+  try {
+    Object.keys(localStorage).forEach(function(k){
+      var raw = localStorage.getItem(k);
+      if (!raw || raw.indexOf('localhost') === -1) return;
+      try {
+        var parsed = JSON.parse(raw);
+        var cleaned = scrubValue(parsed);
+        localStorage.setItem(k, JSON.stringify(cleaned));
+      } catch(e) {
+        if (bad(raw)) localStorage.removeItem(k);
+      }
+    });
+  } catch(e) {}
 })();
 </script>
 </body>

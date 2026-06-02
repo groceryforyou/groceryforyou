@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 
-  <!-- Runtime network guard: blocks dead localhost PNG probes and Razorpay metrics noise -->
+  <!-- Runtime network guard: blocks dead localhost image probes and page-context Razorpay metrics noise -->
   <script>
   (function(){
     'use strict';
@@ -115,14 +115,32 @@
     });
 
     // Hide only known third-party noise; real app errors still show.
+    var THIRD_PARTY_NOISE = /lumberjack-metrics\.razorpay\.com|unsafe header|Permissions policy violation|deviceorientation events are blocked/i;
     ['error','warn'].forEach(function(level){
       var nativeLog = console[level];
       console[level] = function(){
         var msg = [].slice.call(arguments).join(' ');
-        if (/lumberjack-metrics\.razorpay\.com|unsafe header|Permissions policy violation|deviceorientation events are blocked/i.test(msg)) return;
+        if (THIRD_PARTY_NOISE.test(msg)) return;
         return nativeLog.apply(console, arguments);
       };
     });
+
+    // Suppress async Razorpay telemetry promise/error events generated in the page context.
+    window.addEventListener('error', function(event){
+      var msg = [event.message, event.filename, event.error && event.error.message].join(' ');
+      if (THIRD_PARTY_NOISE.test(msg)) {
+        event.preventDefault();
+        return false;
+      }
+    }, true);
+    window.addEventListener('unhandledrejection', function(event){
+      var reason = event.reason || '';
+      var msg = typeof reason === 'string' ? reason : [reason.message, reason.stack].join(' ');
+      if (THIRD_PARTY_NOISE.test(msg)) {
+        event.preventDefault();
+        return false;
+      }
+    }, true);
   })();
   </script>
   <link rel="stylesheet" href="webview-patch.css">
@@ -7563,5 +7581,254 @@ window.addEventListener('load', function() {
   } catch(e) {}
 })();
 </script>
+
+
+<!-- ✅ Place Order / Razorpay final fix: robust amount + visible validation + no silent click -->
+<script>
+(function gfyPlaceOrderRazorpayFinalFix(){
+  'use strict';
+  if (window.__GFY_PLACE_ORDER_RZP_FINAL_FIX__) return;
+  window.__GFY_PLACE_ORDER_RZP_FINAL_FIX__ = true;
+
+  function toast(msg, ms){
+    try { if (typeof showToast === 'function') return showToast(msg, ms || 2500); } catch(e) {}
+    alert(msg);
+  }
+
+  function val(id){
+    var el = document.getElementById(id);
+    return el && typeof el.value === 'string' ? el.value.trim() : '';
+  }
+
+  function focusId(id){
+    var el = document.getElementById(id);
+    if (el && typeof el.focus === 'function') el.focus();
+  }
+
+  function cartSubtotal(){
+    try {
+      if (typeof cart === 'undefined' || !cart) return 0;
+      return Object.keys(cart).reduce(function(sum, id){
+        var item = cart[id] || {};
+        return sum + (Number(item.price) || 0) * (Number(item.qty) || 0);
+      }, 0);
+    } catch(e) { return 0; }
+  }
+
+  function deliveryFeeFor(subtotal){
+    var fee = 0;
+    try {
+      if (typeof window.currentDeliveryFee !== 'undefined') fee = Number(window.currentDeliveryFee) || 0;
+      else if (typeof currentDeliveryFee !== 'undefined') fee = Number(currentDeliveryFee) || 0;
+      else if (typeof window._gfyDeliveryFee !== 'undefined') fee = Number(window._gfyDeliveryFee) || 0;
+    } catch(e) {}
+    return fee;
+  }
+
+  function safeAmount(){
+    var subtotal = cartSubtotal();
+    var fee = deliveryFeeFor(subtotal);
+    var computed = subtotal + fee;
+    var candidates = [
+      window.finalAmount,
+      window.currentGrandTotal,
+      window._gfyGrandTotal,
+      window._pendingUPIAmount,
+      computed
+    ];
+    for (var i = 0; i < candidates.length; i++) {
+      var n = Number(candidates[i]);
+      if (isFinite(n) && n > 0) return Math.round(n * 100) / 100;
+    }
+    return 0;
+  }
+
+  function isPinOk(){
+    try { return typeof omPinLatLng !== 'undefined' && !!omPinLatLng; } catch(e) { return false; }
+  }
+
+  function selectedPay(){
+    try { return selectedPaymentMethod || ''; } catch(e) { return ''; }
+  }
+
+  function normalizePayMethod(m){
+    m = String(m || '').toLowerCase();
+    if (m === 'card' || m === 'razorpay') return 'upi';
+    return m;
+  }
+
+  function patchedSubmitOrder(){
+    try {
+      if (typeof syncCartWithInventory === 'function') {
+        var removed = syncCartWithInventory(true);
+        if (removed && removed.length) return;
+      }
+    } catch(e) {}
+
+    var name = val('om-name');
+    var phone = val('om-phone');
+    var email = val('om-email').toLowerCase();
+    var address = val('om-address');
+
+    if (!Object.keys((typeof cart !== 'undefined' && cart) ? cart : {}).length) {
+      toast('🛒 Cart is empty. Add items first.', 2500);
+      return;
+    }
+    if (!name) { toast('Please enter your name.', 2500); focusId('om-name'); return; }
+    if (!phone) { toast('Please enter your phone number.', 2500); focusId('om-phone'); return; }
+    if (!/^[0-9]{10}$/.test(phone)) { toast('Please enter a valid 10 digit phone number.', 2500); focusId('om-phone'); return; }
+    if (!email) { toast('Please enter your email.', 2500); focusId('om-email'); return; }
+    if (!address) { toast('Please enter delivery address.', 2500); focusId('om-address'); return; }
+    if (!isPinOk()) { toast('📍 Please select delivery location on the map.', 3000); return; }
+
+    try {
+      if (typeof isServiceableLatLng === 'function' && !isServiceableLatLng(omPinLatLng.lat, omPinLatLng.lng)) {
+        toast('⚠️ This location is outside delivery area.', 3000);
+        return;
+      }
+    } catch(e) {}
+
+    var amount = safeAmount();
+    if (!amount || amount <= 0) {
+      toast('Amount error. Please reopen cart and try again.', 3000);
+      console.error('[PlaceOrderFix] Invalid amount', {
+        finalAmount: window.finalAmount,
+        currentGrandTotal: window.currentGrandTotal,
+        subtotal: cartSubtotal(),
+        deliveryFee: deliveryFeeFor(cartSubtotal())
+      });
+      return;
+    }
+
+    window.finalAmount = amount;
+    window.currentGrandTotal = amount;
+    window._pendingUPIAmount = amount;
+    window._gfyGrandTotal = amount;
+
+    var method = normalizePayMethod(selectedPay());
+    console.log('[PlaceOrderFix] submitOrder', {method: method, amount: amount, name: name, phone: phone});
+
+    if (method === 'qr') {
+      if (typeof showPhonePeQR === 'function') showPhonePeQR(amount);
+      else if (typeof showUPIRedirect === 'function') showUPIRedirect(amount);
+      else toast('QR payment is not available. Choose another payment method.', 3000);
+      return;
+    }
+
+    if (method === 'upi') {
+      if (typeof openRazorpayCheckout === 'function') {
+        openRazorpayCheckout(amount, name, phone);
+      } else {
+        toast('Razorpay function not loaded. Refresh and try again.', 3000);
+        console.error('[PlaceOrderFix] openRazorpayCheckout is not a function');
+      }
+      return;
+    }
+
+    if (typeof finalizeOrder === 'function') finalizeOrder(method || 'cod', false);
+    else toast('Order system not loaded. Refresh and try again.', 3000);
+  }
+
+  function install(){
+    window.submitOrder = patchedSubmitOrder;
+    var btn = document.querySelector('.om-place');
+    if (btn) {
+      btn.onclick = patchedSubmitOrder;
+      btn.removeAttribute('disabled');
+      btn.dataset.placeOrderFixed = 'true';
+    }
+    console.log('[PlaceOrderFix] ✅ Place Order button patched');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);
+  else install();
+  [300, 1000, 2500, 5000].forEach(function(ms){ setTimeout(install, ms); });
+})();
+</script>
+
+
+
+<script>
+/* ===== GFY Razorpay console-safe test helper =====
+   Fixes manual console error: "options is not defined".
+   This does not change normal checkout. It only exposes a safe global
+   options object and testRazorpayCheckout() for APK/WebView testing. */
+(function(){
+  'use strict';
+  if (window.__GFY_RAZORPAY_TEST_HELPER__) return;
+  window.__GFY_RAZORPAY_TEST_HELPER__ = true;
+
+  function getRazorpayKey(){
+    try {
+      if (typeof RZP_KEY !== 'undefined' && RZP_KEY) return RZP_KEY;
+    } catch(e) {}
+    return 'rzp_live_SmqNRvEpkEJ49k';
+  }
+
+  window.createRazorpayOptions = function(amount, name, phone){
+    amount = Number(amount || 100);
+    name = name || 'Test User';
+    phone = phone || '9876543210';
+
+    var emailEl = document.getElementById('om-email');
+    var email = emailEl && emailEl.value ? emailEl.value.trim() : 'test@example.com';
+
+    return {
+      key: getRazorpayKey(),
+      amount: Math.round(amount * 100),
+      currency: 'INR',
+      name: 'Grocery For You Sircilla',
+      description: 'Test Payment',
+      prefill: {
+        name: name,
+        contact: phone,
+        email: email
+      },
+      notes: {
+        source: 'console-test'
+      },
+      theme: {
+        color: '#00b04e'
+      },
+      handler: function(response){
+        console.log('[GFY Razorpay Test Success]', response);
+        if (typeof showToast === 'function') showToast('✅ Razorpay test payment returned response', 2500);
+      },
+      modal: {
+        ondismiss: function(){
+          console.log('[GFY Razorpay Test] popup closed');
+        }
+      }
+    };
+  };
+
+  /* This makes manual console code work:
+     console.log(options); const rzp = new Razorpay(options); rzp.open(); */
+  window.options = window.createRazorpayOptions(100, 'Test User', '9876543210');
+
+  window.testRazorpayCheckout = function(amount, name, phone){
+    if (typeof Razorpay === 'undefined') {
+      console.error('[GFY Razorpay Test] Razorpay SDK is not loaded. Check checkout.js/WebView/network.');
+      if (typeof showToast === 'function') showToast('Razorpay SDK not loaded. Refresh and try again.', 3000);
+      return null;
+    }
+    var opts = window.createRazorpayOptions(amount || 100, name || 'Test User', phone || '9876543210');
+    window.options = opts;
+    try {
+      var instance = new Razorpay(opts);
+      window.rzp = instance;
+      instance.open();
+      return instance;
+    } catch (e) {
+      console.error('[GFY Razorpay Test] open failed:', e);
+      if (typeof showToast === 'function') showToast('Razorpay open failed: ' + (e.message || e), 3500);
+      return null;
+    }
+  };
+
+  console.log('[GFY] Razorpay console helper ready. Use testRazorpayCheckout() or openRazorpayCheckout(100,"Test User","9876543210").');
+})();
+</script>
+
 </body>
 </html>

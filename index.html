@@ -5134,10 +5134,8 @@ function toggleSidebar() {
 
       /* Fallback to QR if Razorpay SDK not loaded */
       if (typeof Razorpay === 'undefined') {
-    console.error('[RazorpayUPI] SDK not loaded');
-    if (typeof showToast === 'function') {
-        showToast('Payment service unavailable. Please try again.', 3000);
-    }
+    console.warn('[RazorpayUPI] SDK not loaded, falling back to QR modal');
+    showQRModal(amount);
     return;
 }
 

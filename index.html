@@ -5134,10 +5134,10 @@ function toggleSidebar() {
 
       /* Fallback to QR if Razorpay SDK not loaded */
       if (typeof Razorpay === 'undefined') {
-    console.warn('[RazorpayUPI] SDK not loaded, falling back to QR modal');
-    showQRModal(amount);
-    return;
-}
+        console.warn('[RazorpayUPI] SDK not loaded, falling back to QR modal');
+        showQRModal(amount);
+        return;
+      }
 
       var options = {
         key:         RZP_KEY,
@@ -5174,15 +5174,14 @@ function toggleSidebar() {
           if (typeof showToast === 'function') {
             showToast('\u274C ' + msg + '. Try again.', 3000);
           }
-          
-       rzp.open();
-     } catch (e) {
-      console.error('[RazorpayUPI] Checkout error:', e);
-
-      if (typeof showToast === 'function') {
-        showToast('Payment failed. Please try again.', 3000);
-    }
-}
+          /* Offer QR as fallback */
+          setTimeout(function() { showQRModal(amount); }, 1500);
+        });
+        rzp.open();
+      } catch (e) {
+        console.error('[RazorpayUPI] Checkout error:', e);
+        showQRModal(amount);
+      }
     };
     console.log('[RazorpayUPI] \u2705 openRazorpayCheckout \u2192 Live Razorpay popup active');
   }

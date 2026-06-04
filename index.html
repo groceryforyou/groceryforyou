@@ -3124,16 +3124,6 @@ function patchUPIPayment(){
       link.setAttribute('href',href);
     }catch(e){}
   });
-
-  if(window.Razorpay){
-    const originalOpen=window.Razorpay;
-    window.Razorpay=function(options){
-      try{
-        options.amount=Math.round(total*100);
-      }catch(e){}
-      return new originalOpen(options);
-    }
-  }
 }
 
 setInterval(function(){
@@ -3191,20 +3181,6 @@ window.addEventListener('load',function(){
 
   // Auto sync whenever totals change
   setInterval(syncUPIAmounts, 500);
-
-  // Override Razorpay open if available
-  const oldRazorpay = window.Razorpay;
-  if(oldRazorpay){
-    window.Razorpay = function(options){
-      try{
-        const total = getGrandTotal();
-        if(total > 0){
-          options.amount = Math.round(total * 100);
-        }
-      }catch(e){}
-      return new oldRazorpay(options);
-    }
-  }
 })();
 </script>
 
@@ -5068,7 +5044,7 @@ function toggleSidebar() {
 (function patchRazorpayUPI() {
   'use strict';
 
-  var RZP_KEY = 'rzp_live_SmqNRvEpkEJ49k';
+  var RZP_KEY = 'rzp_live_SmqNRvFpKEJA49k';
 
   /* ── QR fallback: shows static QR modal ── */
   function showQRModal(amount) {

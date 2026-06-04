@@ -120,7 +120,7 @@ document.addEventListener('error', function(e) {
     const src = e.target.src || '';
     if (src.includes('localhost') || src.includes('127.0.0.1')) {
       const filename = src.split('/').pop().split('?')[0];
-      e.target.src = 'https://groceryforyou.github.io/images/' + filename;
+      e.target.src =  'https://groceryforyou.github.io/groceryforyou/images/' + filename;
       e.target.onerror = function() {
         this.style.display = 'none'; // hide if not found on GitHub either
       };

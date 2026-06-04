@@ -3133,17 +3133,6 @@ function patchUPIPayment(){
     }catch(e){}
   });
 
-  if(window.Razorpay){
-    const originalOpen=window.Razorpay;
-    window.Razorpay=function(options){
-      try{
-        options.amount=Math.round(total*100);
-      }catch(e){}
-      return new originalOpen(options);
-    }
-  }
-}
-
 setInterval(function(){
   calculateFinalTotal();
   patchUPIPayment();

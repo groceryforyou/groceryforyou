@@ -10,6 +10,7 @@
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
   <meta name="author" content="Grocery For You Sircilla"/>
   <meta name="theme-color" content="#1a5c2a"/>
+  <meta http-equiv="Permissions-Policy" content="accelerometer=*, gyroscope=*, payment=*">
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-title" content="Grocery For You"/>
@@ -112,6 +113,21 @@
   <link href="https://fonts.googleapis.com/css2?family=Yeseva+One&family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@0,700;1,400&family=Poppins:wght@300;400;700&family=Roboto:wght@300;400;700&family=Nunito:wght@300;400;700&family=Merriweather:wght@300;400;700&family=Josefin+Sans:wght@300;400;700&family=Raleway:wght@300;400;700&family=Dancing+Script:wght@700&family=Ubuntu:wght@300;400;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'"/>
   <noscript><link href="https://fonts.googleapis.com/css2?family=Yeseva+One&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/></noscript>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script>
+/* ── Fix: Redirect broken localhost image URLs to GitHub Pages ── */
+document.addEventListener('error', function(e) {
+  if (e.target && e.target.tagName === 'IMG') {
+    const src = e.target.src || '';
+    if (src.includes('localhost') || src.includes('127.0.0.1')) {
+      const filename = src.split('/').pop().split('?')[0];
+      e.target.src = 'https://groceryforyou.github.io/images/' + filename;
+      e.target.onerror = function() {
+        this.style.display = 'none'; // hide if not found on GitHub either
+      };
+    }
+  }
+}, true);
+</script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>

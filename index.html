@@ -219,10 +219,24 @@ document.addEventListener('error', function(e) {
 
 
     /* ===== MAIN ===== */
-    .main{max-width:1200px;margin:0 auto;padding:24px 14px 120px;width:100%;overflow-x:hidden}
+    /* scrollbar-gutter stable prevents body width shift when modals toggle overflow */
+    html{scrollbar-gutter:stable}
+    .main{max-width:1200px;margin:0 auto;padding:24px 14px 120px;width:100%;overflow-x:hidden;min-height:100vh}
     .section-title{font-family:"Yeseva One",serif;font-size:1.5rem;color:var(--brown);margin-bottom:18px;display:flex;align-items:center;gap:10px;border-left:4px solid var(--saffron);padding-left:12px}
-    .page{display:none}
-    .page.active{display:block}
+    /* ===== PAGE SWITCHING — no layout jumps ===== */
+    /* All pages occupy the same flow space; only the active one is visible */
+    .page{
+      display:none;        /* hidden by default */
+      min-height:60vh;     /* prevents main collapsing between pages */
+    }
+    .page.active{
+      display:block;       /* shown when active */
+      animation:pageFadeIn .18s ease;
+    }
+    @keyframes pageFadeIn{
+      from{opacity:0;transform:translateY(6px)}
+      to{opacity:1;transform:translateY(0)}
+    }
     .back-btn{background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);color:#fff;border-radius:20px;padding:7px 14px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .2s;font-family:"Lato",sans-serif}
     .back-btn:hover{background:rgba(255,255,255,0.28)}
     .back-btn-light{background:var(--cream);border:1.5px solid var(--border);color:var(--brown);border-radius:20px;padding:8px 16px;font-size:.85rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .2s;font-family:"Lato",sans-serif;margin-bottom:16px}

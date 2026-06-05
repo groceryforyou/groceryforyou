@@ -5233,14 +5233,19 @@ if (typeof showToast === 'function') {
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
-      [0, 300, 800, 1500, 3000].forEach(function(ms) { setTimeout(tryPatch, ms); });
+        [0, 300, 800, 1500, 3000].forEach(function(ms) {
+            setTimeout(tryPatch, ms);
+        });
     });
-  } else {
-    [0, 300, 800, 1500, 3000].forEach(function(ms) { setTimeout(tryPatch, ms); });
-  }
-
-  console.log('[RazorpayUPI] \ud83d\ude80 Live Razorpay checkout loaded \u2014 Key: rzp_live_SmqN...');
+} else {
+    [0, 300, 800, 1500, 3000].forEach(function(ms) {
+        setTimeout(tryPatch, ms);
+    });
 }
+
+console.log('[RazorpayUPI] Live Razorpay checkout loaded');
+
+})();
 </script>
 
 <!-- ✅ Sign-In Fix: Popup → Redirect fallback -->

@@ -2406,8 +2406,11 @@ function applyDsToAdminPage() {
 }
 
 function startDeliverySettingsListener() {
+  // Guard: only create one subscription — prevents duplicate listeners on re-call
+  if (window._dsListenerStarted) return;
+  window._dsListenerStarted = true;
 
-  if (!db) return;
+  if (!db) { window._dsListenerStarted = false; return; }
 
   db.collection('settings')
     .doc('deliverySettings')
@@ -3083,6 +3086,78 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
   }function showToast(_0x491bdb,_0x37456a=0x960,_0x1c8fac=''){const _0x338bc0=a0_0x24f4ad,_0x334a44=document[_0x338bc0(0x3d3)](_0x338bc0(0x109));clearTimeout(_0x334a44[_0x338bc0(0xc7)]),clearTimeout(_0x334a44[_0x338bc0(0x1be)]),_0x334a44['classList'][_0x338bc0(0xfd)](_0x338bc0(0x389)),void _0x334a44[_0x338bc0(0x495)],_0x334a44[_0x338bc0(0x261)]=_0x491bdb,_0x334a44['className']=_0x338bc0(0x109)+(_0x1c8fac?'\x20'+_0x1c8fac:''),_0x334a44[_0x338bc0(0x20d)][_0x338bc0(0x388)](_0x338bc0(0x389)),_0x334a44[_0x338bc0(0xc7)]=setTimeout(()=>{const _0x352591=_0x338bc0;_0x334a44[_0x352591(0x20d)][_0x352591(0xfd)](_0x352591(0x389));},_0x37456a);}window[a0_0x24f4ad(0xa8)](a0_0x24f4ad(0x1e8),()=>{const _0x3762e8=a0_0x24f4ad,_0x2ecca8=document[_0x3762e8(0x3d3)](_0x3762e8(0x2c1));if(_0x2ecca8)_0x2ecca8[_0x3762e8(0x20d)][_0x3762e8(0x32f)](_0x3762e8(0x473),window[_0x3762e8(0x397)]>0x190);},{'passive':!![]});const savedRole=localStorage[a0_0x24f4ad(0x332)](a0_0x24f4ad(0x98));if(savedRole)currentRole=savedRole;updateRoleUI(),renderMenuPage(),document['getElementById'](a0_0x24f4ad(0x498))[a0_0x24f4ad(0x187)][a0_0x24f4ad(0x398)]=a0_0x24f4ad(0x3da);const FONTS=[{'name':a0_0x24f4ad(0x41c),'label':a0_0x24f4ad(0x41c),'sample':a0_0x24f4ad(0x3e1),'desc':'Clean\x20&\x20Modern\x20(Default)'},{'name':a0_0x24f4ad(0x1a2),'label':a0_0x24f4ad(0x1a2),'sample':'Fresh\x20Grocery\x20daily!','desc':a0_0x24f4ad(0x43a)},{'name':a0_0x24f4ad(0x3b2),'label':a0_0x24f4ad(0x3b2),'sample':a0_0x24f4ad(0x3e1),'desc':a0_0x24f4ad(0xb5)},{'name':a0_0x24f4ad(0x3bb),'label':a0_0x24f4ad(0x3bb),'sample':a0_0x24f4ad(0x3e1),'desc':a0_0x24f4ad(0x153)},{'name':a0_0x24f4ad(0x24f),'label':a0_0x24f4ad(0x24f),'sample':a0_0x24f4ad(0x3e1),'desc':a0_0x24f4ad(0x3de)},{'name':a0_0x24f4ad(0x185),'label':'Josefin\x20Sans','sample':'Fresh\x20Grocery\x20daily!','desc':'Geometric\x20&\x20Bold'},{'name':'Ubuntu','label':a0_0x24f4ad(0x403),'sample':a0_0x24f4ad(0x3e1),'desc':'Rounded\x20&\x20Friendly'},{'name':a0_0x24f4ad(0x308),'label':a0_0x24f4ad(0x308),'sample':'Fresh\x20Grocery\x20daily!','desc':a0_0x24f4ad(0x432)},{'name':a0_0x24f4ad(0x423),'label':'Playfair','sample':a0_0x24f4ad(0x3e1),'desc':'Luxury\x20Serif'},{'name':'Dancing\x20Script','label':a0_0x24f4ad(0x2c5),'sample':a0_0x24f4ad(0x3e1),'desc':a0_0x24f4ad(0xf4)}];let currentFont=localStorage['getItem'](a0_0x24f4ad(0x139))||a0_0x24f4ad(0x41c);function buildFontGrid(){const _0x3a99bd=a0_0x24f4ad,_0x3fcc76=document['getElementById'](_0x3a99bd(0x48d));if(!_0x3fcc76)return;_0x3fcc76[_0x3a99bd(0x234)]=FONTS[_0x3a99bd(0x323)](_0x5cab3f=>_0x3a99bd(0x1da)+(_0x5cab3f[_0x3a99bd(0x12c)]===currentFont?_0x3a99bd(0x3cd):'')+_0x3a99bd(0xe8)+_0x5cab3f[_0x3a99bd(0x12c)]+_0x3a99bd(0x1f8)+_0x5cab3f[_0x3a99bd(0x12c)][_0x3a99bd(0x40f)](/\s/g,'_')+'\x22>\x0a\x20\x20\x20\x20\x20\x20<div\x20class=\x22fp-card-check\x22>✓</div>\x0a\x20\x20\x20\x20\x20\x20<div\x20class=\x22fp-font-name\x22>'+_0x5cab3f[_0x3a99bd(0x2a4)]+_0x3a99bd(0x1c3)+_0x5cab3f[_0x3a99bd(0x12c)]+_0x3a99bd(0x215)+_0x5cab3f['sample']+_0x3a99bd(0x2d9)+_0x5cab3f['desc']+_0x3a99bd(0xf2))[_0x3a99bd(0x175)]('');}function applyFont(_0xae3a42){const _0x5ac8f5=a0_0x24f4ad;currentFont=_0xae3a42,localStorage[_0x5ac8f5(0x2d4)](_0x5ac8f5(0x139),_0xae3a42),document[_0x5ac8f5(0x2e1)][_0x5ac8f5(0x187)][_0x5ac8f5(0x2ef)]('--site-font','\x27'+_0xae3a42+_0x5ac8f5(0x395)),document[_0x5ac8f5(0xab)]['style'][_0x5ac8f5(0x268)]='\x27'+_0xae3a42+_0x5ac8f5(0x395);const _0xf2aee1=document[_0x5ac8f5(0x3d3)](_0x5ac8f5(0x369));if(_0xf2aee1)_0xf2aee1[_0x5ac8f5(0x187)]['fontFamily']='\x27'+_0xae3a42+_0x5ac8f5(0x395);const _0x2282da=document[_0x5ac8f5(0x3d3)](_0x5ac8f5(0x271));if(_0x2282da)_0x2282da['textContent']=_0xae3a42[_0x5ac8f5(0x193)]('\x20')[0x0][_0x5ac8f5(0x27a)](0x0,0x4);document[_0x5ac8f5(0x19d)]('.fp-card')[_0x5ac8f5(0x2ac)](_0xc5b104=>_0xc5b104[_0x5ac8f5(0x20d)][_0x5ac8f5(0xfd)](_0x5ac8f5(0x433)));const _0x3dd8a3=document[_0x5ac8f5(0x3d3)](_0x5ac8f5(0xac)+_0xae3a42[_0x5ac8f5(0x40f)](/\s/g,'_'));if(_0x3dd8a3)_0x3dd8a3[_0x5ac8f5(0x20d)][_0x5ac8f5(0x388)](_0x5ac8f5(0x433));showToast('🔤\x20Font\x20changed\x20to\x20'+_0xae3a42);}function openFontPicker(){const _0x345dd6=a0_0x24f4ad;buildFontGrid(),document[_0x345dd6(0x3d3)](_0x345dd6(0xce))[_0x345dd6(0x20d)][_0x345dd6(0x388)](_0x345dd6(0x43d));const _0x4637b6=document[_0x345dd6(0x3d3)](_0x345dd6(0x369));if(_0x4637b6)_0x4637b6['style'][_0x345dd6(0x268)]='\x27'+currentFont+'\x27,sans-serif';}function closeFontPicker(){const _0x6f862b=a0_0x24f4ad;document[_0x6f862b(0x3d3)](_0x6f862b(0xce))[_0x6f862b(0x20d)]['remove']('open');}(function initFont(){const _0x1906da=a0_0x24f4ad,_0x2ca414=localStorage[_0x1906da(0x332)](_0x1906da(0x139));if(_0x2ca414){currentFont=_0x2ca414,document[_0x1906da(0x2e1)][_0x1906da(0x187)][_0x1906da(0x2ef)](_0x1906da(0x284),'\x27'+_0x2ca414+'\x27,sans-serif'),document['body'][_0x1906da(0x187)][_0x1906da(0x268)]='\x27'+_0x2ca414+'\x27,sans-serif';const _0x3c0718=document[_0x1906da(0x3d3)](_0x1906da(0x271));if(_0x3c0718)_0x3c0718[_0x1906da(0x261)]=_0x2ca414[_0x1906da(0x193)]('\x20')[0x0][_0x1906da(0x27a)](0x0,0x4);}}());const COLOR_THEMES=[{'id':a0_0x24f4ad(0x492),'label':a0_0x24f4ad(0x347),'swatches':[a0_0x24f4ad(0x3c8),a0_0x24f4ad(0x1c6),'#ffcc00','#f0faf4'],'dot':'#00b04e'},{'id':a0_0x24f4ad(0xc4),'label':'🌊\x20Ocean\x20Tide','swatches':['#003B46',a0_0x24f4ad(0x448),a0_0x24f4ad(0x407),a0_0x24f4ad(0xa9)],'dot':'#00BCD4'},{'id':a0_0x24f4ad(0x45c),'label':'🌅\x20Sunset\x20Blaze','swatches':['#3D0C00',a0_0x24f4ad(0x2f8),a0_0x24f4ad(0x311),a0_0x24f4ad(0x191)],'dot':a0_0x24f4ad(0x311)},{'id':a0_0x24f4ad(0x18e),'label':a0_0x24f4ad(0x2e6),'swatches':[a0_0x24f4ad(0x41a),'#0A0520','#FFE500',a0_0x24f4ad(0x44f)],'dot':a0_0x24f4ad(0x349)},{'id':a0_0x24f4ad(0x413),'label':a0_0x24f4ad(0x120),'swatches':[a0_0x24f4ad(0x1ef),a0_0x24f4ad(0x171),a0_0x24f4ad(0x3b9),a0_0x24f4ad(0x47a)],'dot':a0_0x24f4ad(0x3b9)},{'id':a0_0x24f4ad(0x2d3),'label':'🧊\x20Arctic\x20Sky','swatches':[a0_0x24f4ad(0x352),'#1565C0',a0_0x24f4ad(0x4a1),a0_0x24f4ad(0x2f0)],'dot':a0_0x24f4ad(0x4a1)},{'id':a0_0x24f4ad(0x486),'label':'🌋\x20Volcanic\x20Dark','swatches':[a0_0x24f4ad(0x39b),'#1F0800',a0_0x24f4ad(0x3f4),a0_0x24f4ad(0x34f)],'dot':a0_0x24f4ad(0x3f4)},{'id':a0_0x24f4ad(0x1d5),'label':a0_0x24f4ad(0x41d),'swatches':[a0_0x24f4ad(0x453),a0_0x24f4ad(0x26b),a0_0x24f4ad(0x3d4),a0_0x24f4ad(0x184)],'dot':a0_0x24f4ad(0x3d4)},{'id':a0_0x24f4ad(0x34a),'label':a0_0x24f4ad(0x300),'swatches':[a0_0x24f4ad(0x33c),'#1E004D',a0_0x24f4ad(0x454),a0_0x24f4ad(0x43e)],'dot':'#AA00FF'},{'id':a0_0x24f4ad(0x307),'label':a0_0x24f4ad(0x29b),'swatches':[a0_0x24f4ad(0x1dd),a0_0x24f4ad(0x1e4),a0_0x24f4ad(0xdb),a0_0x24f4ad(0x230)],'dot':a0_0x24f4ad(0xdb)},{'id':'mint','label':'💎\x20Mint\x20Luxe','swatches':['#001A12',a0_0x24f4ad(0x3c1),a0_0x24f4ad(0xfc),'#F0FFF9'],'dot':a0_0x24f4ad(0xfc)}];let currentColorTheme=localStorage[a0_0x24f4ad(0x332)](a0_0x24f4ad(0x3d2))||a0_0x24f4ad(0x492);const THEME_CLASSES=[a0_0x24f4ad(0x37c),a0_0x24f4ad(0x351),a0_0x24f4ad(0x3a8),'theme-rose',a0_0x24f4ad(0x49f),'theme-volcanic',a0_0x24f4ad(0x1a1),'theme-galaxy','theme-imperial',a0_0x24f4ad(0x19c)];function buildThemeGrid(){const _0x4eb325=a0_0x24f4ad,_0x5b1ac5=document[_0x4eb325(0x3d3)]('tp-grid');if(!_0x5b1ac5)return;_0x5b1ac5[_0x4eb325(0x234)]=COLOR_THEMES['map'](_0xf49986=>_0x4eb325(0x18b)+(_0xf49986['id']===currentColorTheme?'\x20selected':'')+_0x4eb325(0x2d5)+_0xf49986['id']+_0x4eb325(0x1bc)+_0xf49986['id']+_0x4eb325(0x15a)+_0xf49986['swatches']['map'](_0x728444=>_0x4eb325(0x2d6)+_0x728444+_0x4eb325(0x209))[_0x4eb325(0x175)]('')+_0x4eb325(0x2c6)+_0xf49986[_0x4eb325(0x2a4)]+'</span>\x0a\x20\x20\x20\x20\x20\x20\x20\x20<span\x20class=\x22tp-card-check\x22>✓</span>\x0a\x20\x20\x20\x20\x20\x20</div>\x0a\x20\x20\x20\x20</div>\x0a\x20\x20')[_0x4eb325(0x175)]('');}function applyTheme(_0x12d437){const _0x325943=a0_0x24f4ad;currentColorTheme=_0x12d437,localStorage['setItem'](_0x325943(0x3d2),_0x12d437),THEME_CLASSES['forEach'](_0x328133=>document['body'][_0x325943(0x20d)][_0x325943(0xfd)](_0x328133));if(_0x12d437!==_0x325943(0x492))document[_0x325943(0xab)][_0x325943(0x20d)][_0x325943(0x388)](_0x325943(0xb6)+_0x12d437);const _0x4f0533=COLOR_THEMES[_0x325943(0x22a)](_0x4ffecd=>_0x4ffecd['id']===_0x12d437),_0x1b3b10=document['getElementById'](_0x325943(0xd8));if(_0x1b3b10&&_0x4f0533)_0x1b3b10[_0x325943(0x187)][_0x325943(0x45e)]=_0x4f0533['dot'];document['querySelectorAll'](_0x325943(0x338))[_0x325943(0x2ac)](_0x1d0d92=>_0x1d0d92[_0x325943(0x20d)][_0x325943(0xfd)]('selected'));const _0x3bc4cc=document[_0x325943(0x3d3)](_0x325943(0x2b3)+_0x12d437);if(_0x3bc4cc)_0x3bc4cc['classList'][_0x325943(0x388)](_0x325943(0x433));showToast('🎨\x20Theme:\x20'+(_0x4f0533?_0x4f0533[_0x325943(0x2a4)]:_0x12d437));}function openThemePicker(){const _0x429045=a0_0x24f4ad;buildThemeGrid(),document[_0x429045(0x3d3)]('theme-picker-overlay')[_0x429045(0x20d)][_0x429045(0x388)](_0x429045(0x43d));}function closeThemePicker(){const _0x143921=a0_0x24f4ad;document[_0x143921(0x3d3)](_0x143921(0x474))[_0x143921(0x20d)][_0x143921(0xfd)]('open');}(function initColorTheme(){const _0x5b29d7=a0_0x24f4ad,_0x2ea3f5=localStorage['getItem'](_0x5b29d7(0x3d2));if(_0x2ea3f5&&_0x2ea3f5!==_0x5b29d7(0x492)){THEME_CLASSES['forEach'](_0x29c236=>document[_0x5b29d7(0xab)][_0x5b29d7(0x20d)][_0x5b29d7(0xfd)](_0x29c236)),document[_0x5b29d7(0xab)][_0x5b29d7(0x20d)][_0x5b29d7(0x388)]('theme-'+_0x2ea3f5),currentColorTheme=_0x2ea3f5;const _0x13bc40=COLOR_THEMES['find'](_0x5c1466=>_0x5c1466['id']===_0x2ea3f5),_0x148980=document[_0x5b29d7(0x3d3)](_0x5b29d7(0xd8));if(_0x148980&&_0x13bc40)_0x148980[_0x5b29d7(0x187)][_0x5b29d7(0x45e)]=_0x13bc40['dot'];}}());
 </script>
 
+<!-- ============================================================
+     CANCEL POPUP GUARD — prevents cancelled/rejected status
+     popup from firing on EVERY page load.
+
+     Root cause: the obfuscated syncCustomerOrderWatcher uses
+     Firestore onSnapshot which always fires one immediate event
+     with the CURRENT document state (even if unchanged).
+     If the last order status is 'cancelled' or 'rejected', this
+     causes the cancel popup to appear on every page open.
+
+     Fix: intercept showCustomerAlertModal for 3 seconds after
+     page load. If the status displayed matches the last-known
+     status in localStorage, suppress the popup. After 3s the
+     guard is removed so real-time changes still trigger popups.
+     ============================================================ -->
+<script>
+(function() {
+  'use strict';
+
+  // Read the last-known order status from localStorage
+  function getLastKnownStatus() {
+    try {
+      var raw = localStorage.getItem('lastOrder');
+      if (!raw) return '';
+      var obj = JSON.parse(raw);
+      return (obj && obj.status) ? String(obj.status).toLowerCase() : '';
+    } catch (e) { return ''; }
+  }
+
+  var _pageLoadTime = Date.now();
+  var _lastKnownStatus = getLastKnownStatus();
+  var _guardActive = true;
+
+  // Suppress for 3 seconds (enough for initial Firestore snapshots to fire)
+  setTimeout(function() { _guardActive = false; }, 3000);
+
+  // Intercept showCustomerAlertModal once it's defined
+  function installGuard() {
+    if (typeof window.showCustomerAlertModal !== 'function') {
+      setTimeout(installGuard, 200);
+      return;
+    }
+    var _origAlert = window.showCustomerAlertModal;
+    window.showCustomerAlertModal = function(title, body, type, cb, toastMsg, toastDuration) {
+      // During the guard window: suppress if this looks like a replay of last status
+      if (_guardActive && _lastKnownStatus) {
+        var titleLower = (title || '').toLowerCase();
+        var bodyLower = (body || '').toLowerCase();
+        var statusTerms = {
+          'cancelled': ['cancelled', 'cancel'],
+          'rejected': ['rejected', 'sorry'],
+          'auto-cancelled': ['auto-cancelled', 'cancelled']
+        };
+        var terms = statusTerms[_lastKnownStatus] || [];
+        for (var i = 0; i < terms.length; i++) {
+          if (titleLower.indexOf(terms[i]) !== -1 || bodyLower.indexOf(terms[i]) !== -1) {
+            console.log('[CancelGuard] Suppressed replay popup for status:', _lastKnownStatus);
+            return; // Suppress — this is a Firestore initial-snapshot replay
+          }
+        }
+      }
+      // Not a suppressed replay — call through to the real function
+      return _origAlert.apply(this, arguments);
+    };
+    window.showCustomerAlertModal.__guardWrapped = true;
+    console.log('[CancelGuard] Installed. Last known status:', _lastKnownStatus || '(none)');
+  }
+
+  installGuard();
+})();
+</script>
+
 <!-- Page Persistence Script -->
 <script>
 (function() {
@@ -3323,8 +3398,14 @@ document.addEventListener("DOMContentLoaded", function(){
 
   // Dedicated, super-robust Firestore real-time listener for instant sync on all pages
   function startSyncListeners(dbInstance) {
+    // Guard: only one set of listeners — prevents duplicate subscriptions if called again
+    if (window._syncListenersStarted) {
+      console.log('[RealtimeSync] Already running — skipping duplicate startSyncListeners call');
+      return;
+    }
+    window._syncListenersStarted = true;
     console.log('[RealtimeSync] Starting dedicated listeners for status badge...');
-    
+
     // 1. Listen to app_settings/delivery_settings
     dbInstance.collection('app_settings').doc('delivery_settings').onSnapshot(snap => {
       if (snap.exists) {
@@ -3388,7 +3469,8 @@ document.addEventListener("DOMContentLoaded", function(){
   });
 
   // Fallback interval to ensure dynamically generated products are styled correctly
-  setInterval(window.updateBusinessUI, 500);
+  // Reduced from 500ms → 5000ms: prevents CPU/battery drain in WebView/APK
+  setInterval(window.updateBusinessUI, 5000);
 
   // Initial run
   window.updateBusinessUI();
@@ -4563,12 +4645,14 @@ function toggleSidebar() {
   }
 
   function hookUpdateCartForDelivery() {
+    // Guard: only wrap once — prevents double delivery-fee call per cart update
+    if (window._updateCartDeliveryHooked) return;
     const original = window.updateCart;
     if (typeof original !== 'function') {
       setTimeout(hookUpdateCartForDelivery, 400);
       return;
     }
-
+    window._updateCartDeliveryHooked = true;
     window.updateCart = function(...args) {
       original.apply(this, args);
       updateDeliveryInfoDisplay();
@@ -4610,16 +4694,8 @@ function toggleSidebar() {
             }
           }
         }, err => console.warn('Delivery settings listener error:', err));
-        // Fallback polling every 20s
-        setInterval(() => {
-          db.collection('app_settings').doc('delivery_settings').get()
-            .then(docSnap => {
-              if (docSnap.exists) {
-                const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
-                localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
-              }
-            }).catch(() => {});
-        }, 20000);
+        // NOTE: Removed redundant 20s polling — the onSnapshot above already provides
+        // real-time updates instantly. Polling is unnecessary and wastes Firestore reads.
       }
     }, 500);
 
@@ -5444,7 +5520,14 @@ window.cart = cart;
 window.refreshInventoryUI = refreshInventoryUI;
 window.renderMenuPage = renderMenuPage;
 window.refreshManageList = refreshManageList;
-window.updateCart = updateCart;
+// Guard: do NOT overwrite window.updateCart if the delivery-fee system has
+// already wrapped it (hookUpdateCartForDelivery runs from script block 4707).
+// Overwriting would destroy the delivery-fee recalculation hook.
+if (typeof window.updateCart !== 'function' || window.updateCart === updateCart) {
+  window.updateCart = updateCart;
+}
+// Expose the raw updateCart so the hook can always reference it
+window._rawUpdateCart = updateCart;
 Object.defineProperty(window, 'currentRole', {
   get: function() { return currentRole; },
   set: function(val) { currentRole = val; },

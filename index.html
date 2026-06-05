@@ -7442,11 +7442,31 @@ window.addEventListener('load', function() {
 </script>
   <script>
 window.openOrderModal = function () {
-  var modal = document.getElementById('order-modal-overlay');
-  if (modal) {
-    modal.style.display = 'flex';
-    modal.classList.add('open');
+  const m = document.getElementById('order-modal-overlay');
+  const inner = document.querySelector('.order-modal');
+
+  if (!m) return;
+
+  m.style.cssText = `
+    display:flex !important;
+    opacity:1 !important;
+    visibility:visible !important;
+    position:fixed !important;
+    inset:0 !important;
+    z-index:999999 !important;
+    background:rgba(0,0,0,.6) !important;
+  `;
+
+  if (inner) {
+    inner.style.cssText += `
+      display:block !important;
+      opacity:1 !important;
+      visibility:visible !important;
+      transform:none !important;
+    `;
   }
+
+  m.classList.add('open');
 };
 
 window.GFY_openOrderModal = window.openOrderModal;

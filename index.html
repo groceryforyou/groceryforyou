@@ -7515,12 +7515,15 @@ window.addEventListener('load', function() {
     }
 
     // STEP 7: Prefill customer details from signed-in user
-    if (typeof prefillOrderCustomerFields === 'function') {
+    const nameEl = document.getElementById('om-name');
+    const phoneEl = document.getElementById('om-phone');
+    const emailEl = document.getElementById('om-email');
+    const shouldPrefill = [nameEl, phoneEl, emailEl].some(el => el && !el.value.trim());
+    if (shouldPrefill && typeof prefillOrderCustomerFields === 'function') {
       prefillOrderCustomerFields();
-    } else {
-      // Fallback: prefill email from auth
-      const emailEl = document.getElementById('om-email');
-      if (emailEl && user.email) emailEl.value = user.email;
+    } else if (emailEl && user.email && !emailEl.value.trim()) {
+      // Fallback: prefill email only if email field is empty
+      emailEl.value = user.email;
     }
 
     // STEP 8: Sync totals
@@ -7978,6 +7981,7 @@ window.addEventListener('load', function() {
 
       var lat = position.coords.latitude;
       var lng = position.coords.longitude;
+      console.log('[GFYGeo] Position detected:', { lat: lat, lng: lng });
 
     // Use existing map pin logic if available
       try {
@@ -8050,6 +8054,7 @@ window.addEventListener('load', function() {
     }
 
     // ── Request position (only on user click — safe for Android WebView) ──
+    console.log('[GFYGeo] Requesting current position...');
     navigator.geolocation.getCurrentPosition(
       onSuccess,
       onError,
@@ -8061,39 +8066,8 @@ window.addEventListener('load', function() {
     );
   };
 
-  // ── Helper: force LTR on every field inside the order modal ──────────────
-  // JS-level fix runs AFTER openOrderModal renders the DOM,
-  // covering cases where obfuscated innerHTML bypasses the CSS rule.
-  function forceLTROnOrderModalFields() {
-    var overlay = document.getElementById('order-modal-overlay');
-    if (!overlay) return;
-    overlay.querySelectorAll('input, textarea, select').forEach(function(el) {
-      el.dir               = 'ltr';
-      el.style.direction   = 'ltr';
-      el.style.unicodeBidi = 'isolate';
-      el.style.textAlign   = 'left';
-      el.style.transform   = 'none';
-      el.style.writingMode = 'horizontal-tb';
-    });
-  }
-
-  // ── Patch openOrderModal so LTR fix runs after every open ────────────────
-  var _ltrPatchTimer = setInterval(function() {
-    if (typeof window.openOrderModal !== 'function') return;
-    clearInterval(_ltrPatchTimer);
-    if (window.__gfyOpenLTRPatched) return;
-    window.__gfyOpenLTRPatched = true;
-    var _origOpen = window.openOrderModal;
-    window.openOrderModal = function() {
-      _origOpen.apply(this, arguments);
-      setTimeout(forceLTROnOrderModalFields, 80);   // fast path
-      setTimeout(forceLTROnOrderModalFields, 350);  // after animations
-    };
-    console.log('[GFYGeoFix] openOrderModal patched → LTR fields.');
-  }, 200);
-
-  // Apply immediately in case modal is already open
-  setTimeout(forceLTROnOrderModalFields, 100);
+  // LTR direction for order modal fields is already enforced by CSS.
+  // Removed JS patch because runtime DOM writes can disrupt cursor/input behavior.
 
   console.log('[GFYGeoFix] omUseMyLocation installed.');
 })();

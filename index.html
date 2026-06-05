@@ -4559,41 +4559,7 @@ function toggleSidebar() {
   }
 
   function hookOpenOrderModal() {
-    const original = window.openOrderModal;
-    if (typeof original !== 'function') {
-      setTimeout(hookOpenOrderModal, 400);
-      return;
-    }
-
-    window.openOrderModal = function(...args) {
-      // Fetch fresh delivery settings from Firestore before opening modal
-      const showModal = () => {
-        const settings = getDeliverySettings();
-        if (!isStoreOpen(settings)) {
-          showToast('⚠️ Store is currently closed.', 5000);
-          return;
-        }
-        original.apply(this, args);
-        // Fire multiple times to ensure we override obfuscated code's delivery fee
-        [150, 450, 900, 1600, 2800].forEach(ms =>
-          setTimeout(updateDeliveryInfoDisplay, ms)
-        );
-      };
-      // Fetch fresh settings from Firestore first
-      if (typeof db !== 'undefined' && db) {
-        db.collection('app_settings').doc('delivery_settings').get()
-          .then(docSnap => {
-            if (docSnap.exists) {
-              const fresh = { ...DEFAULT_DELIVERY_SETTINGS, ...docSnap.data() };
-              localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify(fresh));
-            }
-          })
-          .catch(() => {})
-          .finally(() => showModal());
-      } else {
-        showModal();
-      }
-    };
+    console.log('[DeliveryFee] hookOpenOrderModal bypassed');
   }
 
   function hookUpdateCartForDelivery() {
@@ -5885,25 +5851,7 @@ Object.defineProperty(window, 'currentUser', {
 
   /* ── Patch openOrderModal: reapply fee after modal opens ── */
   function patchOpenOrderModal() {
-    var orig = window.openOrderModal;
-    if (typeof orig !== 'function') { setTimeout(patchOpenOrderModal, 400); return; }
-
-    window.openOrderModal = function() {
-      // Ensure delivery fee is loaded before opening modal
-      if (window.currentDeliveryFee === undefined || window.currentDeliveryFee === null) {
-        var settings = typeof getDeliverySettings === 'function' ? getDeliverySettings() : {};
-        window.currentDeliveryFee = settings.feeEnabled ? (settings.feeAmount || 0) : 0;
-        _fee = window.currentDeliveryFee;
-        console.log('[DeliveryFee] Initialized currentDeliveryFee from settings:', window.currentDeliveryFee);
-      }
-      
-      orig.apply(this, arguments);
-      [100, 350, 700, 1200, 2000].forEach(function(ms) {
-        setTimeout(function() { applyFee(_fee); }, ms);
-      });
-    };
-
-    console.log('[DeliveryFee] openOrderModal patched');
+    console.log('[DeliveryFee] patchOpenOrderModal bypassed');
   }
 
   /* ── Wire admin save buttons ── */
@@ -7417,6 +7365,178 @@ window.addEventListener('load', function() {
           window.loadTickets();
         }
       }, 80);
+    }
+  };
+})();
+</script>
+
+<!-- CLEAN GROCERY ORDER MODAL IMPLEMENTATION -->
+<script>
+(function() {
+  'use strict';
+
+  window.openOrderModal = function() {
+    console.log('[CleanModal] openOrderModal called');
+    
+    // 1. Store open check
+    const settings = typeof getDeliverySettings === 'function' ? getDeliverySettings() : {};
+    if (typeof isStoreOpen === 'function' && !isStoreOpen(settings)) {
+      showToast('⚠️ Store is currently closed.', 5000);
+      return;
+    }
+
+    // 2. Sync cart items
+    if (typeof syncCartWithInventory === 'function') {
+      syncCartWithInventory(true);
+    }
+
+    // 3. Check if cart is empty
+    const cartKeys = Object.keys(cart);
+    if (cartKeys.length === 0) {
+      showToast('⚠️ Add items first!');
+      return;
+    }
+
+    // 4. Check minimum order value (₹50)
+    const subtotal = cartKeys.reduce((sum, key) => sum + cart[key].price * cart[key].qty, 0);
+    if (subtotal < 50) {
+      showToast('⚠️ Minimum order value is ₹50');
+      return;
+    }
+
+    // 5. Render items in modal
+    const itemsListEl = document.getElementById('om-items-list');
+    if (itemsListEl) {
+      itemsListEl.innerHTML = cartKeys.map(key => {
+        const item = cart[key];
+        return `<div class="om-item-row"><span>${item.emoji || '🍽'} ${item.name} × ${item.qty}</span><span>₹${item.price * item.qty}</span></div>`;
+      }).join('');
+    }
+
+    // 6. Prefill customer details
+    if (typeof prefillOrderCustomerFields === 'function') {
+      prefillOrderCustomerFields();
+    }
+
+    // 7. Ensure delivery fee is loaded and sync UI totals
+    if (window.currentDeliveryFee === undefined || window.currentDeliveryFee === null) {
+      window.currentDeliveryFee = settings.feeEnabled ? (settings.feeAmount || 0) : 0;
+    }
+    if (typeof syncTotalsUI === 'function') {
+      syncTotalsUI();
+    } else {
+      const totalEl = document.getElementById('om-total');
+      if (totalEl) totalEl.textContent = '₹' + subtotal;
+    }
+
+    // 8. Open modal overlay
+    const successModal = document.getElementById('om-success');
+    if (successModal) successModal.style.display = 'none';
+
+    const formFields = document.getElementById('om-form-fields');
+    if (formFields) formFields.style.display = 'block';
+
+    const actionsRow = document.getElementById('om-actions-row');
+    if (actionsRow) actionsRow.style.display = 'flex';
+
+    const modalOverlay = document.getElementById('order-modal-overlay');
+    if (modalOverlay) {
+      modalOverlay.classList.add('open');
+      modalOverlay.style.display = 'flex';
+    }
+    document.body.style.overflow = 'hidden';
+
+    // 9. Refresh payment options
+    if (typeof refreshPaymentOptions === 'function') {
+      refreshPaymentOptions();
+    }
+
+    // 10. Subscribe to addresses
+    if (typeof subscribeOrderAddresses === 'function') {
+      subscribeOrderAddresses();
+    }
+
+    // 11. Initialize Leaflet Map
+    setTimeout(() => {
+      if (typeof initOmMap === 'function') {
+        initOmMap();
+        if (omMap) omMap.invalidateSize();
+      }
+    }, 250);
+  };
+
+  // Ensure APK-level calls work correctly by aliasing it
+  window.GFY_openOrderModal = window.openOrderModal;
+
+  window.submitOrder = function() {
+    console.log('[CleanModal] submitOrder called');
+
+    // Sync cart with inventory
+    if (typeof syncCartWithInventory === 'function') {
+      if (syncCartWithInventory(true).length > 0) return;
+    }
+
+    const nameEl = document.getElementById('om-name');
+    const phoneEl = document.getElementById('om-phone');
+    const addressEl = document.getElementById('om-address');
+    const emailEl = document.getElementById('om-email');
+
+    const name = nameEl ? nameEl.value.trim() : '';
+    const phone = phoneEl ? phoneEl.value.trim() : '';
+    const address = addressEl ? addressEl.value.trim() : '';
+    const email = emailEl ? emailEl.value.trim() : '';
+
+    if (!name) {
+      showToast('⚠️ Please enter your name');
+      if (nameEl) nameEl.focus();
+      return;
+    }
+    if (!phone) {
+      showToast('⚠️ Enter phone number');
+      if (phoneEl) phoneEl.focus();
+      return;
+    }
+    if (!/^[0-9]{10}$/.test(phone)) {
+      showToast('⚠️ Phone number must be exactly 10 digits', 3000);
+      if (phoneEl) phoneEl.focus();
+      return;
+    }
+    if (!email) {
+      showToast('⚠️ Enter your email');
+      if (emailEl) emailEl.focus();
+      return;
+    }
+    if (!address) {
+      showToast('⚠️ Enter delivery address');
+      if (addressEl) addressEl.focus();
+      return;
+    }
+    if (!omPinLatLng) {
+      showToast('⚠️ Pin your delivery location on the map');
+      return;
+    }
+    if (typeof isServiceableLatLng === 'function' && !isServiceableLatLng(omPinLatLng.lat, omPinLatLng.lng)) {
+      showToast('⚠️ Location not serviceable (within 5km)', 2600);
+      return;
+    }
+
+    if (selectedPaymentMethod === 'qr') {
+      const total = typeof calculateTotals === 'function' ? calculateTotals().grandTotal : (window.currentGrandTotal || 0);
+      if (typeof showPhonePeQR === 'function') {
+        showPhonePeQR(total);
+      }
+      return;
+    }
+    if (selectedPaymentMethod === 'card') {
+      const total = typeof calculateTotals === 'function' ? calculateTotals().grandTotal : (window.currentGrandTotal || 0);
+      if (typeof openRazorpayCheckout === 'function') {
+        openRazorpayCheckout(total, name, phone);
+      }
+      return;
+    }
+
+    if (typeof finalizeOrder === 'function') {
+      finalizeOrder(selectedPaymentMethod, false);
     }
   };
 })();

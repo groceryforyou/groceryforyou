@@ -1603,12 +1603,12 @@ animation:spinRefresh .7s linear infinite;
 <div class="overlay" id="overlay" onclick="closeCart()"></div>
 
 <!-- LOGIN MODAL -->
-<div class="auth-overlay" id="auth-overlay">
-  <div class="auth-modal">
+<div class="auth-overlay" id="auth-overlay" onclick="if(event.target===this){this.classList.remove('open');this.style.display='none';}">
+  <div class="auth-modal" style="position:relative">
+    <button onclick="document.getElementById('auth-overlay').classList.remove('open');document.getElementById('auth-overlay').style.display='none';" style="position:absolute;top:10px;right:14px;background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888;line-height:1;padding:4px" aria-label="Close sign-in">✕</button>
     <div class="auth-modal-header"><h2>🔐 Sign In</h2><p>Continue to place your order</p></div>
     <div class="auth-modal-body">
       <button class="google-signin-btn" id="google-signin-btn" onclick="signInWithGoogle()"><span style="font-weight:900;font-size:1.1rem">G</span> Sign In with Google</button>
-      
     </div>
   </div>
 </div>
@@ -1635,8 +1635,9 @@ animation:spinRefresh .7s linear infinite;
 <div class="promo-banner-wrap" id="promo-banner-wrap"></div>
 
 <!-- CUSTOMER ALERT MODAL (order status notifications) -->
-<div class="customer-alert-overlay" id="customer-alert-modal-overlay">
-  <div class="customer-alert-modal">
+<div class="customer-alert-overlay" id="customer-alert-modal-overlay" onclick="if(event.target===this)closeCustomerAlertModal()">
+  <div class="customer-alert-modal" style="position:relative">
+    <button onclick="closeCustomerAlertModal()" style="position:absolute;top:10px;right:14px;background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888;line-height:1;padding:4px;z-index:2" aria-label="Close">✕</button>
     <div class="cam-top-bar" id="cam-top-bar"></div>
     <div class="cam-icon-wrap">
       <div class="cam-icon-ring" id="cam-icon-ring">✅</div>
@@ -1644,7 +1645,7 @@ animation:spinRefresh .7s linear infinite;
     <div class="cam-content">
       <div class="cam-title" id="cam-title">Order Update</div>
       <div class="cam-body" id="cam-body"></div>
-      <button class="cam-ok-btn" id="cam-ok-btn">Got it!</button>
+      <button class="cam-ok-btn" id="cam-ok-btn" onclick="closeCustomerAlertModal()">Got it! 👍</button>
       <button class="cam-dismiss" onclick="closeCustomerAlertModal()">Dismiss</button>
     </div>
   </div>
@@ -3216,22 +3217,11 @@ function patchUPIPayment(){
     }catch(e){}
   });
 
-  if(window.Razorpay){
-    const originalOpen=window.Razorpay;
-    window.Razorpay=function(options){
-      try{
-        options.amount=Math.round(total*100);
-      }catch(e){}
-      return new originalOpen(options);
-    }
-  }
+  // NOTE: Razorpay amount patching is handled by the single canonical
+  // openRazorpayCheckout defined in patchRazorpayUPI block. Do not wrap here.
 }
 
-setInterval(function(){
-  calculateFinalTotal();
-  patchUPIPayment();
-},1000);
-
+// Run once on load only — no polling interval
 window.addEventListener('load',function(){
   calculateFinalTotal();
   patchUPIPayment();
@@ -3280,22 +3270,8 @@ window.addEventListener('load',function(){
     //console.log('UPI Grand Total Synced:', total);
   }
 
-  // Auto sync whenever totals change
-  setInterval(syncUPIAmounts, 500);
-
-  // Override Razorpay open if available
-  const oldRazorpay = window.Razorpay;
-  if(oldRazorpay){
-    window.Razorpay = function(options){
-      try{
-        const total = getGrandTotal();
-        if(total > 0){
-          options.amount = Math.round(total * 100);
-        }
-      }catch(e){}
-      return new oldRazorpay(options);
-    }
-  }
+  // NOTE: Razorpay wrapping and UPI sync is handled by the canonical
+  // openRazorpayCheckout / patchRazorpayUPI block. Avoid wrapping here.
 })();
 </script>
 
@@ -5408,36 +5384,55 @@ function setupAdminOrderWatch(db){
 }
 
 // ── 3. CUSTOMER ORDER STATUS WATCHER ────────────────────────────────────
-let _custUnsub=null,_custSeen={};
-function setupCustomerWatch(db,email){
+// Uses localStorage key seenOrderStatus_<orderId>_<status> to prevent
+// repeated popups after page refresh. Only fires on 'modified' changes.
+let _custUnsub=null;
+function setupCustomerWatch(db,uid){
   if(_custUnsub){_custUnsub();_custUnsub=null;}
-  if(!email)return;
+  if(!uid)return;
   const MSGS={
-    'accepted':'✅ Your order was accepted! Preparing now 🍳',
-    'rejected':'❌ Sorry, your order was rejected.',
-    'preparing':'🍳 Your order is being prepared!',
-    'ready':'📦 Order packed! Delivery partner picking up soon.',
-    'out_for_delivery':'🚴 Your order is out for delivery!',
-    'completed':'🎉 Order delivered! Enjoy your groceries!',
-    'delivered':'🎉 Order delivered! Enjoy your groceries!',
-    'cancelled':'🚫 Your order was cancelled.'
+    'accepted':   {title:'🎉 Order Accepted!',   body:'Your Grocery is being prepared now! ~30 mins to delivery.', icon:'🛒'},
+    'rejected':   {title:'❌ Order Rejected',     body:'Sorry, we could not accept your order. Please try again.', icon:'⏰'},
+    'preparing':  {title:'🍳 Preparing Your Order', body:'Your items are being packed fresh for you!', icon:'🍳'},
+    'ready':      {title:'📦 Order Ready',        body:'Order packed! Delivery partner picking up soon.', icon:'📦'},
+    'out_for_delivery':{title:'🚴 Out for Delivery!', body:'Your order is on the way!', icon:'🛵'},
+    'completed':  {title:'✅ Order Delivered!',   body:'Enjoy your groceries! Rate your experience.', icon:'✅'},
+    'delivered':  {title:'✅ Order Delivered!',   body:'Enjoy your groceries! Rate your experience.', icon:'✅'},
+    'cancelled':  {title:'🚫 Order Cancelled',    body:'Your order was auto-cancelled. Please place a new order.', icon:'⏰'}
   };
+  let _initialized = false;
   try{
     _custUnsub=db.collection('orders')
-      .where('customerEmail','==',email)
+      .where('customerUid','==',uid)
       .orderBy('createdAt','desc')
-      .limit(10)
+      .limit(5)
       .onSnapshot(snap=>{
+        if(!_initialized){
+          // On first load, just mark all existing statuses as seen
+          // so we do NOT show popups for old orders
+          snap.forEach(doc=>{
+            const s=(doc.data().status||'');
+            const lsKey='seenOrderStatus_'+doc.id+'_'+s;
+            localStorage.setItem(lsKey,'1');
+          });
+          _initialized=true;
+          return;
+        }
+        // Only process real-time changes
+        let visibleCount=document.querySelectorAll('.gfy-status-toast').length;
         snap.docChanges().forEach(ch=>{
           if(ch.type!=='modified')return;
-          const o=ch.doc.data(),s=o.status,key=ch.doc.id+'_'+s;
-          if(_custSeen[key])return;
-          _custSeen[key]=true;
-          const msg=MSGS[s];
-          if(msg){
-            if(typeof showToast==='function')showToast(msg,6000);
-            gfyNotif('Grocery For You 🛒',msg);
-          }
+          const o=ch.doc.data(),s=o.status;
+          if(!s)return;
+          const lsKey='seenOrderStatus_'+ch.doc.id+'_'+s;
+          if(localStorage.getItem(lsKey))return;
+          localStorage.setItem(lsKey,'1');
+          const info=MSGS[s];
+          if(!info)return;
+          if(visibleCount>=2)return; // max 2 visible at a time
+          visibleCount++;
+          showStatusToast(ch.doc.id, info.title, info.body, info.icon);
+          gfyNotif('Grocery For You 🛒', info.title);
         });
       },e=>console.error('[Cust Watch]',e));
   }catch(e){console.error('[Cust Watch setup]',e);}
@@ -5502,13 +5497,16 @@ waitFor(
       if(!user){
         if(_custUnsub){_custUnsub();_custUnsub=null;}
         if(_adminOrderUnsub){_adminOrderUnsub();_adminOrderUnsub=null;_adminInit=false;}
+        // Clear user-specific UI state on logout
+        window.currentUser=null;
         return;
       }
       const isAdmin=(window.currentRole==='admin');
       if(isAdmin){
         setTimeout(()=>setupAdminOrderWatch(db),1500);
       } else {
-        setupCustomerWatch(db,user.email);
+        // Pass UID for filtering (not email) to match Firestore rules
+        setupCustomerWatch(db, user.uid);
       }
     });
   }
@@ -7260,19 +7258,8 @@ window.deepLinkUPI = function(app) {
     window.location.href = links[app] || baseLink;
 };
 
-if (typeof window.openRazorpayCheckout === 'function') {
-    const originalCheckout = window.openRazorpayCheckout;
-
-    window.openRazorpayCheckout = function(amount, name, phone) {
-        const totals = calculateTotals();
-
-        return originalCheckout(
-            totals.grandTotal,
-            name,
-            phone
-        );
-    };
-}
+// NOTE: openRazorpayCheckout is canonically defined by patchRazorpayUPI.
+// It already reads the live grand total. Do not re-wrap here.
 
 let rafScheduled = false;
 
@@ -7458,36 +7445,50 @@ window.addEventListener('load', function() {
 (function() {
   'use strict';
 
+  // ── Single canonical openOrderModal ──────────────────────────────────
   window.openOrderModal = function() {
     console.log('[CleanModal] openOrderModal called');
-    
-    // 1. Store open check
-    const settings = typeof getDeliverySettings === 'function' ? getDeliverySettings() : {};
-    if (typeof isStoreOpen === 'function' && !isStoreOpen(settings)) {
-      showToast('⚠️ Store is currently closed.', 5000);
+
+    // STEP 1: Check cart not empty
+    const cartKeys = typeof cart !== 'undefined' ? Object.keys(cart) : [];
+    if (cartKeys.length === 0) {
+      showToast('⚠️ Add items to your cart first!');
       return;
     }
 
-    // 2. Sync cart items
+    // STEP 2: Check user signed in (REQUIRED for ordering)
+    const user = window.currentUser || (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
+    if (!user) {
+      // Show login modal and stop — do NOT open order modal
+      const authOverlay = document.getElementById('auth-overlay');
+      if (authOverlay) {
+        authOverlay.classList.add('open');
+        authOverlay.style.display = 'flex';
+      }
+      showToast('⚠️ Please sign in to place your order', 3500);
+      return;
+    }
+
+    // STEP 3: Store open check
+    const settings = typeof getDeliverySettings === 'function' ? getDeliverySettings() : {};
+    if (typeof isStoreOpen === 'function' && !isStoreOpen(settings)) {
+      showToast('⚠️ Store is currently closed. Please try later.', 5000);
+      return;
+    }
+
+    // STEP 4: Sync cart with inventory
     if (typeof syncCartWithInventory === 'function') {
       syncCartWithInventory(true);
     }
 
-    // 3. Check if cart is empty
-    const cartKeys = Object.keys(cart);
-    if (cartKeys.length === 0) {
-      showToast('⚠️ Add items first!');
-      return;
-    }
-
-    // 4. Check minimum order value (₹50)
+    // STEP 5: Check minimum order value (₹50)
     const subtotal = cartKeys.reduce((sum, key) => sum + cart[key].price * cart[key].qty, 0);
     if (subtotal < 50) {
       showToast('⚠️ Minimum order value is ₹50');
       return;
     }
 
-    // 5. Render items in modal
+    // STEP 6: Render order summary items
     const itemsListEl = document.getElementById('om-items-list');
     if (itemsListEl) {
       itemsListEl.innerHTML = cartKeys.map(key => {
@@ -7496,12 +7497,16 @@ window.addEventListener('load', function() {
       }).join('');
     }
 
-    // 6. Prefill customer details
+    // STEP 7: Prefill customer details from signed-in user
     if (typeof prefillOrderCustomerFields === 'function') {
       prefillOrderCustomerFields();
+    } else {
+      // Fallback: prefill email from auth
+      const emailEl = document.getElementById('om-email');
+      if (emailEl && user.email) emailEl.value = user.email;
     }
 
-    // 7. Ensure delivery fee is loaded and sync UI totals
+    // STEP 8: Sync totals
     if (window.currentDeliveryFee === undefined || window.currentDeliveryFee === null) {
       window.currentDeliveryFee = settings.feeEnabled ? (settings.feeAmount || 0) : 0;
     }
@@ -7512,13 +7517,11 @@ window.addEventListener('load', function() {
       if (totalEl) totalEl.textContent = '₹' + subtotal;
     }
 
-    // 8. Open modal overlay
+    // STEP 9: Show modal
     const successModal = document.getElementById('om-success');
     if (successModal) successModal.style.display = 'none';
-
     const formFields = document.getElementById('om-form-fields');
     if (formFields) formFields.style.display = 'block';
-
     const actionsRow = document.getElementById('om-actions-row');
     if (actionsRow) actionsRow.style.display = 'flex';
 
@@ -7529,21 +7532,15 @@ window.addEventListener('load', function() {
     }
     document.body.style.overflow = 'hidden';
 
-    // 9. Refresh payment options
-    if (typeof refreshPaymentOptions === 'function') {
-      refreshPaymentOptions();
-    }
+    // STEP 10: Payment options and address
+    if (typeof refreshPaymentOptions === 'function') refreshPaymentOptions();
+    if (typeof subscribeOrderAddresses === 'function') subscribeOrderAddresses();
 
-    // 10. Subscribe to addresses
-    if (typeof subscribeOrderAddresses === 'function') {
-      subscribeOrderAddresses();
-    }
-
-    // 11. Initialize Leaflet Map
+    // STEP 11: Map
     setTimeout(() => {
       if (typeof initOmMap === 'function') {
         initOmMap();
-        if (omMap) omMap.invalidateSize();
+        if (typeof omMap !== 'undefined' && omMap) omMap.invalidateSize();
       }
     }, 250);
   };
@@ -7551,77 +7548,342 @@ window.addEventListener('load', function() {
   // Ensure APK-level calls work correctly by aliasing it
   window.GFY_openOrderModal = window.openOrderModal;
 
+  // ── Single canonical submitOrder ──────────────────────────────────────
   window.submitOrder = function() {
     console.log('[CleanModal] submitOrder called');
+
+    // AUTH CHECK — must be signed in to place any order
+    const user = window.currentUser || (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
+    if (!user) {
+      const authOverlay = document.getElementById('auth-overlay');
+      if (authOverlay) { authOverlay.classList.add('open'); authOverlay.style.display='flex'; }
+      showToast('⚠️ Please sign in to place your order', 3500);
+      return;
+    }
 
     // Sync cart with inventory
     if (typeof syncCartWithInventory === 'function') {
       if (syncCartWithInventory(true).length > 0) return;
     }
 
-    const nameEl = document.getElementById('om-name');
-    const phoneEl = document.getElementById('om-phone');
+    const nameEl    = document.getElementById('om-name');
+    const phoneEl   = document.getElementById('om-phone');
     const addressEl = document.getElementById('om-address');
-    const emailEl = document.getElementById('om-email');
+    const emailEl   = document.getElementById('om-email');
 
-    const name = nameEl ? nameEl.value.trim() : '';
-    const phone = phoneEl ? phoneEl.value.trim() : '';
+    const name    = nameEl    ? nameEl.value.trim()    : '';
+    const phone   = phoneEl   ? phoneEl.value.trim()   : '';
     const address = addressEl ? addressEl.value.trim() : '';
-    const email = emailEl ? emailEl.value.trim() : '';
+    const email   = emailEl   ? emailEl.value.trim()   : (user.email || '');
 
-    if (!name) {
-      showToast('⚠️ Please enter your name');
-      if (nameEl) nameEl.focus();
-      return;
-    }
-    if (!phone) {
-      showToast('⚠️ Enter phone number');
-      if (phoneEl) phoneEl.focus();
-      return;
-    }
-    if (!/^[0-9]{10}$/.test(phone)) {
-      showToast('⚠️ Phone number must be exactly 10 digits', 3000);
-      if (phoneEl) phoneEl.focus();
-      return;
-    }
-    if (!email) {
-      showToast('⚠️ Enter your email');
-      if (emailEl) emailEl.focus();
-      return;
-    }
-    if (!address) {
-      showToast('⚠️ Enter delivery address');
-      if (addressEl) addressEl.focus();
-      return;
-    }
-    if (!omPinLatLng) {
+    if (!name)  { showToast('⚠️ Please enter your name'); if (nameEl) nameEl.focus(); return; }
+    if (!phone) { showToast('⚠️ Enter phone number');     if (phoneEl) phoneEl.focus(); return; }
+    if (!/^[0-9]{10}$/.test(phone)) { showToast('⚠️ Phone must be 10 digits',3000); if (phoneEl) phoneEl.focus(); return; }
+    if (!email)   { showToast('⚠️ Enter email');           if (emailEl) emailEl.focus(); return; }
+    if (!address) { showToast('⚠️ Enter delivery address'); if (addressEl) addressEl.focus(); return; }
+
+    if (typeof omPinLatLng !== 'undefined' && !omPinLatLng) {
       showToast('⚠️ Pin your delivery location on the map');
       return;
     }
-    if (typeof isServiceableLatLng === 'function' && !isServiceableLatLng(omPinLatLng.lat, omPinLatLng.lng)) {
+    if (typeof isServiceableLatLng === 'function' && typeof omPinLatLng !== 'undefined' && omPinLatLng &&
+        !isServiceableLatLng(omPinLatLng.lat, omPinLatLng.lng)) {
       showToast('⚠️ Location not serviceable (within 5km)', 2600);
       return;
     }
 
-    if (selectedPaymentMethod === 'qr') {
-      const total = typeof calculateTotals === 'function' ? calculateTotals().grandTotal : (window.currentGrandTotal || 0);
-      if (typeof showPhonePeQR === 'function') {
-        showPhonePeQR(total);
-      }
-      return;
-    }
-    if (selectedPaymentMethod === 'card') {
+    const pm = typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : 'cod';
+
+    if (pm === 'upi' || pm === 'card') {
+      // UPI / Razorpay — user must be signed in (already verified above)
       const total = typeof calculateTotals === 'function' ? calculateTotals().grandTotal : (window.currentGrandTotal || 0);
       if (typeof openRazorpayCheckout === 'function') {
         openRazorpayCheckout(total, name, phone);
+      } else {
+        console.error('[submitOrder] openRazorpayCheckout not available');
+        showToast('❌ UPI/Razorpay not ready. Try again.', 3000);
       }
       return;
     }
+    if (pm === 'qr') {
+      const total = typeof calculateTotals === 'function' ? calculateTotals().grandTotal : (window.currentGrandTotal || 0);
+      if (typeof showPhonePeQR === 'function') showPhonePeQR(total);
+      return;
+    }
 
+    // COD path — user already verified signed in above
     if (typeof finalizeOrder === 'function') {
-      finalizeOrder(selectedPaymentMethod, false);
+      finalizeOrder(pm, false);
     }
   };
+
+  // ── Single canonical closeOrderModal ─────────────────────────────────
+  window.closeOrderModal = function() {
+    const overlay = document.getElementById('order-modal-overlay');
+    if (overlay) { overlay.classList.remove('open'); overlay.style.display = 'none'; }
+    document.body.style.overflow = '';
+  };
+
+  // ── showStatusToast: for order status popups with X button ─────────────
+  window.showStatusToast = function(orderId, title, body, icon) {
+    icon = icon || '🛒';
+    const wrap = document.createElement('div');
+    wrap.className = 'gfy-status-toast';
+    wrap.style.cssText = [
+      'position:fixed','bottom:80px','right:12px','z-index:9999',
+      'background:#1a5c2a','color:#fff','border-radius:16px',
+      'padding:14px 16px','max-width:320px','box-shadow:0 8px 32px rgba(0,0,0,0.35)',
+      'display:flex','align-items:flex-start','gap:12px',
+      'animation:gfySlideIn .3s ease','font-family:"Lato",sans-serif'
+    ].join(';');
+    wrap.innerHTML = `
+      <span style="font-size:1.6rem;flex-shrink:0">${icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;font-size:.92rem;margin-bottom:2px">${title}</div>
+        <div style="font-size:.78rem;opacity:.85;line-height:1.4">${body}</div>
+      </div>
+      <button onclick="this.closest('.gfy-status-toast').remove()" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1;padding:0;flex-shrink:0;opacity:.7">✕</button>
+    `;
+    if(!document.getElementById('_gfySlideInCSS')){
+      const s=document.createElement('style');
+      s.id='_gfySlideInCSS';
+      s.textContent='@keyframes gfySlideIn{from{opacity:0;transform:translateX(120%)}to{opacity:1;transform:translateX(0)}}';
+      document.head.appendChild(s);
+    }
+    document.body.appendChild(wrap);
+    setTimeout(()=>{ if(wrap.parentNode) wrap.remove(); }, 8000);
+  };
+
+  // ── Android / Browser back button handler ──────────────────────────────
+  (function setupBackButton() {
+    if (window.__gfyBackHandlerInstalled) return;
+    window.__gfyBackHandlerInstalled = true;
+
+    function handleBack(e) {
+      // Priority order for closing:
+      // 1. Status toasts
+      const toasts = document.querySelectorAll('.gfy-status-toast');
+      if (toasts.length > 0) { toasts[toasts.length-1].remove(); if(e) e.preventDefault(); return; }
+
+      // 2. Auth overlay
+      const authOverlay = document.getElementById('auth-overlay');
+      if (authOverlay && authOverlay.classList.contains('open')) {
+        authOverlay.classList.remove('open'); authOverlay.style.display='none';
+        if(e) e.preventDefault(); return;
+      }
+
+      // 3. Order modal
+      const orderOverlay = document.getElementById('order-modal-overlay');
+      if (orderOverlay && orderOverlay.classList.contains('open')) {
+        window.closeOrderModal(); if(e) e.preventDefault(); return;
+      }
+
+      // 4. Any open cat-modal-overlay
+      const catModal = document.querySelector('.cat-modal-overlay.open');
+      if (catModal) { catModal.classList.remove('open'); if(e) e.preventDefault(); return; }
+
+      // 5. Cart panel
+      const cartPanel = document.getElementById('cart-panel');
+      if (cartPanel && cartPanel.classList.contains('open')) {
+        if (typeof closeCart === 'function') closeCart();
+        if(e) e.preventDefault(); return;
+      }
+
+      // 6. Mobile search overlay
+      const searchOverlay = document.querySelector('.mob-search-overlay.open');
+      if (searchOverlay) {
+        searchOverlay.classList.remove('open');
+        if(e) e.preventDefault(); return;
+      }
+
+      // 7. Admin sidebar (mobile)
+      const adminSidebar = document.querySelector('.admin-sidebar.visible');
+      if (adminSidebar) {
+        if (typeof closeMobileAdminSidebar === 'function') closeMobileAdminSidebar();
+        if(e) e.preventDefault(); return;
+      }
+
+      // 8. Customer alert modal
+      const camOverlay = document.getElementById('customer-alert-modal-overlay');
+      if (camOverlay && camOverlay.classList.contains('open')) {
+        camOverlay.classList.remove('open'); if(e) e.preventDefault(); return;
+      }
+    }
+
+    // Browser popstate (also fires for Android WebView back)
+    window.addEventListener('popstate', function(e) {
+      handleBack(e);
+      // Push state again so back button works multiple times
+      history.pushState(null, '', location.href);
+    });
+    // Push initial state
+    if (history.pushState) history.pushState(null, '', location.href);
+  })();
+
+  // ── Wire om-close button ───────────────────────────────────────────────
+  (function wireModalClose() {
+    function wire() {
+      const btn = document.querySelector('.om-close');
+      if (btn && !btn.dataset.wired) {
+        btn.dataset.wired = '1';
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          window.closeOrderModal();
+        });
+      }
+      const cancelBtn = document.querySelector('.om-cancel');
+      if (cancelBtn && !cancelBtn.dataset.wired) {
+        cancelBtn.dataset.wired = '1';
+        cancelBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          window.closeOrderModal();
+        });
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', wire);
+    } else {
+      setTimeout(wire, 100);
+    }
+  })();
+
+})();
+</script>
+
+<!-- ===== GFY FINAL UTILITY FIXES ===== -->
+<script>
+(function GFYFinalFixes() {
+  'use strict';
+
+  /* ── 1. closeCustomerAlertModal ──────────────────────────────────────── */
+  window.closeCustomerAlertModal = function() {
+    var overlay = document.getElementById('customer-alert-modal-overlay');
+    if (overlay) {
+      overlay.classList.remove('open');
+      overlay.style.display = 'none';
+    }
+  };
+
+  /* ── 2. showToast: patch to add a ✕ dismiss button ─────────────────── */
+  // Wait for the original showToast to be defined, then wrap it once
+  var _toastPatchTimer = setInterval(function() {
+    if (typeof window.showToast !== 'function') return;
+    clearInterval(_toastPatchTimer);
+
+    var _originalShowToast = window.showToast;
+
+    window.showToast = function(msg, duration) {
+      // Call the original to set content + trigger animation
+      _originalShowToast.apply(this, arguments);
+
+      // Now inject a close button into #toast if not already there
+      var toast = document.getElementById('toast');
+      if (!toast) return;
+
+      // Don't add duplicate close buttons
+      if (toast.querySelector('._gfy-toast-close')) return;
+
+      var closeBtn = document.createElement('button');
+      closeBtn.className = '_gfy-toast-close';
+      closeBtn.innerHTML = '✕';
+      closeBtn.setAttribute('aria-label', 'Dismiss');
+      closeBtn.style.cssText = [
+        'background:none', 'border:none', 'color:inherit',
+        'font-size:1rem', 'cursor:pointer', 'margin-left:10px',
+        'opacity:.75', 'vertical-align:middle', 'padding:0',
+        'flex-shrink:0', 'line-height:1'
+      ].join(';');
+      closeBtn.onclick = function(e) {
+        e.stopPropagation();
+        toast.classList.remove('show', 'visible', 'active');
+        toast.style.display = 'none';
+        toast.style.opacity = '0';
+      };
+
+      // Make toast flex so text + button align nicely
+      toast.style.display = 'flex';
+      toast.style.alignItems = 'center';
+      toast.style.justifyContent = 'space-between';
+      toast.appendChild(closeBtn);
+    };
+
+    console.log('[GFYFinalFixes] showToast patched with close button');
+  }, 300);
+
+  /* ── 3. Prevent auth-overlay opening without open class ─────────────── */
+  // Ensure auth-overlay starts hidden (some CSS may rely on .open class only)
+  document.addEventListener('DOMContentLoaded', function() {
+    var authOverlay = document.getElementById('auth-overlay');
+    if (authOverlay && !authOverlay.classList.contains('open')) {
+      authOverlay.style.display = 'none';
+    }
+
+    // Wire auth-overlay escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        // Close auth overlay
+        var ao = document.getElementById('auth-overlay');
+        if (ao && ao.classList.contains('open')) {
+          ao.classList.remove('open');
+          ao.style.display = 'none';
+          return;
+        }
+        // Close order modal
+        var om = document.getElementById('order-modal-overlay');
+        if (om && om.classList.contains('open')) {
+          if (typeof window.closeOrderModal === 'function') window.closeOrderModal();
+          return;
+        }
+        // Close customer alert modal
+        var cam = document.getElementById('customer-alert-modal-overlay');
+        if (cam && cam.classList.contains('open')) {
+          window.closeCustomerAlertModal();
+          return;
+        }
+        // Close any open cat-modal
+        var catMod = document.querySelector('.cat-modal-overlay.open');
+        if (catMod) { catMod.classList.remove('open'); return; }
+      }
+    });
+  });
+
+  /* ── 4. Fix checkout button in cart: open order modal safely ────────── */
+  document.addEventListener('DOMContentLoaded', function() {
+    var checkoutBtn = document.querySelector('.checkout-btn');
+    if (checkoutBtn) {
+      // Replace inline onclick with a safe function call
+      checkoutBtn.removeAttribute('onclick');
+      checkoutBtn.addEventListener('click', function() {
+        if (typeof closeCart === 'function') closeCart();
+        // Small delay so cart closes smoothly before order modal opens
+        setTimeout(function() {
+          if (typeof window.openOrderModal === 'function') window.openOrderModal();
+        }, 120);
+      });
+    }
+  });
+
+  /* ── 5. Ensure finalizeOrder always stores customerUid ─────────────── */
+  // Wrap finalizeOrder to inject uid from currentUser if missing
+  var _finalizePatchTimer = setInterval(function() {
+    if (typeof window.finalizeOrder !== 'function') return;
+    clearInterval(_finalizePatchTimer);
+    if (window.__gfyFinalizePatched) return;
+    window.__gfyFinalizePatched = true;
+
+    var _origFinalize = window.finalizeOrder;
+    window.finalizeOrder = function(payMethod, isPaid, payId) {
+      // Ensure uid is available for Firestore queries
+      var user = window.currentUser || (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
+      if (user && !window._gfyOrderUid) {
+        window._gfyOrderUid = user.uid;
+      }
+      return _origFinalize.apply(this, arguments);
+    };
+    console.log('[GFYFinalFixes] finalizeOrder patched with uid injection');
+  }, 500);
+
+  console.log('[GFYFinalFixes] ✅ Utility fixes loaded');
 })();
 </script>
 </body>

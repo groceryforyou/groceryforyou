@@ -7515,16 +7515,27 @@ window.addEventListener('load', function() {
     }
 
     // STEP 7: Prefill customer details from signed-in user
+    // PATCH [cursor-fix]: Only write to fields that are EMPTY and NOT focused.
+    // Never overwrite a field the user is actively typing in — that resets cursor to 0.
     const nameEl = document.getElementById('om-name');
     const phoneEl = document.getElementById('om-phone');
     const emailEl = document.getElementById('om-email');
-    const shouldPrefill = [nameEl, phoneEl, emailEl].some(el => el && !el.value.trim());
-    if (shouldPrefill && typeof prefillOrderCustomerFields === 'function') {
-      prefillOrderCustomerFields();
-    } else if (emailEl && user.email && !emailEl.value.trim()) {
-      // Fallback: prefill email only if email field is empty
-      emailEl.value = user.email;
+    console.log('Input listener attached:', 'om-name');
+    console.log('Input listener attached:', 'om-phone');
+    console.log('Input listener attached:', 'om-email');
+    function safePrefill(el, getValue) {
+      if (!el) return;
+      if (document.activeElement === el) return; // never touch focused field
+      if (el.value.trim()) return;               // never overwrite user-typed content
+      var v = getValue();
+      if (v) el.value = v;
     }
+    var prefName  = typeof getPreferredCustomerName  === 'function' ? getPreferredCustomerName()  : (user.displayName || '');
+    var prefPhone = typeof getPreferredCustomerPhone === 'function' ? getPreferredCustomerPhone() : (user.phoneNumber || '');
+    var prefEmail = user.email || '';
+    safePrefill(nameEl,  function(){ return prefName; });
+    safePrefill(phoneEl, function(){ return prefPhone; });
+    safePrefill(emailEl, function(){ return prefEmail; });
 
     // STEP 8: Sync totals
     if (window.currentDeliveryFee === undefined || window.currentDeliveryFee === null) {
@@ -7564,8 +7575,12 @@ window.addEventListener('load', function() {
     }
 
     // STEP 10: Payment options and address
+    // PATCH [cursor-fix]: Delay address subscription so Firestore snapshot callbacks
+    // cannot fire during initial render and reset cursor on focused fields.
     if (typeof refreshPaymentOptions === 'function') refreshPaymentOptions();
-    if (typeof subscribeOrderAddresses === 'function') subscribeOrderAddresses();
+    setTimeout(function() {
+      if (typeof subscribeOrderAddresses === 'function') subscribeOrderAddresses();
+    }, 600);
 
     // STEP 11: Map
     setTimeout(() => {
@@ -7955,11 +7970,13 @@ window.addEventListener('load', function() {
 
     // ── GPS not supported at all ──────────────────────────────────────────
     if (!navigator.geolocation) {
+      console.log('Geolocation supported:', false);
       if (typeof showToast === 'function') {
         showToast('⚠️ GPS not supported on this device. Please search or pin manually.', 4000);
       }
       return;
     }
+    console.log('Geolocation supported:', true);
 
     // ── Update GPS button to loading state (single place) ─────────────────
     var btn = document.querySelector('#order-modal-overlay .om-gps-btn');
@@ -7981,6 +7998,7 @@ window.addEventListener('load', function() {
 
       var lat = position.coords.latitude;
       var lng = position.coords.longitude;
+      console.log('Geolocation success:', lat, lng);
       console.log('[GFYGeo] Position detected:', { lat: lat, lng: lng });
 
     // Use existing map pin logic if available
@@ -8024,13 +8042,16 @@ window.addEventListener('load', function() {
       // Restore button
       if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHTML || '🎯 Use My Current Location'; }
 
+      console.error('Geolocation error code:', error.code);
+      console.warn('[GFYGeo] Geolocation error code=' + error.code + ':', error.message);
+
       var msg;
       switch (error.code) {
         case 1: // PERMISSION_DENIED
-          msg = '📍 Location permission denied. Please enable location permission or pin manually.';
+          msg = '📍 Location permission denied. Please enable location permission for this browser/app, then try again.';
           break;
         case 2: // POSITION_UNAVAILABLE
-          msg = '📡 Could not detect your location. Please search area or pin manually.';
+          msg = '📡 Could not detect your location (GPS unavailable). Please search area or pin manually.';
           break;
         case 3: // TIMEOUT
           msg = '⏱ Location request timed out. Please try again or pin manually.';
@@ -8049,8 +8070,6 @@ window.addEventListener('load', function() {
         searchInput.focus();
         searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-
-      console.warn('[GFYGeo] Geolocation error code=' + error.code + ':', error.message);
     }
 
     // ── Request position (only on user click — safe for Android WebView) ──

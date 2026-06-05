@@ -219,24 +219,10 @@ document.addEventListener('error', function(e) {
 
 
     /* ===== MAIN ===== */
-    /* scrollbar-gutter stable prevents body width shift when modals toggle overflow */
-    html{scrollbar-gutter:stable}
-    .main{max-width:1200px;margin:0 auto;padding:24px 14px 120px;width:100%;overflow-x:hidden;min-height:100vh}
+    .main{max-width:1200px;margin:0 auto;padding:24px 14px 120px;width:100%;overflow-x:hidden}
     .section-title{font-family:"Yeseva One",serif;font-size:1.5rem;color:var(--brown);margin-bottom:18px;display:flex;align-items:center;gap:10px;border-left:4px solid var(--saffron);padding-left:12px}
-    /* ===== PAGE SWITCHING — no layout jumps ===== */
-    /* All pages occupy the same flow space; only the active one is visible */
-    .page{
-      display:none;        /* hidden by default */
-      min-height:60vh;     /* prevents main collapsing between pages */
-    }
-    .page.active{
-      display:block;       /* shown when active */
-      animation:pageFadeIn .18s ease;
-    }
-    @keyframes pageFadeIn{
-      from{opacity:0;transform:translateY(6px)}
-      to{opacity:1;transform:translateY(0)}
-    }
+    .page{display:none}
+    .page.active{display:block}
     .back-btn{background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);color:#fff;border-radius:20px;padding:7px 14px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .2s;font-family:"Lato",sans-serif}
     .back-btn:hover{background:rgba(255,255,255,0.28)}
     .back-btn-light{background:var(--cream);border:1.5px solid var(--border);color:var(--brown);border-radius:20px;padding:8px 16px;font-size:.85rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .2s;font-family:"Lato",sans-serif;margin-bottom:16px}
@@ -1162,8 +1148,8 @@ document.addEventListener('error', function(e) {
     .add-btn,.card-qty-btn{min-height:36px;min-width:36px}
     .mob-nav-item span:not(.mni-icon):not(.mni-badge){font-size:.58rem}
 
-    /* Prevent body scroll when modal open */
-    body.modal-open{overflow:hidden;position:fixed;width:100%}
+    /* Prevent body scroll when modal open — position:fixed + saved scroll prevents layout jump */
+    body.modal-open{overflow:hidden;position:fixed;width:100%;left:0;right:0;}
 
     /* Loading skeleton */
     .skel-line{
@@ -7544,7 +7530,18 @@ window.addEventListener('load', function() {
       modalOverlay.classList.add('open');
       modalOverlay.style.display = 'flex';
     }
-    document.body.style.overflow = 'hidden';
+    // Lock body scroll WITHOUT causing a layout jump (saves & restores scroll position)
+    if (typeof window.lockBodyScroll === 'function') {
+      window.lockBodyScroll();
+    } else {
+      // Fallback: manual lock preserving scroll position
+      var _sp = window.scrollY || window.pageYOffset || 0;
+      document.body.style.top = '-' + _sp + 'px';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      document._gfyScrollPos = _sp;
+    }
 
     // STEP 10: Payment options and address
     if (typeof refreshPaymentOptions === 'function') refreshPaymentOptions();
@@ -7635,7 +7632,18 @@ window.addEventListener('load', function() {
   window.closeOrderModal = function() {
     const overlay = document.getElementById('order-modal-overlay');
     if (overlay) { overlay.classList.remove('open'); overlay.style.display = 'none'; }
-    document.body.style.overflow = '';
+    // Unlock body scroll and restore previous scroll position
+    if (typeof window.unlockBodyScroll === 'function') {
+      window.unlockBodyScroll();
+    } else {
+      // Fallback: restore manually
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+      var _sp = document._gfyScrollPos || 0;
+      window.scrollTo(0, _sp);
+    }
   };
 
   // ── showStatusToast: for order status popups with X button ─────────────

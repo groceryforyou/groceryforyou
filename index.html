@@ -1471,15 +1471,20 @@ animation:spinRefresh .7s linear infinite;
 }
 
 /* ===== ORDER MODAL INPUT FIX: force LTR for all form fields ===== */
-/* Overrides any inherited RTL direction, unicode-bidi or scaleX transform
-   that may cause typed characters to appear reversed in the order modal. */
+/* Covers every possible CSS root cause of reversed typing:
+   direction:rtl, unicode-bidi:bidi-override, scaleX(-1), writing-mode, text-align:right */
+input, textarea, select,
+.order-modal input,
+.order-modal textarea,
+.order-modal select,
 #order-modal-overlay input,
 #order-modal-overlay textarea,
 #order-modal-overlay select {
   direction: ltr !important;
-  unicode-bidi: plaintext !important;
+  unicode-bidi: isolate !important;
   text-align: left !important;
   transform: none !important;
+  writing-mode: horizontal-tb !important;
 }
 
 </style>
@@ -7974,26 +7979,39 @@ window.addEventListener('load', function() {
       var lat = position.coords.latitude;
       var lng = position.coords.longitude;
 
-      // Use existing map pin logic if available
+    // Use existing map pin logic if available
       try {
-        if (typeof omMap !== 'undefined' && omMap && typeof omMap.setView === 'function') {
+        // Build Leaflet LatLng — matches the signature the obfuscated omSetPin expects
+        var latlng = (typeof L !== 'undefined') ? L.latLng(lat, lng) : { lat: lat, lng: lng };
+
+        if (typeof omMap !== 'undefined' && omMap && typeof omMap.setView === 'function')
           omMap.setView([lat, lng], 16);
-        }
+
         if (typeof omSetPin === 'function') {
-          omSetPin(lat, lng);
-        } else if (typeof omPinLatLng !== 'undefined') {
-          window.omPinLatLng = { lat: lat, lng: lng };
-          // Try to show pin info if helper exists
-          if (typeof omUpdatePinInfo === 'function') omUpdatePinInfo(lat, lng);
+          omSetPin(latlng);               // updates omPinLatLng used by submitOrder
+        } else {
+          window.omPinLatLng = latlng;   // fallback: set shared state directly
         }
-        if (typeof showToast === 'function') {
+
+        if (typeof showToast === 'function')
           showToast('✅ Location detected! Verify the pin on the map.', 3000);
-        }
+
+        // Non-blocking reverse-geocode to prefill address field
+        fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng)
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (d && d.display_name) {
+              var addrEl = document.getElementById('om-address');
+              if (addrEl && !addrEl.value.trim())
+                addrEl.value = d.display_name.split(',').slice(0, 4).join(', ');
+            }
+          })
+          .catch(function() {});
+
       } catch (e) {
         console.warn('[GFYGeo] Map pin error:', e);
-        if (typeof showToast === 'function') {
+        if (typeof showToast === 'function')
           showToast('✅ Location found. Please pin it manually on the map.', 3500);
-        }
       }
     }
 
@@ -8005,13 +8023,13 @@ window.addEventListener('load', function() {
       var msg;
       switch (error.code) {
         case 1: // PERMISSION_DENIED
-          msg = '📍 Location permission denied. Please enable location permission in your browser/app settings, or search/pin your location manually below.';
+          msg = '📍 Location permission denied. Please enable location permission or pin manually.';
           break;
         case 2: // POSITION_UNAVAILABLE
-          msg = '📡 Could not detect your location. Please search or pin your location manually on the map.';
+          msg = '📡 Could not detect your location. Please search area or pin manually.';
           break;
         case 3: // TIMEOUT
-          msg = '⏱ Location request timed out. Please try again or search/pin manually.';
+          msg = '⏱ Location request timed out. Please try again or pin manually.';
           break;
         default:
           msg = '⚠️ Location error. Please search or pin your location manually.';
@@ -8037,11 +8055,45 @@ window.addEventListener('load', function() {
       onError,
       {
         enableHighAccuracy: true,
-        timeout: 12000,          // 12 s before TIMEOUT error fires
-        maximumAge: 60000        // accept cached position up to 1 min old
+        timeout:            15000,  // 15 s before TIMEOUT fires (per spec)
+        maximumAge:         0       // always fresh; no cached position
       }
     );
   };
+
+  // ── Helper: force LTR on every field inside the order modal ──────────────
+  // JS-level fix runs AFTER openOrderModal renders the DOM,
+  // covering cases where obfuscated innerHTML bypasses the CSS rule.
+  function forceLTROnOrderModalFields() {
+    var overlay = document.getElementById('order-modal-overlay');
+    if (!overlay) return;
+    overlay.querySelectorAll('input, textarea, select').forEach(function(el) {
+      el.dir               = 'ltr';
+      el.style.direction   = 'ltr';
+      el.style.unicodeBidi = 'isolate';
+      el.style.textAlign   = 'left';
+      el.style.transform   = 'none';
+      el.style.writingMode = 'horizontal-tb';
+    });
+  }
+
+  // ── Patch openOrderModal so LTR fix runs after every open ────────────────
+  var _ltrPatchTimer = setInterval(function() {
+    if (typeof window.openOrderModal !== 'function') return;
+    clearInterval(_ltrPatchTimer);
+    if (window.__gfyOpenLTRPatched) return;
+    window.__gfyOpenLTRPatched = true;
+    var _origOpen = window.openOrderModal;
+    window.openOrderModal = function() {
+      _origOpen.apply(this, arguments);
+      setTimeout(forceLTROnOrderModalFields, 80);   // fast path
+      setTimeout(forceLTROnOrderModalFields, 350);  // after animations
+    };
+    console.log('[GFYGeoFix] openOrderModal patched → LTR fields.');
+  }, 200);
+
+  // Apply immediately in case modal is already open
+  setTimeout(forceLTROnOrderModalFields, 100);
 
   console.log('[GFYGeoFix] omUseMyLocation installed.');
 })();
@@ -8049,5 +8101,3 @@ window.addEventListener('load', function() {
 
 </body>
 </html>
-
-  

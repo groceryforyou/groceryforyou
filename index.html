@@ -1470,6 +1470,18 @@ animation:spinRefresh .7s linear infinite;
   }
 }
 
+/* ===== ORDER MODAL INPUT FIX: force LTR for all form fields ===== */
+/* Overrides any inherited RTL direction, unicode-bidi or scaleX transform
+   that may cause typed characters to appear reversed in the order modal. */
+#order-modal-overlay input,
+#order-modal-overlay textarea,
+#order-modal-overlay select {
+  direction: ltr !important;
+  unicode-bidi: plaintext !important;
+  text-align: left !important;
+  transform: none !important;
+}
+
 </style>
 </head>
 <body>
@@ -7908,5 +7920,134 @@ window.addEventListener('load', function() {
   console.log('[GFYFinalFixes] ✅ Utility fixes loaded');
 })();
 </script>
+
+<!-- ===== GFY GEOLOCATION FIX: robust omUseMyLocation ===== -->
+<script>
+(function GFYGeoFix() {
+  'use strict';
+
+  // Guard: define once only — prevents duplicate listeners / duplicate definitions
+  if (window.__GFY_GEO_FIX_INSTALLED__) return;
+  window.__GFY_GEO_FIX_INSTALLED__ = true;
+
+  /**
+   * omUseMyLocation
+   * ─────────────────────────────────────────────────────────────────────────
+   * Called ONLY from user click on "🎯 Use My Current Location" button.
+   * Handles all three Geolocation API error cases:
+   *   1. PERMISSION_DENIED   (code 1) — tell user to enable in settings
+   *   2. POSITION_UNAVAILABLE (code 2) — tell user to search/pin manually
+   *   3. TIMEOUT             (code 3) — tell user to retry or pin manually
+   * Falls back gracefully: if GPS is denied the user can still pin on map
+   * or type an address — order placement is NOT blocked.
+   * Safe for Android WebView: geolocation is triggered only from this click
+   * handler, never automatically on page load.
+   */
+  window.omUseMyLocation = function omUseMyLocation() {
+
+    // ── GPS not supported at all ──────────────────────────────────────────
+    if (!navigator.geolocation) {
+      if (typeof showToast === 'function') {
+        showToast('⚠️ GPS not supported on this device. Please search or pin manually.', 4000);
+      }
+      return;
+    }
+
+    // ── Update GPS button to loading state (single place) ─────────────────
+    var btn = document.querySelector('#order-modal-overlay .om-gps-btn');
+    var originalBtnHTML = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Getting location...';
+    }
+
+    // ── Show toast so user knows something is happening ───────────────────
+    if (typeof showToast === 'function') {
+      showToast('📡 Detecting your location...', 3000);
+    }
+
+    // ── Success callback ──────────────────────────────────────────────────
+    function onSuccess(position) {
+      // Restore button
+      if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHTML || '🎯 Use My Current Location'; }
+
+      var lat = position.coords.latitude;
+      var lng = position.coords.longitude;
+
+      // Use existing map pin logic if available
+      try {
+        if (typeof omMap !== 'undefined' && omMap && typeof omMap.setView === 'function') {
+          omMap.setView([lat, lng], 16);
+        }
+        if (typeof omSetPin === 'function') {
+          omSetPin(lat, lng);
+        } else if (typeof omPinLatLng !== 'undefined') {
+          window.omPinLatLng = { lat: lat, lng: lng };
+          // Try to show pin info if helper exists
+          if (typeof omUpdatePinInfo === 'function') omUpdatePinInfo(lat, lng);
+        }
+        if (typeof showToast === 'function') {
+          showToast('✅ Location detected! Verify the pin on the map.', 3000);
+        }
+      } catch (e) {
+        console.warn('[GFYGeo] Map pin error:', e);
+        if (typeof showToast === 'function') {
+          showToast('✅ Location found. Please pin it manually on the map.', 3500);
+        }
+      }
+    }
+
+    // ── Error callback with descriptive messages per error code ───────────
+    function onError(error) {
+      // Restore button
+      if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHTML || '🎯 Use My Current Location'; }
+
+      var msg;
+      switch (error.code) {
+        case 1: // PERMISSION_DENIED
+          msg = '📍 Location permission denied. Please enable location permission in your browser/app settings, or search/pin your location manually below.';
+          break;
+        case 2: // POSITION_UNAVAILABLE
+          msg = '📡 Could not detect your location. Please search or pin your location manually on the map.';
+          break;
+        case 3: // TIMEOUT
+          msg = '⏱ Location request timed out. Please try again or search/pin manually.';
+          break;
+        default:
+          msg = '⚠️ Location error. Please search or pin your location manually.';
+      }
+
+      if (typeof showToast === 'function') {
+        showToast(msg, 5500);
+      }
+
+      // Show the map search input and focus it so user can pin manually
+      var searchInput = document.getElementById('om-map-search-input');
+      if (searchInput) {
+        searchInput.focus();
+        searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      console.warn('[GFYGeo] Geolocation error code=' + error.code + ':', error.message);
+    }
+
+    // ── Request position (only on user click — safe for Android WebView) ──
+    navigator.geolocation.getCurrentPosition(
+      onSuccess,
+      onError,
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,          // 12 s before TIMEOUT error fires
+        maximumAge: 60000        // accept cached position up to 1 min old
+      }
+    );
+  };
+
+  console.log('[GFYGeoFix] omUseMyLocation installed.');
+})();
+</script>
+
 </body>
 </html>
+
+  

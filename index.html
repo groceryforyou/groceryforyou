@@ -7641,7 +7641,10 @@ window.addEventListener('load', function() {
       return;
     }
 
-    const pm = typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : 'cod';
+    const checkedPm = document.querySelector('input[name="payment-method"]:checked');
+    const pm = checkedPm
+    ? checkedPm.value
+    : (typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : 'cod');
 
     if (pm === 'upi' || pm === 'card') {
       // UPI / Razorpay — user must be signed in (already verified above)

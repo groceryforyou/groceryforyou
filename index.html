@@ -5213,7 +5213,19 @@ function toggleSidebar() {
         currency:    'INR',
         name:        'Grocery For You Sircilla',
         description: 'Grocery Order Payment',
-       
+       name:    name,
+          contact: phone,
+          email:   email
+        },
+        notes: { city: 'Sircilla, Telangana' },
+        theme: { color: '#00b04e' },
+        modal: {
+          ondismiss: function() {
+            if (typeof showToast === 'function') {
+              showToast('\u274C Payment cancelled. Try again or use QR code.', 2500);
+            }
+          }
+        },
         handler: function(response) {
           onPaymentSuccess(
             response.razorpay_payment_id || ('RZP-' + Date.now()),
@@ -5223,10 +5235,7 @@ function toggleSidebar() {
       };
 
       try {
-        console.log("RZP_KEY=", RZP_KEY);
-        console.log("amount=", amount);
-        console.log("options=", options);
-        var rzp = new window.Razorpay(options);
+        var rzp = new Razorpay(options);
         rzp.on('payment.failed', function(resp) {
           var msg = (resp.error && resp.error.description) ? resp.error.description : 'Payment failed';
           if (typeof showToast === 'function') {

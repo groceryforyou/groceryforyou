@@ -5226,7 +5226,7 @@ function toggleSidebar() {
         console.log("RZP_KEY=", RZP_KEY);
         console.log("amount=", amount);
         console.log("options=", options);
-        var rzp = new Razorpay(options);
+        var rzp = new window.Razorpay(options);
         rzp.on('payment.failed', function(resp) {
           var msg = (resp.error && resp.error.description) ? resp.error.description : 'Payment failed';
           if (typeof showToast === 'function') {

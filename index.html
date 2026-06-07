@@ -1502,7 +1502,7 @@ input, textarea, select,
   transform: none !important;
   writing-mode: horizontal-tb !important;
 }
-    
+
 </style>
 </head>
 <body>
@@ -5200,21 +5200,48 @@ function toggleSidebar() {
       phone = phone || (phoneEl ? phoneEl.value.trim() : '');
       var email = emailEl ? emailEl.value.trim().toLowerCase() : '';
 
+      /* Detect Android WebView — Razorpay popup may be silently blocked */
+      var ua = navigator.userAgent || '';
+      var isAndroidWebView = /wv/.test(ua) ||
+        (/Android/.test(ua) && /Version\/\d/.test(ua));
+      console.log('[RazorpayUPI] isAndroidWebView:', isAndroidWebView, '| amount:', amount,
+        '| name:', name, '| phone:', phone, '| email:', email);
+
       /* Fallback to QR if Razorpay SDK not loaded */
       if (typeof Razorpay === 'undefined') {
-        console.warn('[RazorpayUPI] SDK not loaded, falling back to QR modal');
+        console.warn('[RazorpayUPI] SDK not loaded — falling back to QR modal');
         showQRModal(amount);
         return;
       }
 
+      /* ── options object — prefill MUST be a nested object with its own braces ── */
+      var _wvFallbackTimer = null;
       var options = {
         key:         RZP_KEY,
         amount:      Math.round(amount * 100),   /* paise */
         currency:    'INR',
         name:        'Grocery For You Sircilla',
         description: 'Grocery Order Payment',
-      
+        prefill: {
+          name:    name,
+          contact: phone,
+          email:   email
+        },
+        notes: { city: 'Sircilla, Telangana' },
+        theme: { color: '#00b04e' },
+        modal: {
+          backdropclose: false,
+          escape: true,
+          ondismiss: function() {
+            if (_wvFallbackTimer) { clearTimeout(_wvFallbackTimer); _wvFallbackTimer = null; }
+            if (typeof showToast === 'function') {
+              showToast('\u274C Payment cancelled. Try again or use QR code.', 2500);
+            }
+          }
+        },
         handler: function(response) {
+          if (_wvFallbackTimer) { clearTimeout(_wvFallbackTimer); _wvFallbackTimer = null; }
+          console.log('[RazorpayUPI] payment.success — id:', response.razorpay_payment_id);
           onPaymentSuccess(
             response.razorpay_payment_id || ('RZP-' + Date.now()),
             amount, name, phone, email
@@ -5222,21 +5249,43 @@ function toggleSidebar() {
         }
       };
 
+      console.log('[RazorpayUPI] options.amount (paise):', options.amount,
+        '| prefill.name:', options.prefill.name,
+        '| prefill.contact:', options.prefill.contact);
+
       try {
         var rzp = new Razorpay(options);
         rzp.on('payment.failed', function(resp) {
-          var msg = (resp.error && resp.error.description) ? resp.error.description : 'Payment failed';
+          if (_wvFallbackTimer) { clearTimeout(_wvFallbackTimer); _wvFallbackTimer = null; }
+          var errObj = resp && resp.error ? resp.error : {};
+          var msg = errObj.description || errObj.reason || 'Payment failed';
+          console.error('[RazorpayUPI] payment.failed — code:', errObj.code,
+            '| reason:', errObj.reason, '| desc:', errObj.description,
+            '| step:', errObj.step, '| source:', errObj.source);
           if (typeof showToast === 'function') {
             showToast('\u274C ' + msg + '. Try again.', 3000);
           }
-          /* Offer QR as fallback */
           setTimeout(function() { showQRModal(amount); }, 1500);
         });
-        var orderOverlay = document.getElementById('order-modal-overlay');
-       if (orderOverlay) orderOverlay.style.display = 'none';
+
+        console.log('[RazorpayUPI] Calling rzp.open() — isAndroidWebView:', isAndroidWebView);
         rzp.open();
+        console.log('[RazorpayUPI] rzp.open() returned — modal should now be visible');
+
+        /* On Android WebView: if popup is blocked (onCreateWindow not firing),
+           nothing callbacks. Auto-fallback to QR after 4 seconds of silence. */
+        if (isAndroidWebView) {
+          _wvFallbackTimer = setTimeout(function() {
+            _wvFallbackTimer = null;
+            console.warn('[RazorpayUPI] WebView: no response in 4s — popup blocked.' +
+              ' Ensure onCreateWindow() in WebChromeClient creates a child WebView' +
+              ' and calls resultMsg.sendToTarget() before returning true.');
+            showQRModal(amount);
+          }, 4000);
+        }
       } catch (e) {
-        console.error('[RazorpayUPI] Checkout error:', e);
+        if (_wvFallbackTimer) { clearTimeout(_wvFallbackTimer); _wvFallbackTimer = null; }
+        console.error('[RazorpayUPI] Checkout error:', e.name, e.message);
         showQRModal(amount);
       }
     };
@@ -5276,7 +5325,7 @@ function toggleSidebar() {
     [0, 300, 800, 1500, 3000].forEach(function(ms) { setTimeout(tryPatch, ms); });
   }
 
-  //console.log('[RazorpayUPI] \ud83d\ude80 Live Razorpay checkout loaded \u2014 Key: rzp_live_SmqN...');
+  console.log('[RazorpayUPI] \ud83d\ude80 Live Razorpay checkout loaded \u2014 Key: rzp_live_SmqN...');
 })();
 </script>
 
@@ -7643,10 +7692,7 @@ window.addEventListener('load', function() {
       return;
     }
 
-    const checkedPm = document.querySelector('input[name="payment-method"]:checked');
-    const pm = checkedPm
-    ? checkedPm.value
-    : (typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : 'cod');
+    const pm = typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : 'cod';
 
     if (pm === 'upi' || pm === 'card') {
       // UPI / Razorpay — user must be signed in (already verified above)

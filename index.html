@@ -7682,7 +7682,7 @@ window.addEventListener('load', function() {
     if (!email)   { showToast('⚠️ Enter email');           if (emailEl) emailEl.focus(); return; }
     if (!address) { showToast('⚠️ Enter delivery address'); if (addressEl) addressEl.focus(); return; }
 
-    addressEl.style.direction = 'rtl';
+    addressEl.style.direction = 'ltr !important';
     addressEl.style.textAlign = 'right';
 
     if (typeof omPinLatLng !== 'undefined' && !omPinLatLng) {

@@ -2571,7 +2571,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="full" id="om-manual-address-wrap">
           <div class="om-manual-address-grid">
-            <div class="full"><label for="om-address">Delivery Address *</label><textarea id="om-address" rows="2" placeholder="House No., Street, Area..." autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false"></textarea></div>
+            <div class="full"><label for="om-address">Delivery Address *</label><textarea id="om-address" rows="2" placeholder="House No., Street, Area..."></textarea></div>
             <div><label for="om-landmark">Landmark</label><input type="text" id="om-landmark" placeholder="Near school..."/></div>
             <div class="full" style="margin-top:4px">
               <div class="om-map-label">📍 Pin Your Location <span style="font-weight:400;color:#888;font-size:.7rem;text-transform:none">(tap map to pin)</span></div>
@@ -7681,6 +7681,9 @@ window.addEventListener('load', function() {
     if (!/^[0-9]{10}$/.test(phone)) { showToast('⚠️ Phone must be 10 digits',3000); if (phoneEl) phoneEl.focus(); return; }
     if (!email)   { showToast('⚠️ Enter email');           if (emailEl) emailEl.focus(); return; }
     if (!address) { showToast('⚠️ Enter delivery address'); if (addressEl) addressEl.focus(); return; }
+
+    addressEl.style.direction = 'rtl';
+    addressEl.style.textAlign = 'right';
 
     if (typeof omPinLatLng !== 'undefined' && !omPinLatLng) {
       showToast('⚠️ Pin your delivery location on the map');

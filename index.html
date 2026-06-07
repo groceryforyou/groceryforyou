@@ -1197,26 +1197,6 @@ document.addEventListener('error', function(e) {
     .toast{z-index:9999}
     #offline-banner{z-index:9998}
 
-    /* ===== APK FIX: Prevent reversed/RTL text in Android WebView form inputs ===== */
-    /* Applied ONLY to order modal fields — does NOT affect global layout direction */
-    .order-modal input,
-    .order-modal textarea,
-    .order-modal select,
-    #order-modal-overlay input,
-    #order-modal-overlay textarea,
-    #order-modal-overlay select,
-    .om-form input,
-    .om-form textarea,
-    .om-form select,
-    .om-map-search input,
-    .om-address-picker select {
-      direction: ltr !important;
-      unicode-bidi: isolate !important;
-      text-align: left !important;
-      transform: none !important;
-      writing-mode: horizontal-tb !important;
-    }
-
     /* admin-mode hamburger button visible on mobile */
     @media(max-width:768px){
       body.admin-mode #admin-mob-menu-btn{display:flex}
@@ -5349,17 +5329,9 @@ function toggleSidebar() {
 })();
 </script>
 
-<!-- ✅ Sign-In Fix: Direct Redirect for Android WebView, Popup for Chrome -->
+<!-- ✅ Sign-In Fix: Popup → Redirect fallback -->
 <script>
 (function patchSignIn() {
-  // Detect Android WebView: matches "wv" flag OR Android + Version/x.x (stock browser wrapper)
-  var _isAndroidWebView = (function() {
-    var ua = navigator.userAgent || '';
-    return /wv/.test(ua) || (/Android/.test(ua) && /Version\/\d/.test(ua));
-  })();
-
-  console.log('[SignIn] isAndroidWebView:', _isAndroidWebView);
-
   function doSignIn() {
     if (typeof firebase === 'undefined' || !firebase.auth) {
       setTimeout(doSignIn, 400);
@@ -5374,15 +5346,13 @@ function toggleSidebar() {
         'client_id': '513928226780-99k0sfj6ltv4s49jsllk4614smk1r60f.apps.googleusercontent.com'
     });
 
-    // Handle redirect result first (fires after redirect-based sign-in completes)
+    // Handle redirect result first (fires after redirect-based sign-in)
     authInst.getRedirectResult().then(result => {
       if (result && result.user) {
-        console.log('[SignIn] Redirect result: signed in as', result.user.email);
         if (typeof showToast === 'function') showToast('✅ Signed in as ' + result.user.email, 2500);
       }
     }).catch(err => {
       if (err && err.code !== 'auth/no-auth-event') {
-        console.error('[SignIn] Redirect result error:', err.code, err.message);
         if (typeof showToast === 'function') showToast('❌ Sign in error: ' + (err.message || err.code), 3000);
       }
     });
@@ -5397,25 +5367,12 @@ function toggleSidebar() {
       const overlay = document.getElementById('auth-overlay');
       if (overlay) overlay.classList.remove('open');
 
-      // ── Android WebView: popup cannot complete OAuth — use redirect directly ──
-      // signInWithPopup opens a window but the result never posts back in WebView.
-      // signInWithRedirect navigates the WebView itself and returns via getRedirectResult().
-      if (_isAndroidWebView) {
-        console.log('[SignIn] Android WebView detected — using signInWithRedirect directly');
-        if (typeof showToast === 'function') showToast('🔄 Signing in with Google...', 2000);
-        authInst.signInWithRedirect(provider);
-        return;
-      }
-
-      // ── Chrome / Desktop: try popup first, fall back to redirect if blocked ──
       authInst.signInWithPopup(provider)
         .then(result => {
-          console.log('[SignIn] Popup success:', result.user.email);
           if (typeof showToast === 'function') showToast('✅ Signed in as ' + result.user.email, 2500);
         })
         .catch(err => {
           const code = err && err.code ? err.code : '';
-          console.warn('[SignIn] Popup error:', code, err.message);
           // Fallback to redirect for blocked popups or unauthorized domain
           if (
             code === 'auth/popup-blocked' ||

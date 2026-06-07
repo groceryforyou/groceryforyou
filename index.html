@@ -1502,7 +1502,14 @@ input, textarea, select,
   transform: none !important;
   writing-mode: horizontal-tb !important;
 }
-
+.razorpay-container,
+.razorpay-checkout-frame,
+iframe[src*="razorpay"]{
+    z-index:2147483647 !important;
+    display:block !important;
+    visibility:visible !important;
+    opacity:1 !important;
+}
 </style>
 </head>
 <body>
@@ -5232,6 +5239,8 @@ function toggleSidebar() {
           /* Offer QR as fallback */
           setTimeout(function() { showQRModal(amount); }, 1500);
         });
+        var orderOverlay = document.getElementById('order-modal-overlay');
+       if (orderOverlay) orderOverlay.style.display = 'none';
         rzp.open();
       } catch (e) {
         console.error('[RazorpayUPI] Checkout error:', e);

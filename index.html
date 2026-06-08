@@ -367,8 +367,10 @@ document.addEventListener('error', function(e) {
     .om-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .om-form .full{grid-column:1/-1}
     .om-form label{font-size:.75rem;font-weight:800;color:var(--brown);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px}
-    .om-form input,.om-form textarea,.om-form select{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:.88rem;font-family:"Lato",sans-serif;background:#fff;outline:none;transition:border-color .2s}
+    .om-form input,.om-form textarea,.om-form select{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:.88rem;font-family:"Lato",sans-serif;background:#fff;outline:none;transition:border-color .2s;direction:ltr !important;text-align:left !important;unicode-bidi:plaintext !important}
     .om-form input:focus,.om-form textarea:focus{border-color:var(--saffron)}
+    /* ── Android WebView fix: Prevent cursor jumping during input ── */
+    #om-name,#om-phone,#om-email,#om-address,#om-landmark,#om-note,#om-time{direction:ltr !important;text-align:left !important;unicode-bidi:plaintext !important}
     .om-actions{display:flex;gap:10px;margin-top:18px}
     .om-cancel{flex:1;background:var(--cream);color:var(--brown);border:1.5px solid var(--border);border-radius:12px;padding:12px;font-size:.88rem;font-weight:700;cursor:pointer;touch-action:manipulation}
     .om-place{flex:2;background:linear-gradient(90deg,var(--brown),var(--saffron));color:#fff;border:none;border-radius:12px;padding:12px;font-family:"Yeseva One",serif;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;touch-action:manipulation}
@@ -706,7 +708,7 @@ document.addEventListener('error', function(e) {
       .order-modal{border-radius:20px 20px 0 0;max-height:96dvh;max-height:96vh;width:100%}
       .om-form{grid-template-columns:1fr}
       .om-form .full{grid-column:1}
-      .om-form input,.om-form textarea,.om-form select{padding:12px 14px;font-size:16px!important}
+      .om-form input,.om-form textarea,.om-form select{padding:12px 14px;font-size:16px!important;direction:ltr !important;text-align:left !important;unicode-bidi:plaintext !important}
       .om-actions{flex-direction:column;gap:8px}
       .om-cancel,.om-place{flex:unset;width:100%;padding:14px;font-size:.95rem}
 
@@ -8268,7 +8270,7 @@ if (addrEl) {
     );
   };
 
-   // LTR direction for order modal fields is already enforced by CSS.
+  // LTR direction for order modal fields is already enforced by CSS.
   // Removed JS patch because runtime DOM writes can disrupt cursor/input behavior.
 
   console.log('[GFYGeoFix] omUseMyLocation installed.');

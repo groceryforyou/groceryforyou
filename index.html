@@ -5514,9 +5514,14 @@ function setupAdminOrderWatch(db){
 }
 
 // ── 3. CUSTOMER ORDER STATUS WATCHER ────────────────────────────────────
-// Uses localStorage key seenOrderStatus_<orderId>_<status> to prevent
+// Uses localStorage key gfy_notified_order_<orderId>_<status> to prevent
 // repeated popups after page refresh. Only fires on 'modified' changes.
+// Global tracking prevents repeated initialization across listener resets.
 let _custUnsub=null;
+let _custWatchInitialized=false;  // Global flag to prevent duplicate initialization
+let _sessionStartTime=sessionStorage.getItem('_gfySessionStart')||Date.now();
+sessionStorage.setItem('_gfySessionStart',_sessionStartTime);
+
 function setupCustomerWatch(db,uid){
   if(_custUnsub){_custUnsub();_custUnsub=null;}
   if(!uid)return;
@@ -5530,33 +5535,49 @@ function setupCustomerWatch(db,uid){
     'delivered':  {title:'✅ Order Delivered!',   body:'Enjoy your groceries! Rate your experience.', icon:'✅'},
     'cancelled':  {title:'🚫 Order Cancelled',    body:'Your order was auto-cancelled. Please place a new order.', icon:'⏰'}
   };
-  let _initialized = false;
   try{
     _custUnsub=db.collection('orders')
       .where('customerUid','==',uid)
       .orderBy('createdAt','desc')
       .limit(5)
       .onSnapshot(snap=>{
-        if(!_initialized){
-          // On first load, just mark all existing statuses as seen
-          // so we do NOT show popups for old orders
+        if(!_custWatchInitialized){
+          // On first load globally, mark all existing orders' statuses as seen
+          // so we do NOT show popups for old orders that were handled before
           snap.forEach(doc=>{
             const s=(doc.data().status||'');
-            const lsKey='seenOrderStatus_'+doc.id+'_'+s;
+            const lsKey='gfy_notified_order_'+doc.id+'_'+s;
             localStorage.setItem(lsKey,'1');
           });
-          _initialized=true;
+          _custWatchInitialized=true;
           return;
         }
-        // Only process real-time changes
+        // Only process real-time changes (modified events = actual status changes)
         let visibleCount=document.querySelectorAll('.gfy-status-toast').length;
         snap.docChanges().forEach(ch=>{
           if(ch.type!=='modified')return;
           const o=ch.doc.data(),s=o.status;
           if(!s)return;
-          const lsKey='seenOrderStatus_'+ch.doc.id+'_'+s;
+          
+          // Build notification key: gfy_notified_order_<orderId>_<status>
+          const lsKey='gfy_notified_order_'+ch.doc.id+'_'+s;
+          
+          // Skip if already notified about this status
           if(localStorage.getItem(lsKey))return;
+          
+          // Additional check: only notify if order was created/updated in this session
+          // or if it is the latest order (to avoid old historical orders)
+          const createdAt=o.createdAt?.toMillis?.()??0;
+          const updatedAt=o.updatedAt?.toMillis?.()??0;
+          const orderChangeTime=Math.max(createdAt,updatedAt);
+          const sessionStart=parseInt(_sessionStartTime,10);
+          
+          // Skip if order was last modified before this session started
+          if(orderChangeTime>0&&orderChangeTime<sessionStart)return;
+          
+          // Mark as notified in localStorage
           localStorage.setItem(lsKey,'1');
+          
           const info=MSGS[s];
           if(!info)return;
           if(visibleCount>=2)return; // max 2 visible at a time

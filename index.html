@@ -3063,13 +3063,17 @@ dairyRaw.forEach(d=>items.push({'id':newId(),'catId':'cat-dairy',...d,'inStock':
   
   function openOrdersModal(){const _0x447fde=a0_0x24f4ad;if(currentRole===_0x447fde(0x3f6)){openAdminOrdersPage();return;}closeUserMenu();if(!currentUser){showToast(_0x447fde(0x118),0x898);return;}document[_0x447fde(0x3d3)](_0x447fde(0x4a6))[_0x447fde(0x261)]=currentUser[_0x447fde(0xfe)]||'—',document['getElementById'](_0x447fde(0x16f))[_0x447fde(0x261)]=currentRole==='admin'?_0x447fde(0xcc):_0x447fde(0x173),document['getElementById'](_0x447fde(0x35d))[_0x447fde(0x261)]=currentRole===_0x447fde(0x3f6)?_0x447fde(0x233):_0x447fde(0x37d);const _0x4e27d2=document['getElementById'](_0x447fde(0xeb));if(_0x4e27d2)_0x4e27d2[_0x447fde(0x187)][_0x447fde(0x398)]=currentRole===_0x447fde(0x3f6)?_0x447fde(0x434):_0x447fde(0x47b);_currentOrderTab=_0x447fde(0x345),_currentOrderDateFilter='today',document['querySelectorAll'](_0x447fde(0x3e8))[_0x447fde(0x2ac)](_0x98872c=>_0x98872c[_0x447fde(0x20d)][_0x447fde(0xfd)]('active')),document['getElementById'](_0x447fde(0x28a))?.[_0x447fde(0x20d)][_0x447fde(0x388)](_0x447fde(0x345)),document[_0x447fde(0x19d)](_0x447fde(0x379))[_0x447fde(0x2ac)](_0x212a83=>_0x212a83['classList'][_0x447fde(0xfd)](_0x447fde(0x345))),document[_0x447fde(0x3d3)](_0x447fde(0x23f))?.[_0x447fde(0x20d)][_0x447fde(0x388)](_0x447fde(0x345));
     const ordersOverlay = document.getElementById('orders-overlay');
-    ordersOverlay?.classList.add('open');
+    if (ordersOverlay) {
+        ordersOverlay.classList.add('open');
+    }
     subscribeOrders();
 }
 
 function closeOrdersModal(){const _0x5e5ff8=a0_0x24f4ad;
     const ordersOverlay = document.getElementById('orders-overlay');
-    ordersOverlay?.classList.remove('open');
+    if (ordersOverlay) {
+        ordersOverlay.classList.remove('open');
+    }
     _ordersUnsub&&(_ordersUnsub(),_ordersUnsub=null);
 }
 

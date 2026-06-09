@@ -550,7 +550,28 @@ document.addEventListener('error', function(e) {
     .orders-tab.active,.orders-tab:hover{background:var(--brown);color:#fff;border-color:var(--brown)}
 
     /* ===== ADMIN ORDER POPUP ===== */
-    #admin-order-popup{position:fixed;right:14px;bottom:14px;width:min(420px,calc(100vw - 20px));background:#fff;border:2px solid var(--saffron);border-radius:18px;box-shadow:0 12px 40px rgba(0,176,78,0.35);z-index:260;display:none;animation:popupSlideIn .4s cubic-bezier(0.34,1.56,0.64,1)}
+    #admin-order-popup{position:fixed;right:14px;bottom:14px;width:min(480px,calc(100vw - 20px));background:#fff;border:2px solid var(--saffron);border-radius:18px;box-shadow:0 12px 40px rgba(0,176,78,0.35);z-index:260;display:none;animation:popupSlideIn .4s cubic-bezier(0.34,1.56,0.64,1);padding:0;flex-direction:column;max-height:92vh;overflow:hidden}
+    #admin-order-popup.open{display:flex}
+    #admin-orders-container{display:flex;flex-direction:column;gap:8px;padding:10px;overflow-y:auto;max-height:calc(92vh - 12px);-webkit-overflow-scrolling:touch}
+    #admin-orders-container::-webkit-scrollbar{width:5px}
+    #admin-orders-container::-webkit-scrollbar-track{background:transparent}
+    #admin-orders-container::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+    .admin-order-card{background:#f8fffa;border:1px solid var(--border);border-radius:10px;padding:8px;box-shadow:0 1px 4px rgba(0,176,78,0.06);flex-shrink:0}
+    .order-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+    .order-card-title{font-weight:700;color:var(--brown);font-size:.8rem;display:flex;align-items:center;gap:4px;flex:1;min-width:0}
+    .order-card-title span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .order-card-close{background:none;border:none;font-size:.85rem;cursor:pointer;color:#888;padding:0;flex-shrink:0;line-height:1}
+    .order-card-body{color:#333;font-size:.7rem;line-height:1.4;margin-bottom:6px}
+    .order-card-body strong{color:var(--brown);display:inline;font-size:.7rem}
+    .order-card-body strong:first-child{margin-top:0}
+    .order-card-body-line{margin:3px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .order-card-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px}
+    .order-card-action-btn{border:none;border-radius:5px;padding:5px 3px;font-family:"Yeseva One",serif;font-size:.65rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:1px;transition:opacity .2s;touch-action:manipulation;font-weight:600;white-space:nowrap;line-height:1.2}
+    .order-card-accept{background:linear-gradient(90deg,var(--green),#43a047);color:#fff}
+    .order-card-reject{background:linear-gradient(90deg,var(--red),#e53935);color:#fff}
+    .order-card-ready{background:linear-gradient(90deg,#ffcc00,#ff9800);color:#fff}
+    .order-card-ofd{background:linear-gradient(90deg,#1976d2,#0d47a1);color:#fff}
+    .order-card-delivered{background:linear-gradient(90deg,var(--saffron),#ff9800);color:#fff}
     @keyframes popupSlideIn{from{opacity:0;transform:translateY(60px) scale(0.92)}to{opacity:1;transform:translateY(0) scale(1)}}
     .popup-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#f0faf4,#f0faf4);border-top-left-radius:16px;border-top-right-radius:16px}
     .popup-header-left{display:flex;align-items:center;gap:8px}
@@ -777,7 +798,9 @@ document.addEventListener('error', function(e) {
 
       /* Admin */
       .manage-banner{font-size:.8rem;padding:10px 12px}
-      #admin-order-popup{right:8px;bottom:calc(var(--mob-nav-h) + 8px + var(--safe-bottom));width:calc(100vw - 16px)}
+      #admin-order-popup{right:8px;bottom:calc(var(--mob-nav-h) + 8px + var(--safe-bottom));width:calc(100vw - 16px);max-height:calc(100vh - var(--mob-nav-h) - 16px)}
+      #admin-orders-container{max-height:calc(100vh - var(--mob-nav-h) - 20px)}
+      .order-card-actions{grid-template-columns:1fr 1fr}
 
       /* UPI/PhonePe modal */
       .upi-redirect-modal,.phonepe-qr-modal{max-height:95dvh;max-height:95vh;overflow-y:auto}
@@ -2890,31 +2913,9 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
 </div>
 
-<!-- ADMIN INCOMING ORDER POPUP -->
-<div id="admin-order-popup">
-  <div class="popup-header">
-    <div class="popup-header-left">
-      <span class="popup-ring-icon">🔔</span>
-      <span class="popup-title">New Order!</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <div class="popup-timer-wrap">
-        <span class="popup-timer-label">Auto-cancel</span>
-        <span class="popup-timer-num" id="popup-countdown">5:00</span>
-      </div>
-      <button onclick="closeAdminOrderPopup()" style="border:none;background:transparent;font-size:1.1rem;cursor:pointer;color:#888">✕</button>
-    </div>
-  </div>
-  <div id="admin-order-popup-body" style="padding:12px 16px;color:#333;font-size:.85rem;line-height:1.5"></div>
-  <div class="popup-actions" style="padding-bottom:6px">
-    <button class="popup-accept" onclick="adminPopupUpdateStatus('accepted')">✅ Accept</button>
-    <button class="popup-reject" onclick="adminPopupUpdateStatus('rejected')">❌ Reject</button>
-  </div>
-  <div class="popup-actions" style="padding-top:0">
-    <button class="popup-ready" onclick="adminPopupUpdateStatus('ready')">🍳 Ready</button>
-    <button class="popup-ofd" onclick="adminPopupUpdateStatus('out_for_delivery')">🚴 Out for Delivery</button>
-    <button class="popup-delivered" onclick="adminPopupUpdateStatus('completed')">🎉 Delivered</button>
-  </div>
+<!-- ADMIN INCOMING ORDERS CONTAINER (Multiple Orders) -->
+<div id="admin-order-popup" style="display:flex;flex-direction:column;gap:12px;overflow-y:auto;max-height:90vh">
+  <div id="admin-orders-container" style="display:flex;flex-direction:column;gap:12px"></div>
 </div>
 
 <script>
@@ -5720,7 +5721,188 @@ Object.defineProperty(window, 'currentUser', {
 })();
 </script>
 
-<!-- ===== SEO FOOTER ===== -->
+<!-- ===== ADMIN MULTIPLE ORDERS SYSTEM ===== -->
+<script>
+(function() {
+'use strict';
+
+// Track active orders being displayed to prevent duplicates
+let _activeOrderIds = new Set();
+let _orderCountdownTimers = new Map(); // Map<orderId, timeoutId>
+
+// Show the admin orders popup container
+function showAdminOrdersContainer() {
+  const popup = document.getElementById('admin-order-popup');
+  if (popup) {
+    popup.classList.add('open');
+  }
+}
+
+// Hide the admin orders popup container if no orders remain
+function hideAdminOrdersContainerIfEmpty() {
+  const container = document.getElementById('admin-orders-container');
+  if (!container || container.children.length === 0) {
+    const popup = document.getElementById('admin-order-popup');
+    if (popup) {
+      popup.classList.remove('open');
+    }
+  }
+}
+
+// Add a new order card to the container (prevent duplicates using orderId)
+function addOrderCard(orderId, orderData) {
+  // Prevent duplicate order cards
+  if (_activeOrderIds.has(orderId)) {
+    return;
+  }
+  _activeOrderIds.add(orderId);
+
+  const container = document.getElementById('admin-orders-container');
+  if (!container) return;
+
+  const items = Array.isArray(orderData.items) ? orderData.items : [];
+  const itemsPreview = items.slice(0, 3).map(item => `${item.name || item.title}×${item.qty || 1}`).join(' | ');
+  const moreIndicator = items.length > 3 ? ` +${items.length - 3}` : '';
+
+  const cardHTML = `
+    <div class="admin-order-card" data-order-id="${orderId}">
+      <div class="order-card-header">
+        <div class="order-card-title">
+          <span>🔔</span>
+          <span>${orderData.customerName || 'Customer'} · ₹${orderData.total || 0}</span>
+        </div>
+        <button class="order-card-close" onclick="removeOrderCard('${orderId}')">✕</button>
+      </div>
+      <div class="order-card-body">
+        <div class="order-card-body-line"><strong>📦</strong> ${itemsPreview}${moreIndicator}</div>
+        <div class="order-card-body-line"><strong>📍</strong> ${(orderData.address || 'N/A').substring(0, 30)}</div>
+        <div class="order-card-body-line"><strong>📱</strong> ${(orderData.phone || 'N/A').substring(0, 12)} · <strong>💳</strong> ${(orderData.paymentMethod || 'COD').substring(0, 3)}</div>
+      </div>
+      <div class="order-card-actions">
+        <button class="order-card-action-btn order-card-accept" onclick="updateOrderCardStatus('${orderId}', 'accepted')">✅Accept</button>
+        <button class="order-card-action-btn order-card-reject" onclick="updateOrderCardStatus('${orderId}', 'rejected')">❌Reject</button>
+        <button class="order-card-action-btn order-card-ready" onclick="updateOrderCardStatus('${orderId}', 'ready')">🍳Ready</button>
+        <button class="order-card-action-btn order-card-ofd" onclick="updateOrderCardStatus('${orderId}', 'out_for_delivery')">🚴OFD</button>
+        <button class="order-card-action-btn order-card-delivered" onclick="updateOrderCardStatus('${orderId}', 'completed')">🎉Done</button>
+      </div>
+    </div>
+  `;
+
+  const cardElement = document.createElement('div');
+  cardElement.innerHTML = cardHTML;
+  container.appendChild(cardElement.firstElementChild);
+
+  // Show the container
+  showAdminOrdersContainer();
+
+  // Auto-scroll to new card for visibility
+  setTimeout(() => {
+    container.scrollTop = container.scrollHeight;
+  }, 50);
+
+  // Start auto-reject countdown for this specific order (5 minutes = 300 seconds)
+  startOrderCountdown(orderId, 300);
+}
+
+// Remove a specific order card from the container
+function removeOrderCard(orderId) {
+  _activeOrderIds.delete(orderId);
+  
+  // Clear the countdown timer if it exists
+  if (_orderCountdownTimers.has(orderId)) {
+    clearTimeout(_orderCountdownTimers.get(orderId));
+    _orderCountdownTimers.delete(orderId);
+  }
+
+  const card = document.querySelector(`[data-order-id="${orderId}"]`);
+  if (card) {
+    card.style.transition = 'opacity 0.3s ease';
+    card.style.opacity = '0';
+    setTimeout(() => {
+      card.remove();
+      hideAdminOrdersContainerIfEmpty();
+    }, 300);
+  } else {
+    hideAdminOrdersContainerIfEmpty();
+  }
+}
+
+// Start auto-reject countdown for a specific order
+function startOrderCountdown(orderId, seconds) {
+  // Clear any existing countdown for this order
+  if (_orderCountdownTimers.has(orderId)) {
+    clearTimeout(_orderCountdownTimers.get(orderId));
+  }
+
+  // Auto-reject after the countdown expires
+  const timerId = setTimeout(async () => {
+    if (_activeOrderIds.has(orderId)) {
+      // Auto-reject this specific order
+      if (typeof updateOrderStatus === 'function') {
+        try {
+          await updateOrderStatus(orderId, 'rejected');
+          removeOrderCard(orderId);
+        } catch (e) {
+          console.error('[Order Auto-Reject] Failed for order ' + orderId, e);
+        }
+      }
+    }
+  }, seconds * 1000);
+
+  _orderCountdownTimers.set(orderId, timerId);
+}
+
+// Update status for a specific order card and remove it
+async function updateOrderCardStatus(orderId, status) {
+  if (typeof updateOrderStatus === 'function') {
+    try {
+      await updateOrderStatus(orderId, status);
+      removeOrderCard(orderId);
+      
+      // Show success message
+      if (typeof showToast === 'function') {
+        const messages = {
+          'accepted': '✅ Order accepted!',
+          'rejected': '❌ Order rejected!',
+          'ready': '🍳 Order marked ready!',
+          'out_for_delivery': '🚴 Order out for delivery!',
+          'completed': '🎉 Order delivered!'
+        };
+        showToast(messages[status] || 'Status updated!', 1000);
+      }
+    } catch (e) {
+      console.error('[Order Update] Failed for order ' + orderId, e);
+      if (typeof showToast === 'function') {
+        showToast('❌ Failed to update order. Please try again.', 2000);
+      }
+    }
+  }
+}
+
+// Expose functions to window (overwrite old ones if they exist)
+window.showAdminOrderPopup = function(orderData) {
+  if (!orderData || !orderData.id) return;
+  addOrderCard(orderData.id, orderData);
+};
+
+window.closeAdminOrderPopup = function() {
+  // Close all orders
+  const popup = document.getElementById('admin-order-popup');
+  if (popup) {
+    popup.classList.remove('open');
+  }
+  // Clear all timers
+  _orderCountdownTimers.forEach(timerId => clearTimeout(timerId));
+  _orderCountdownTimers.clear();
+  _activeOrderIds.clear();
+};
+
+window.removeOrderCard = removeOrderCard;
+window.updateOrderCardStatus = updateOrderCardStatus;
+
+})();
+</script>
+
 <footer itemscope itemtype="https://schema.org/GroceryStore" style="background:linear-gradient(180deg,#0a1a0e,#0d3b1a);color:#c8e6c9;padding:40px 20px 80px;margin-top:0;font-family:'Lato',sans-serif">
   <div style="max-width:1200px;margin:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:32px">
 

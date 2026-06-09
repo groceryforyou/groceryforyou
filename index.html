@@ -222,7 +222,7 @@ document.addEventListener('error', function(e) {
     .mob-search-overlay{
     display:none;
     position:absolute;
-    top:320px;
+    top:50px;
     left:10px;
     right:10px;
     z-index:200;
@@ -400,7 +400,8 @@ document.addEventListener('error', function(e) {
     .om-form input,.om-form textarea,.om-form select{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:.88rem;font-family:"Lato",sans-serif;background:#fff;outline:none;transition:border-color .2s;direction:ltr !important;text-align:left !important;unicode-bidi:plaintext !important}
     .om-form input:focus,.om-form textarea:focus{border-color:var(--saffron)}
     /* ── Android WebView fix: Prevent cursor jumping during input ── */
-    #om-name,#om-phone,#om-email,#om-address,#om-landmark,#om-note,#om-time{direction:ltr !important;text-align:left !important;unicode-bidi:plaintext !important}
+    #om-name,#om-phone,#om-email,#om-address,#om-landmark,#om-note,#om-time,
+    #om-map-search{direction:ltr !important;text-align:left !important;unicode-bidi:normal !important;writing-mode:horizontal-tb !important;}
     .om-actions{display:flex;gap:10px;margin-top:18px}
     .om-cancel{flex:1;background:var(--cream);color:var(--brown);border:1.5px solid var(--border);border-radius:12px;padding:12px;font-size:.88rem;font-weight:700;cursor:pointer;touch-action:manipulation}
     .om-place{flex:2;background:linear-gradient(90deg,var(--brown),var(--saffron));color:#fff;border:none;border-radius:12px;padding:12px;font-family:"Yeseva One",serif;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;touch-action:manipulation}
@@ -774,7 +775,7 @@ document.addEventListener('error', function(e) {
       .order-modal{border-radius:20px 20px 0 0;max-height:96dvh;max-height:96vh;width:100%}
       .om-form{grid-template-columns:1fr}
       .om-form .full{grid-column:1}
-      .om-form input,.om-form textarea,.om-form select{padding:12px 14px;font-size:16px!important;direction:ltr !important;text-align:left !important;unicode-bidi:plaintext !important}
+      .om-form input,.om-form textarea,.om-form select{padding:12px 14px;font-size:16px!important;direction:ltr !important;text-align:left !important;unicode-bidi: normal !important}
       .om-actions{flex-direction:column;gap:8px}
       .om-cancel,.om-place{flex:unset;width:100%;padding:14px;font-size:.95rem}
 
@@ -8147,10 +8148,24 @@ window.addEventListener('load', function() {
     if (!address) { showToast('⚠️ Enter delivery address'); if (addressEl) addressEl.focus(); return; }
 
     // Keep address input in natural LTR mode for Android WebView cursor stability.
-    if (addressEl) {
-      addressEl.style.direction = 'rtl';
-      addressEl.style.textAlign = 'right';
-    }
+    [
+  nameEl,
+  phoneEl,
+  emailEl,
+  addressEl,
+  document.getElementById('om-landmark'),
+  document.getElementById('om-note'),
+  document.getElementById('om-map-search')
+].forEach(el => {
+  if (el) {
+    el.setAttribute('dir', 'ltr');
+    el.style.direction = 'ltr';
+    el.style.textAlign = 'left';
+    el.style.unicodeBidi = 'normal';
+    el.style.writingMode = 'horizontal-tb';
+    el.style.transform = 'none';
+  }
+});
 
     if (typeof omPinLatLng !== 'undefined' && !omPinLatLng) {
       showToast('⚠️ Pin your delivery location on the map');

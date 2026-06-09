@@ -505,7 +505,22 @@ document.addEventListener('error', function(e) {
     /* ===== ORDERS MODAL ===== */
     .orders-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:600;align-items:center;justify-content:center;padding:10px}
     .orders-overlay.open{display:flex}
-    .orders-modal{background:#fff;border-radius:20px;width:100%;max-width:860px;max-height:96vh;height:100%;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 80px rgba(0,0,0,0.4);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1)}
+    .orders-modal{
+    background:#fff;
+    border-radius:20px;
+    width:100%;
+    max-width:860px;
+    height:auto;
+    min-height:300px;
+    max-height:96vh;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    box-shadow:0 20px 80px rgba(0,0,0,0.4);
+    animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1);
+    position:relative;
+    z-index:10000;
+}
     .orders-modal-header{background:linear-gradient(135deg,var(--brown),#1e7a3a);padding:16px 20px;display:flex;align-items:center;gap:10px}
     .orders-modal-header h2{font-family:"Yeseva One",serif;color:var(--turmeric);font-size:1.2rem;flex:1}
     .orders-modal-body{padding:16px 18px;flex:1;overflow-y:auto}

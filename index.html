@@ -1579,11 +1579,57 @@ input, textarea, select,
 (function patchAdminRingtone(){
   var _playing = false;
   var _interval = null;
+  var _fallbackTimeout = null;
+  var _audioCtx = null;
+  var _oscillator = null;
+  var _gainNode = null;
+
+  function stopFallbackTone(){
+    if(_fallbackTimeout){ clearTimeout(_fallbackTimeout); _fallbackTimeout = null; }
+    if(_oscillator){
+      try{ _oscillator.stop(); }catch(e){}
+      try{ _oscillator.disconnect(); }catch(e){}
+      _oscillator = null;
+    }
+    if(_gainNode){
+      try{ _gainNode.disconnect(); }catch(e){}
+      _gainNode = null;
+    }
+  }
+
+  function fallbackTone(){
+    if(_oscillator) return;
+    try{
+      var AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if(!AudioCtx) return;
+      if(!_audioCtx) _audioCtx = new AudioCtx();
+      if(_audioCtx.state === 'suspended'){
+        _audioCtx.resume().catch(function(){});
+      }
+      _gainNode = _audioCtx.createGain();
+      _oscillator = _audioCtx.createOscillator();
+      _oscillator.type = 'sine';
+      _oscillator.frequency.value = 880;
+      _oscillator.connect(_gainNode);
+      _gainNode.connect(_audioCtx.destination);
+      _gainNode.gain.setValueAtTime(0.2, _audioCtx.currentTime);
+      _oscillator.start();
+      _fallbackTimeout = setTimeout(stopFallbackTone, 800);
+    }catch(e){}
+  }
 
   function playOnce(){
     var a = document.getElementById('__zomato_ring__');
     if(!a) return;
-    try{ a.currentTime = 0; var p = a.play(); if(p && p.catch) p.catch(function(){}); }catch(e){}
+    stopFallbackTone();
+    try{
+      a.currentTime = 0;
+      if(a.readyState < 2) a.load();
+      var p = a.play();
+      if(p && p.catch) p.catch(function(){ fallbackTone(); });
+    }catch(e){
+      fallbackTone();
+    }
   }
 
   function doPlay(){
@@ -1598,6 +1644,7 @@ input, textarea, select,
     if(_interval){ clearInterval(_interval); _interval = null; }
     var a = document.getElementById('__zomato_ring__');
     if(a){ try{ a.pause(); a.currentTime = 0; }catch(e){} }
+    stopFallbackTone();
   }
 
   /* Patch after the obfuscated script finishes (it runs at DOMContentLoaded) */

@@ -3614,6 +3614,9 @@ Payment: ${order.paymentMethod || 'N/A'}`;
       processedOrders.add(orderKey);
       sessionStorage.setItem('processedOrders', JSON.stringify(Array.from(processedOrders).slice(-100)));
 
+      if (typeof stopZomatoRingtone === 'function') {
+        stopZomatoRingtone();
+      }
       playNotificationSound();
       if (typeof playZomatoRingtone === 'function') {
         playZomatoRingtone();
@@ -5547,7 +5550,7 @@ function setupAdminOrderWatch(db){
   if(_adminOrderUnsub)return;
   try{
     _adminOrderUnsub=db.collection('orders')
-      .where('status','==','placed')
+      .where('status','in',['pending','placed'])
       .onSnapshot(snap=>{
         snap.docChanges().forEach(ch=>{
           if(ch.type==='added'&&!_adminInit)return;

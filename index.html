@@ -3622,7 +3622,7 @@ Payment: ${order.paymentMethod || 'N/A'}`;
         popup.style.display = 'block';
         const title = popup.querySelector('.popup-title');
         if(title) title.textContent = `🛒 New Order #${orderKey}`;
-        setTimeout(()=>{ popup.style.display = 'none'; }, 15000);
+        
       }
 
       if(typeof showToast === 'function'){

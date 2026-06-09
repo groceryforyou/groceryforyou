@@ -542,9 +542,9 @@ document.addEventListener('error', function(e) {
     .orders-modal-header{background:linear-gradient(135deg,var(--brown),#1e7a3a);padding:16px 20px;display:flex;align-items:center;gap:10px}
     .orders-modal-header h2{font-family:"Yeseva One",serif;color:var(--turmeric);font-size:1.2rem;flex:1}
     .orders-modal-body{padding:16px 18px;flex:1;overflow-y:auto}
-    #orders-list{display:grid;gap:10px;max-height:55vh;overflow-y:auto;padding-right:2px;scrollbar-width:thin;scrollbar-color:var(--saffron) #f0e0c8}
-    #orders-list::-webkit-scrollbar{width:5px}
-    #orders-list::-webkit-scrollbar-thumb{background:var(--saffron);border-radius:6px}
+    #orders-list{display:grid;gap:10px;max-height:55vh;overflow-y:auto;padding-right:2px;scrollbar-width:none;scrollbar-color:transparent transparent;-ms-overflow-style:none}
+    #orders-list::-webkit-scrollbar{width:0;display:none}
+    #orders-list::-webkit-scrollbar-thumb{background:transparent;border-radius:6px}
     /* Order Tabs */
     .orders-tab{background:var(--cream);border:1.5px solid var(--border);border-radius:20px;padding:5px 13px;font-size:.78rem;font-weight:800;color:var(--brown);cursor:pointer;transition:all .2s;touch-action:manipulation;font-family:'Lato',sans-serif}
     .orders-tab.active,.orders-tab:hover{background:var(--brown);color:#fff;border-color:var(--brown)}

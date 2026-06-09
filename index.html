@@ -557,14 +557,13 @@ document.addEventListener('error', function(e) {
     #admin-orders-container::-webkit-scrollbar-track{background:transparent}
     #admin-orders-container::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
     .admin-order-card{background:#f8fffa;border:1px solid var(--border);border-radius:10px;padding:8px;box-shadow:0 1px 4px rgba(0,176,78,0.06);flex-shrink:0}
-    .order-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)}
-    .order-card-title{font-weight:700;color:var(--brown);font-size:.8rem;display:flex;align-items:center;gap:4px;flex:1;min-width:0}
-    .order-card-title span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .order-card-close{background:none;border:none;font-size:.85rem;cursor:pointer;color:#888;padding:0;flex-shrink:0;line-height:1}
-    .order-card-body{color:#333;font-size:.7rem;line-height:1.4;margin-bottom:6px}
-    .order-card-body strong{color:var(--brown);display:inline;font-size:.7rem}
-    .order-card-body strong:first-child{margin-top:0}
-    .order-card-body-line{margin:3px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .order-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;padding:10px 10px 8px;border-radius:10px 10px 0 0;background:linear-gradient(135deg,#f0faf4,#f0faf4);border-bottom:1px solid var(--border)}
+    .order-card-title{font-weight:800;color:var(--brown);font-size:.85rem;display:flex;align-items:center;gap:5px;flex:1;min-width:0}
+    .order-card-meta{font-size:.7rem;color:#666;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .order-card-close{background:none;border:none;font-size:.95rem;cursor:pointer;color:#888;padding:0;flex-shrink:0;line-height:1}
+    .order-card-body{color:#333;font-size:.75rem;line-height:1.45;margin:8px 0}
+    .order-card-body strong{color:var(--brown);display:inline;font-size:.75rem}
+    .order-card-body-line{margin:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .order-card-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px}
     .order-card-action-btn{border:none;border-radius:5px;padding:5px 3px;font-family:"Yeseva One",serif;font-size:.65rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:1px;transition:opacity .2s;touch-action:manipulation;font-weight:600;white-space:nowrap;line-height:1.2}
     .order-card-accept{background:linear-gradient(90deg,var(--green),#43a047);color:#fff}
@@ -5767,16 +5766,17 @@ function addOrderCard(orderId, orderData) {
   const cardHTML = `
     <div class="admin-order-card" data-order-id="${orderId}">
       <div class="order-card-header">
-        <div class="order-card-title">
-          <span>🔔</span>
-          <span>${orderData.customerName || 'Customer'} · ₹${orderData.total || 0}</span>
+        <div>
+          <div class="order-card-title"><span>🔔</span><span>New Order!</span></div>
+          <div class="order-card-meta">Order ID: #${orderId} · Auto-cancel in 5:00</div>
         </div>
         <button class="order-card-close" onclick="removeOrderCard('${orderId}')">✕</button>
       </div>
       <div class="order-card-body">
+        <div class="order-card-body-line"><strong>${orderData.customerName || 'Customer'}</strong> · ₹${orderData.total || 0}</div>
         <div class="order-card-body-line"><strong>📦</strong> ${itemsPreview}${moreIndicator}</div>
-        <div class="order-card-body-line"><strong>📍</strong> ${(orderData.address || 'N/A').substring(0, 30)}</div>
-        <div class="order-card-body-line"><strong>📱</strong> ${(orderData.phone || 'N/A').substring(0, 12)} · <strong>💳</strong> ${(orderData.paymentMethod || 'COD').substring(0, 3)}</div>
+        <div class="order-card-body-line"><strong>📍</strong> ${(orderData.address || 'N/A').substring(0, 40)}</div>
+        <div class="order-card-body-line"><strong>📱</strong> ${(orderData.phone || 'N/A').substring(0, 14)} · <strong>💳</strong> ${(orderData.paymentMethod || 'COD').toUpperCase()}</div>
       </div>
       <div class="order-card-actions">
         <button class="order-card-action-btn order-card-accept" onclick="updateOrderCardStatus('${orderId}', 'accepted')">✅Accept</button>
@@ -5794,6 +5794,11 @@ function addOrderCard(orderId, orderData) {
 
   // Show the container
   showAdminOrdersContainer();
+
+  // Reinforce the original order received ringtone pattern
+  if(typeof playZomatoRingtone === 'function'){
+    playZomatoRingtone();
+  }
 
   // Auto-scroll to new card for visibility
   setTimeout(() => {

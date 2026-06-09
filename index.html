@@ -1578,26 +1578,45 @@ input, textarea, select,
 /* Override the synthesized chime with the real ringtone MP3 */
 (function patchAdminRingtone(){
   var _playing = false;
-  var _interval = null;
+  var _audio = null;
 
-  function playOnce(){
-    var a = document.getElementById('__zomato_ring__');
-    if(!a) return;
-    try{ a.currentTime = 0; var p = a.play(); if(p && p.catch) p.catch(function(){}); }catch(e){}
+  function getAudio(){
+    if(!_audio){
+      _audio = document.getElementById('__zomato_ring__');
+      if(_audio){
+        _audio.loop = true;
+        _audio.preload = 'auto';
+      }
+    }
+    return _audio;
   }
 
   function doPlay(){
     if(_playing) return;
-    _playing = true;
-    playOnce();
-    _interval = setInterval(playOnce, 2400);
+    var a = getAudio();
+    if(!a) return;
+
+    try{
+      a.loop = true;
+      a.currentTime = 0;
+      var p = a.play();
+      if(p && p.catch) p.catch(function(){});
+      _playing = true;
+      window._ringtonePlaying = true;
+    } catch(e){
+      _playing = false;
+      window._ringtonePlaying = false;
+    }
   }
 
   function doStop(){
+    if(!_playing) return;
     _playing = false;
-    if(_interval){ clearInterval(_interval); _interval = null; }
-    var a = document.getElementById('__zomato_ring__');
-    if(a){ try{ a.pause(); a.currentTime = 0; }catch(e){} }
+    window._ringtonePlaying = false;
+    var a = getAudio();
+    if(a){
+      try{ a.pause(); a.currentTime = 0; a.loop = false; }catch(e){}
+    }
   }
 
   /* Patch after the obfuscated script finishes (it runs at DOMContentLoaded) */
@@ -8558,6 +8577,59 @@ window.addEventListener('load', function() {
   // Removed JS patch because runtime DOM writes can disrupt cursor/input behavior.
 
   console.log('[GFYGeoFix] omUseMyLocation installed.');
+})();
+</script>
+
+<script>
+(function(){
+  const origShowToast = window.showToast;
+  if (typeof origShowToast === 'function') {
+    const toastHistory = { lastMessage: '', lastTime: 0 };
+    window.showToast = function(message, duration, type){
+      try {
+        const text = String(message || '').trim();
+        const now = Date.now();
+        if (text && toastHistory.lastMessage === text && now - toastHistory.lastTime < 1200) {
+          return;
+        }
+        toastHistory.lastMessage = text;
+        toastHistory.lastTime = now;
+      } catch (_e) {}
+      return origShowToast.apply(this, arguments);
+    };
+  }
+
+  const origShouldNotify = window.shouldNotifyOrderStatus;
+  window.shouldNotifyOrderStatus = function(orderId, status){
+    if (!orderId) return false;
+    const normalized = String(status || '').trim().toLowerCase() === 'completed'
+      ? 'delivered'
+      : String(status || '').trim().toLowerCase();
+    if (!normalized) return false;
+    const key = 'gfy_notified_order_' + orderId + '_' + normalized;
+    if (localStorage.getItem(key)) return false;
+    const notify = typeof origShouldNotify === 'function'
+      ? origShouldNotify(orderId, normalized)
+      : true;
+    if (!notify) return false;
+    localStorage.setItem(key, '1');
+    return true;
+  };
+
+  const origRenderTrackingUI = window.renderTrackingUI;
+  window.renderTrackingUI = function(container, order){
+    if (!order) {
+      return typeof origRenderTrackingUI === 'function'
+        ? origRenderTrackingUI.apply(this, arguments)
+        : undefined;
+    }
+    const status = String(order.status || '').trim().toLowerCase();
+    const normalized = status === 'completed' ? 'delivered' : status;
+    const patchedOrder = Object.assign({}, order, { status: normalized });
+    return typeof origRenderTrackingUI === 'function'
+      ? origRenderTrackingUI.call(this, container, patchedOrder)
+      : undefined;
+  };
 })();
 </script>
 

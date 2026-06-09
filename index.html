@@ -371,6 +371,10 @@ document.addEventListener('error', function(e) {
     .om-form input:focus,.om-form textarea:focus{border-color:var(--saffron)}
     /* ── Android WebView fix: Prevent cursor jumping during input ── */
     #om-name,#om-phone,#om-email,#om-address,#om-landmark,#om-note,#om-time{direction:ltr !important;text-align:left !important;unicode-bidi:plaintext !important}
+    /* ── Global APK LTR input fix: override any runtime RTL injection ── */
+    input,textarea,select{direction:ltr !important;unicode-bidi:plaintext !important}
+    /* ── Orders overlay: ensure flex display is respected on APK ── */
+    .orders-overlay.open{display:flex !important}
     .om-actions{display:flex;gap:10px;margin-top:18px}
     .om-cancel{flex:1;background:var(--cream);color:var(--brown);border:1.5px solid var(--border);border-radius:12px;padding:12px;font-size:.88rem;font-weight:700;cursor:pointer;touch-action:manipulation}
     .om-place{flex:2;background:linear-gradient(90deg,var(--brown),var(--saffron));color:#fff;border:none;border-radius:12px;padding:12px;font-family:"Yeseva One",serif;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;touch-action:manipulation}
@@ -7806,11 +7810,7 @@ window.addEventListener('load', function() {
     if (!email)   { showToast('⚠️ Enter email');           if (emailEl) emailEl.focus(); return; }
     if (!address) { showToast('⚠️ Enter delivery address'); if (addressEl) addressEl.focus(); return; }
 
-    // Keep address input in natural LTR mode for Android WebView cursor stability.
-    if (addressEl) {
-      addressEl.style.direction = 'rtl';
-      addressEl.style.textAlign = 'right';
-    }
+    // Keep address input in LTR mode — do NOT set RTL here; that breaks APK cursor.
 
     if (typeof omPinLatLng !== 'undefined' && !omPinLatLng) {
       showToast('⚠️ Pin your delivery location on the map');
@@ -8277,6 +8277,123 @@ if (addrEl) {
   // Removed JS patch because runtime DOM writes can disrupt cursor/input behavior.
 
   console.log('[GFYGeoFix] omUseMyLocation installed.');
+})();
+</script>
+
+<!-- ===== GFY MY ORDERS MODAL FIX ===== -->
+<script>
+(function GFYOrdersModalFix() {
+  'use strict';
+  if (window.__GFY_ORDERS_MODAL_FIX__) return;
+  window.__GFY_ORDERS_MODAL_FIX__ = true;
+
+  // Patch openOrdersModal to reliably open the overlay without body-scroll DOM block
+  var _origOpenOrdersModal = window.openOrdersModal;
+
+  window.openOrdersModal = function() {
+    // Admin: delegate to admin orders page
+    if (typeof currentRole !== 'undefined' && currentRole === 'admin') {
+      if (typeof openAdminOrdersPage === 'function') openAdminOrdersPage();
+      return;
+    }
+
+    // Guest: show sign-in prompt
+    var user = window.currentUser || (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
+    if (!user) {
+      if (typeof showToast === 'function') showToast('⚠️ Please sign in first', 2500);
+      var authOverlay = document.getElementById('auth-overlay');
+      if (authOverlay) { authOverlay.classList.add('open'); authOverlay.style.display = 'flex'; }
+      return;
+    }
+
+    // Close user menu if open
+    if (typeof closeUserMenu === 'function') closeUserMenu();
+
+    // Show the overlay — use both classList and inline style for APK WebView compat
+    var overlay = document.getElementById('orders-overlay');
+    if (!overlay) {
+      // Fallback: try original function
+      if (typeof _origOpenOrdersModal === 'function') { _origOpenOrdersModal.apply(this, arguments); }
+      return;
+    }
+
+    // Reset scroll position inside modal body before showing
+    var modalBody = overlay.querySelector('.orders-modal-body');
+    if (modalBody) modalBody.scrollTop = 0;
+
+    // Show overlay (classList + inline style covers both Chrome and APK WebView)
+    overlay.classList.add('open');
+    overlay.style.display = 'flex';
+
+    // Lock body scroll using the safe helper; fall back to a minimal lock
+    if (typeof window.lockBodyScroll === 'function') {
+      window.lockBodyScroll();
+    } else {
+      var _sp = window.scrollY || window.pageYOffset || 0;
+      document.body.style.top = '-' + _sp + 'px';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.overflowY = 'hidden';
+      document._gfyOrdersScrollPos = _sp;
+    }
+
+    // Delegate to original for data loading (tabs, Firestore listener, etc.)
+    // Call it after a brief tick so the overlay is visible first, preventing DOM block
+    setTimeout(function() {
+      try {
+        if (typeof _origOpenOrdersModal === 'function') {
+          _origOpenOrdersModal.apply(this, arguments);
+        }
+      } catch (e) {
+        console.warn('[GFYOrdersModalFix] original openOrdersModal error:', e);
+      }
+    }, 0);
+  };
+
+  // Patch closeOrdersModal to also release body scroll
+  var _origCloseOrdersModal = window.closeOrdersModal;
+  window.closeOrdersModal = function() {
+    var overlay = document.getElementById('orders-overlay');
+    if (overlay) {
+      overlay.classList.remove('open');
+      overlay.style.display = 'none';
+    }
+    if (typeof window.unlockBodyScroll === 'function') {
+      window.unlockBodyScroll();
+    } else {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.overflowY = '';
+      var _sp = document._gfyOrdersScrollPos || 0;
+      window.scrollTo(0, _sp);
+    }
+    if (typeof _origCloseOrdersModal === 'function') {
+      try { _origCloseOrdersModal.apply(this, arguments); } catch(e) {}
+    }
+  };
+
+  // Wire the orders overlay backdrop click to close
+  document.addEventListener('DOMContentLoaded', function() {
+    var overlay = document.getElementById('orders-overlay');
+    if (!overlay) return;
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) {
+        if (typeof window.closeOrdersModal === 'function') window.closeOrdersModal();
+      }
+    });
+  });
+
+  // Also handle APK back button for orders overlay
+  var _origHandleBack = window.__gfyBackHandlerInstalled;
+  document.addEventListener('GFYBackButton', function() {
+    var overlay = document.getElementById('orders-overlay');
+    if (overlay && overlay.classList.contains('open')) {
+      if (typeof window.closeOrdersModal === 'function') window.closeOrdersModal();
+    }
+  });
+
+  console.log('[GFYOrdersModalFix] ✅ My Orders modal fix installed.');
 })();
 </script>
 

@@ -220,22 +220,17 @@ document.addEventListener('error', function(e) {
     /* Mobile search toggle */
     .mob-search-btn{display:none;background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;padding:6px;flex-shrink:0}
     .mob-search-overlay{
-  display:none;
-  position:fixed;
-  top:0;
-  left:0;
-  right:0;
-  bottom:0;
-  width:100vw;
-  height:100vh;
-  min-height:100vh;
-  z-index:100000;
-  background:var(--brown);
-  padding:12px 14px;
-  gap:10px;
-  align-items:flex-start;
-  box-sizing:border-box;
-  overflow-y:auto;
+    display:none;
+    position:absolute;
+    top:320px;
+    left:10px;
+    right:10px;
+    z-index:200;
+    background:var(--brown);
+    padding:12px 14px;
+    gap:10px;
+    align-items:center;
+    border-radius:14px;
 }
     .mob-search-overlay.open{display:flex}
     .mob-search-input{flex:1;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.35);color:#fff;padding:10px 14px;border-radius:14px;font-size:.92rem;font-family:"Lato",sans-serif;outline:none}

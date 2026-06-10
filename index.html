@@ -8695,6 +8695,47 @@ window.addEventListener('load', function() {
   console.log('[GFYGeoFix] omUseMyLocation installed.');
 })();
 </script>
+</script>
+
+<script>
+// Patch: Use custom normalized multi-field search when handleSearch runs.
+(function(){
+  try{
+    if(!window.items) return;
+    const _origHandle = window.handleSearch;
+    const _origItemsFilter = items.filter.bind(items);
+    // override items.filter to run custom search when flag is set
+    items.filter = function(cb){
+      if(window._useCustomSearch){
+        const _norm = s => String(s||'').toLowerCase().trim().replace(/\s+/g,' ');
+        const _q = window._currentSearchQuery || '';
+        const res = Array.prototype.filter.call(this, it => {
+          try{ if(currentRole !== 'admin' && !it['inStock']) return false; }catch(e){}
+          const fields = [it && it.name, it && it.title, it && it.itemName, it && it.item && it.item.name, it && it.description, it && it.type];
+          return fields.some(f => _norm(f).includes(_q));
+        });
+        console.log('[Search] Matches:', res.length);
+        return res;
+      }
+      return _origItemsFilter(cb);
+    };
+
+    if(typeof _origHandle === 'function'){
+      window.handleSearch = function(q, mode){
+        try{
+          const input = (mode === 'mob') ? document.querySelector('.mob-search-input') : document.getElementById('menu-search');
+          window._currentSearchQuery = ((input && input.value) || q || '').toLowerCase();
+          window._useCustomSearch = true;
+          return _origHandle.apply(this, arguments);
+        }finally{
+          window._useCustomSearch = false;
+          window._currentSearchQuery = undefined;
+        }
+      };
+    }
+  }catch(e){console.warn('[SearchPatch] failed', e);}
+})();
+</script>
 
 </body>
 </html>

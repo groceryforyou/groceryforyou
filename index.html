@@ -3873,30 +3873,95 @@ function toggleSidebar() {
 
   const original = window.searchGoToItem;
 
+  function normalizeSearchItemId(itemId) {
+    const raw = String(itemId || '').trim();
+    if (!raw) return [];
+
+    const noPrefix = raw.replace(/^item-/, '');
+    const withPrefix = raw.startsWith('item-') ? raw : 'item-' + raw;
+    const withoutDuplicate = raw.startsWith('item-item-') ? raw.replace(/^item-/, '') : raw;
+
+    return Array.from(new Set([
+      raw,
+      noPrefix,
+      withPrefix,
+      withoutDuplicate,
+      withoutDuplicate.replace(/^item-/, ''),
+    ]).values()).filter(Boolean);
+  }
+
+  function findSearchTarget(itemId) {
+    const candidates = normalizeSearchItemId(itemId);
+    console.log('[Search] Candidate IDs:', candidates);
+
+    for (const id of candidates) {
+      const el = document.getElementById(id);
+      if (el) {
+        console.log('[Search] Found by id:', id);
+        return el;
+      }
+    }
+
+    const noPrefix = String(itemId || '').replace(/^item-/, '');
+    const selectors = [
+      `[data-item-id="${itemId}"]`,
+      `[data-item-id="${noPrefix}"]`,
+      `[data-id="${itemId}"]`,
+      `[data-id="${noPrefix}"]`,
+      `[data-menu-item-id="${itemId}"]`,
+      `[data-menu-item-id="${noPrefix}"]`,
+      `[data-card-id="${itemId}"]`,
+      `[data-card-id="${noPrefix}"]`,
+      `[id$="${itemId}"]`,
+      `[id$="${noPrefix}"]`,
+    ];
+
+    for (const selector of selectors) {
+      try {
+        const el = document.querySelector(selector);
+        if (el) {
+          console.log('[Search] Found by selector:', selector);
+          return el;
+        }
+      } catch (err) {
+        console.log('[Search] Invalid selector', selector, err);
+      }
+    }
+
+    return null;
+  }
+
   window.searchGoToItem = function(itemId) {
     console.log('[Search] Item clicked', itemId);
     console.log('[Search] Target item ID:', itemId);
 
-    const rawEl = document.getElementById(itemId);
-    if (!rawEl) {
-      const prefixedId = 'item-' + itemId;
-      const prefixedEl = document.getElementById(prefixedId);
-      if (prefixedEl) {
-        console.log('[Search] Repairing DOM id from', prefixedId, 'to', itemId);
-        prefixedEl.id = itemId;
+    closeSearchDrop();
+    closeMobSearch();
+    console.log('[Search] Search overlay closed');
+    document.getElementById('menu-search')?.value = '';
+    showPage('menu');
+
+    setTimeout(() => {
+      const targetEl = findSearchTarget(itemId);
+      console.log('[Search] DOM element for', itemId, targetEl ? 'found' : 'not found');
+
+      if (targetEl) {
+        if (targetEl.id && targetEl.id !== String(itemId)) {
+          console.log('[Search] Repairing DOM id from', targetEl.id, 'to', itemId);
+          targetEl.id = String(itemId);
+        }
+        if (typeof targetEl.scrollIntoView === 'function') {
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      } else {
+        console.log('[Search] No matching DOM element found for search target', itemId);
       }
-    }
 
-    const targetEl = document.getElementById(itemId);
-    console.log('[Search] DOM element for', itemId, targetEl ? 'found' : 'not found');
-    if (targetEl && typeof targetEl.scrollIntoView === 'function') {
-      targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-
-    if (typeof original === 'function') {
-      return original.apply(this, arguments);
-    }
-    return null;
+      if (typeof original === 'function') {
+        return original.apply(this, arguments);
+      }
+      return null;
+    }, 200);
   };
 })();
 </script>

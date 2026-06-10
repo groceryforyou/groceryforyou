@@ -221,8 +221,8 @@ document.addEventListener('error', function(e) {
     .mob-search-btn{display:none;background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;padding:6px;flex-shrink:0}
     .mob-search-overlay{
     display:none;
-    position:absolute;
-    top:50px;
+    position:fixed;
+    top:var(--header-h);
     left:10px;
     right:10px;
     z-index:200;
@@ -233,6 +233,7 @@ document.addEventListener('error', function(e) {
     border-radius:14px;
 }
     .mob-search-overlay.open{display:flex}
+    body.mob-search-active{overflow:hidden}
     .mob-search-input{flex:1;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.35);color:#fff;padding:10px 14px;border-radius:14px;font-size:.92rem;font-family:"Lato",sans-serif;outline:none}
     .mob-search-input::placeholder{color:rgba(255,255,255,0.55)}
     .mob-search-close{background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer}
@@ -1752,6 +1753,25 @@ input, textarea, select,
   } else {
     attachSearchListeners();
   }
+})();
+</script>
+
+<!-- Mobile Search Overlay Scroll Prevention -->
+<script>
+(function() {
+  const overlay = document.getElementById('mob-search-overlay');
+  if (!overlay) return;
+  
+  // Monitor overlay visibility and control body scroll
+  const scrollObserver = new MutationObserver(function() {
+    if (overlay.classList.contains('open')) {
+      document.body.classList.add('mob-search-active');
+    } else {
+      document.body.classList.remove('mob-search-active');
+    }
+  });
+  
+  scrollObserver.observe(overlay, { attributes: true, attributeFilter: ['class'] });
 })();
 </script>
 

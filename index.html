@@ -2974,7 +2974,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </div>
 
 <!-- ADMIN INCOMING ORDERS CONTAINER (Multiple Orders) -->
-<div id="admin-order-popup" style="display:flex;flex-direction:column;gap:12px;overflow-y:auto;max-height:90vh">
+<div id="admin-order-popup" style="display:none;flex-direction:column;gap:12px;overflow-y:auto;max-height:90vh">
   <div id="admin-orders-container" style="display:flex;flex-direction:column;gap:12px"></div>
 </div>
 
@@ -3609,6 +3609,7 @@ document.addEventListener("DOMContentLoaded", function(){
   const CALLMEBOT_API_KEY = 'REPLACE_WITH_CALLMEBOT_API_KEY';
   const processedOrders = new Set(JSON.parse(sessionStorage.getItem('processedOrders') || '[]'));
   let adminOrderListenerAttached = false;
+  let adminOrderListenerUnsub = null;
 
   function isStoreOpenSafe(){
     try{
@@ -3670,6 +3671,7 @@ Payment: ${order.paymentMethod || 'N/A'}`;
 
   window.notifyNewOrder = async function(order){
     try{
+      if (typeof currentRole === 'undefined' || currentRole !== 'admin') return;
       if(!isStoreOpenSafe()) return;
       const orderKey = order.orderId || order.id;
       if(!orderKey || processedOrders.has(orderKey)) return;
@@ -3712,8 +3714,7 @@ Payment: ${order.paymentMethod || 'N/A'}`;
         return;
       }
       adminOrderListenerAttached = true;
-
-      firestore.collection('orders').orderBy('createdAt','desc').limit(20)
+      adminOrderListenerUnsub = firestore.collection('orders').orderBy('createdAt','desc').limit(20)
       .onSnapshot((snapshot)=>{
         snapshot.docChanges().forEach((change)=>{
           if(change.type === 'added'){
@@ -3729,6 +3730,14 @@ Payment: ${order.paymentMethod || 'N/A'}`;
       });
     }catch(err){ console.log('Realtime admin notification error', err); }
   }
+
+  window.stopAdminOrderNotifications = function(){
+    if(adminOrderListenerUnsub){
+      adminOrderListenerUnsub();
+      adminOrderListenerUnsub = null;
+      adminOrderListenerAttached = false;
+    }
+  };
 
   document.addEventListener('DOMContentLoaded', ()=>{
     if('Notification' in window && Notification.permission !== 'granted'){

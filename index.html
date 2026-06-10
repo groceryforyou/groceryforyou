@@ -225,15 +225,12 @@ document.addEventListener('error', function(e) {
     top:var(--header-h);
     left:10px;
     right:10px;
-    z-index:10004;
+    z-index:200;
     background:var(--brown);
     padding:12px 14px;
     gap:10px;
     align-items:center;
     border-radius:14px;
-    pointer-events:auto;
-    touch-action:manipulation;
-    -webkit-tap-highlight-color: transparent;
 }
     .mob-search-overlay.open{display:flex}
     body.mob-search-active{overflow:hidden}
@@ -245,12 +242,9 @@ document.addEventListener('error', function(e) {
   top:120px;
   left:0;
   right:0;
-  z-index:10005;
+  z-index:201;
   pointer-events:auto;
   touch-action:manipulation;
-  -webkit-tap-highlight-color: transparent;
-  -webkit-user-select: none;
-  user-select: none;
   background:#fff;
   max-height:475px;
   overflow-y:auto;
@@ -1754,45 +1748,6 @@ input, textarea, select,
     createRenderObserver('search-drop', 'desktop');
     createRenderObserver('mob-search-results', 'mobile');
     createRenderObserver('menu-sections-container', 'visible-menu');
-    attachMobileSearchResultHandler();
-  }
-
-  function attachMobileSearchResultHandler() {
-    const results = document.getElementById('mob-search-results');
-    if (!results || results.dataset.gfySearchHandlerAttached === '1') return;
-    results.dataset.gfySearchHandlerAttached = '1';
-
-    let lastTouchId = null;
-
-    function resolveItemId(item) {
-      if (!item) return null;
-      if (item.dataset && item.dataset.searchId) return item.dataset.searchId;
-      const onclick = item.getAttribute && item.getAttribute('onclick');
-      if (!onclick) return null;
-      const match = onclick.match(/searchGoToItem\(['"]([^'"]+)['"]\)/);
-      return match ? match[1] : null;
-    }
-
-    results.addEventListener('pointerup', function(event) {
-      const item = event.target.closest('.search-result-item');
-      const itemId = resolveItemId(item);
-      if (!itemId) return;
-      lastTouchId = itemId;
-      event.preventDefault();
-      event.stopPropagation();
-      searchGoToItem(itemId);
-    }, { passive: false });
-
-    results.addEventListener('click', function(event) {
-      const item = event.target.closest('.search-result-item');
-      const itemId = resolveItemId(item);
-      if (!itemId) return;
-      if (itemId === lastTouchId) {
-        lastTouchId = null;
-        return;
-      }
-      searchGoToItem(itemId);
-    }, false);
   }
 
   if (document.readyState === 'loading') {

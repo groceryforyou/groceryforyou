@@ -236,7 +236,18 @@ document.addEventListener('error', function(e) {
     .mob-search-input{flex:1;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.35);color:#fff;padding:10px 14px;border-radius:14px;font-size:.92rem;font-family:"Lato",sans-serif;outline:none}
     .mob-search-input::placeholder{color:rgba(255,255,255,0.55)}
     .mob-search-close{background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer}
-    .mob-search-results{position:fixed;top:calc(var(--header-h) + 76px);left:0;right:0;z-index:199;background:#fff;max-height:calc(100vh - calc(var(--header-h) + 76px) - var(--safe-bottom));overflow-y:auto;border-bottom:2px solid var(--border);box-shadow:0 8px 24px rgba(0,0,0,0.18)}
+    .mob-search-results{
+    position:fixed;
+    top:220px;
+    left:0;
+    right:0;
+    z-index:199;
+    background:#fff;
+    max-height:calc(100vh - 220px - var(--safe-bottom));
+    overflow-y:auto;
+    border-bottom:2px solid var(--border);
+    box-shadow:0 8px 24px rgba(0,0,0,0.18);
+}
 
     /* ===== HERO ===== */
     .hero{background:linear-gradient(160deg,#0d3b1a 0%,#1e7a3a 40%,#00b04e 100%);padding:44px 20px 38px;text-align:center;position:relative;top:0;z-index:10;overflow:hidden;width:100%;margin-top:0}

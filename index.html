@@ -1695,6 +1695,93 @@ input, textarea, select,
   ];
   const events = ['input','keyup','change','search','compositionend'];
 
+  function normalizeSearchQuery(query) {
+    return String(query || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  }
+
+  function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, char => {
+      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char];
+    });
+  }
+
+  function closeSearchDrop() {
+    const desktop = document.getElementById('search-drop');
+    const mobile = document.getElementById('mob-search-results');
+    if (desktop) desktop.classList.remove('open');
+    if (mobile) mobile.style.display = 'none';
+  }
+
+  function buildSearchResultItem(item) {
+    const name = escapeHtml(item.name || item.title || item.itemName || '');
+    const metaParts = [];
+    if (item.type) metaParts.push(item.type);
+    if (item.description) metaParts.push(item.description);
+    const meta = escapeHtml(metaParts.join(' · '));
+    const price = item.price != null ? '₹' + item.price : '';
+    const emoji = escapeHtml(item.emoji || '🍽');
+    return `
+      <button type="button" class="search-result-item" data-item-id="${escapeHtml(String(item.id || ''))}">
+        <span class="sri-emoji">${emoji}</span>
+        <span class="sri-info">
+          <span class="sri-name">${name || 'Item'}</span>
+          <span class="sri-meta">${meta}</span>
+        </span>
+        <span class="sri-price">${price}</span>
+      </button>`;
+  }
+
+  function renderSearchResults(results, mode) {
+    const desktop = document.getElementById('search-drop');
+    const mobile = document.getElementById('mob-search-results');
+    const html = results.length
+      ? results.map(buildSearchResultItem).join('')
+      : '<div class="search-result-item" style="cursor:default;">No items found</div>';
+
+    if (desktop) {
+      desktop.innerHTML = html;
+      desktop.classList.toggle('open', results.length > 0);
+    }
+    if (mobile) {
+      mobile.innerHTML = html;
+      mobile.style.display = results.length ? 'block' : 'none';
+    }
+
+    const buttons = [];
+    if (desktop) buttons.push(...desktop.querySelectorAll('.search-result-item'));
+    if (mobile) buttons.push(...mobile.querySelectorAll('.search-result-item'));
+
+    buttons.forEach(btn => btn.addEventListener('click', function() {
+      const itemId = this.dataset.itemId;
+      if (!itemId) return;
+      const item = Array.isArray(window.items) ? window.items.find(i => i && String(i.id) === itemId) : null;
+      if (item && typeof showToast === 'function') {
+        showToast('Selected ' + (item.name || item.title || item.itemName || 'item'), 2000);
+      }
+      closeSearchDrop();
+    }));
+  }
+
+  function searchItems(query) {
+    const normalized = normalizeSearchQuery(query);
+    if (!normalized) return [];
+    if (!Array.isArray(window.items)) return [];
+
+    return window.items.filter(item => {
+      if (!item) return false;
+      if (currentRole !== 'admin' && !item.inStock) return false;
+      const fields = [item.name, item.title, item.itemName, item?.item?.name, item.description, item.type];
+      return fields.some(field => normalizeSearchQuery(field).includes(normalized));
+    });
+  }
+
+  function handleSearch(query, mode) {
+    renderSearchResults(searchItems(query), mode);
+  }
+
+  window.handleSearch = handleSearch;
+  window.closeSearchDrop = closeSearchDrop;
+
   function bindSearch(input, mode) {
     if (!input) return;
     events.forEach(eventName => {
@@ -8693,47 +8780,6 @@ window.addEventListener('load', function() {
   // Removed JS patch because runtime DOM writes can disrupt cursor/input behavior.
 
   console.log('[GFYGeoFix] omUseMyLocation installed.');
-})();
-</script>
-</script>
-
-<script>
-// Patch: Use custom normalized multi-field search when handleSearch runs.
-(function(){
-  try{
-    if(!window.items) return;
-    const _origHandle = window.handleSearch;
-    const _origItemsFilter = items.filter.bind(items);
-    // override items.filter to run custom search when flag is set
-    items.filter = function(cb){
-      if(window._useCustomSearch){
-        const _norm = s => String(s||'').toLowerCase().trim().replace(/\s+/g,' ');
-        const _q = window._currentSearchQuery || '';
-        const res = Array.prototype.filter.call(this, it => {
-          try{ if(currentRole !== 'admin' && !it['inStock']) return false; }catch(e){}
-          const fields = [it && it.name, it && it.title, it && it.itemName, it && it.item && it.item.name, it && it.description, it && it.type];
-          return fields.some(f => _norm(f).includes(_q));
-        });
-        console.log('[Search] Matches:', res.length);
-        return res;
-      }
-      return _origItemsFilter(cb);
-    };
-
-    if(typeof _origHandle === 'function'){
-      window.handleSearch = function(q, mode){
-        try{
-          const input = (mode === 'mob') ? document.querySelector('.mob-search-input') : document.getElementById('menu-search');
-          window._currentSearchQuery = ((input && input.value) || q || '').toLowerCase();
-          window._useCustomSearch = true;
-          return _origHandle.apply(this, arguments);
-        }finally{
-          window._useCustomSearch = false;
-          window._currentSearchQuery = undefined;
-        }
-      };
-    }
-  }catch(e){console.warn('[SearchPatch] failed', e);}
 })();
 </script>
 

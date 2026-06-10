@@ -3953,7 +3953,7 @@ function toggleSidebar() {
         // Only show a toast for unexpected errors (validation already shows its own)
         const msg = err && (err.message || err.code || String(err));
         console.error('[TicketSubmit] ❌ Error:', msg, err);
-        const knownErrors = ['Missing support description','Missing order ID','Firestore not ready',
+        const knownErrors = ['User not signed in','Missing support description','Missing order ID','Firestore not ready',
           'Not a valid order ID','Order does not belong to current customer',
           'Active support ticket already exists for this order'];
         if (!knownErrors.includes(msg)) {
@@ -3966,6 +3966,15 @@ function toggleSidebar() {
   async function submitSupportTicketInternal() {
     // Safe access to currentUser (may be defined in obfuscated global scope)
     const _cu = (typeof currentUser !== 'undefined') ? currentUser : null;
+
+    // AUTH CHECK — Firestore rules now require isSignedIn() to create a support ticket.
+    // Gate this early so we show a friendly prompt instead of a raw permission-denied error.
+    if (!_cu || !_cu.uid) {
+      const authOverlay = document.getElementById('auth-overlay');
+      if (authOverlay) { authOverlay.classList.add('open'); authOverlay.style.display = 'flex'; }
+      showToast('⚠️ Please sign in to submit a support ticket', 3500);
+      throw new Error('User not signed in');
+    }
 
     const type    = document.getElementById('support-type')?.value || 'Other';
     const desc    = (document.getElementById('support-desc')?.value || '').trim();
@@ -3986,15 +3995,9 @@ function toggleSidebar() {
       throw new Error('Firestore not ready');
     }
 
-    // Gather customer identity
-    let customerEmail = _cu ? (_cu.email || '') : '';
-    let customerUid   = _cu ? (_cu.uid   || null) : null;
-    if (!customerEmail) {
-      try {
-        const lastOrder = JSON.parse(localStorage.getItem('lastOrder') || 'null');
-        if (lastOrder && lastOrder.email) customerEmail = lastOrder.email;
-      } catch (_e) {}
-    }
+    // Gather customer identity — always from signed-in user now
+    let customerEmail = _cu.email || '';
+    let customerUid   = _cu.uid   || null;
 
     // Validate order exists in Firestore
     let orderDoc = null;

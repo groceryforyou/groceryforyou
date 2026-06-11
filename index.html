@@ -7064,7 +7064,10 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const name = nameInput ? nameInput.value.trim() : '';
     const price = priceInput ? parseFloat(priceInput.value) : 0;
     const category = catSelect ? catSelect.value : '';
-    const emoji = (emojiCustom && emojiCustom.value.trim()) || window.selectedEmoji || '🍎';
+    const emojiCustomVal = (emojiCustom && emojiCustom.value.trim()) || '';
+    const emoji = emojiCustomVal || (window.selectedEmoji ? String(window.selectedEmoji).trim() : '') || '🍎';
+    console.log('[AddItem] Emoji saved:', emoji);
+    try { emoji = String(emoji).normalize('NFC'); } catch (e) {}
     const inStock = stockSelect ? stockSelect.value === '1' : true;
 
     if (!name) {
@@ -7121,7 +7124,14 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       
       window.selectedEmoji = '🍽';
       const emojiOpts = document.querySelectorAll('.emoji-opt');
-      emojiOpts.forEach(opt => opt.classList.toggle('selected', opt.textContent === '🍽'));
+      emojiOpts.forEach(opt => {
+        const optEmoji = (opt.textContent || '').trim();
+        try {
+          opt.classList.toggle('selected', optEmoji.normalize('NFC') === '🍽'.normalize('NFC'));
+        } catch (e) {
+          opt.classList.toggle('selected', optEmoji === '🍽');
+        }
+      });
 
     } catch (err) {
       console.error('[AddItem] Firestore write failed:', err);
@@ -7129,6 +7139,26 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       const emailInfo = user ? ` (Logged in as: ${user.email})` : ' (Not logged in)';
       if (typeof showToast === 'function') showToast('⚠️ Write failed: ' + (err.message || err) + emailInfo, 5000);
     }
+    // Keep emoji picker and selectedEmoji in sync and log selections
+    (function() {
+      const picker = document.getElementById('aip-emoji-picker');
+      if (!picker) return;
+      picker.addEventListener('click', function (ev) {
+        const opt = ev.target.closest && ev.target.closest('.emoji-opt');
+        if (!opt) return;
+        const val = (opt.textContent || '').trim();
+        try {
+          window.selectedEmoji = val;
+          console.log('[AddItem] Emoji selected:', val);
+        } catch (e) {}
+        // update visual selected state
+        document.querySelectorAll('.emoji-opt').forEach(o => {
+          const oVal = (o.textContent || '').trim();
+          try { o.classList.toggle('selected', oVal.normalize('NFC') === val.normalize('NFC')); }
+          catch (e) { o.classList.toggle('selected', oVal === val); }
+        });
+      }, false);
+    })();
   };
 
   // Edit Item Function using updateDoc

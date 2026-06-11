@@ -5692,8 +5692,10 @@ function toggleSidebar() {
     const provider = new firebase.auth.GoogleAuthProvider();
 
     // FORCE your verified Web Client ID into the provider settings
+    // Add prompt: "select_account" to force account chooser on every sign-in
     provider.setCustomParameters({
-        'client_id': '513928226780-99k0sfj6ltv4s49jsllk4614smk1r60f.apps.googleusercontent.com'
+        'client_id': '513928226780-99k0sfj6ltv4s49jsllk4614smk1r60f.apps.googleusercontent.com',
+        'prompt': 'select_account'
     });
 
     // Handle redirect result first (fires after redirect-based sign-in)
@@ -8843,4 +8845,3 @@ window.addEventListener('load', function() {
 
 </body>
 </html>
-

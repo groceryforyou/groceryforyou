@@ -7542,6 +7542,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     }
     container.dataset.loading = isLoading ? 'true' : 'false';
   }
+  // Expose to global scope so the obfuscated script can call it before this IIFE runs
+  window.setMenuLoadingState = setMenuLoadingState;
 
   function startCategoriesSync(firebaseDB) {
     console.log('[FirestoreSync] Initializing realtime categories sync listener...');

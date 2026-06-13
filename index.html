@@ -2827,11 +2827,29 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="full" id="om-manual-address-wrap">
           <div class="om-manual-address-grid">
-            <div class="full"><textarea id="om-address" dir="ltr" inputmode="text" autocomplete="off" autocorrect="off" spellcheck="false" rows="2" placeholder="House No., Street, Area..."></textarea></div>
+            <div class="full">
+  <input type="text"
+         id="om-address"
+         dir="ltr"
+         inputmode="text"
+         autocomplete="off"
+         autocorrect="off"
+         spellcheck="false"
+         placeholder="House No., Street, Area...">
+</div>
             <div><input type="text" id="om-landmark" dir="ltr" inputmode="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Near school..." /></div>
             <div class="full" style="margin-top:4px">
               <div class="om-map-label">📍 Pin Your Location <span style="font-weight:400;color:#888;font-size:.7rem;text-transform:none">(tap map to pin)</span></div>
-              <div class="om-map-search"><input type="text" id="om-map-search-input" dir="ltr" inputmode="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search area in Sircilla..." /></div>
+              <div class="om-map-search"><div class="full">
+  <input type="text"
+         id="om-address"
+         dir="ltr"
+         inputmode="text"
+         autocomplete="off"
+         autocorrect="off"
+         spellcheck="false"
+         placeholder="House No., Street, Area...">
+</div></div>
               <button class="om-gps-btn" onclick="omUseMyLocation()">🎯 Use My Current Location</button>
               <div id="om-delivery-map"></div>
               <div class="om-map-pin-info" id="om-pin-info">
@@ -3064,7 +3082,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="form-group full"><label for="addr-line">Full Address *</label><textarea id="addr-line" rows="2" placeholder="House No., Street, Area..."></textarea></div>
         <div class="form-group full">
           <div style="font-weight:800;color:var(--brown);margin-bottom:8px;font-size:.85rem">📍 Pin Location</div>
-          <button class="om-gps-btn" type="button" onclick="addrUseMyLocation()">🎯 Use My Location</button>
+          <button class="om-gps-btn" type="button" onclick="addrUseMyLocation()">🎯 </button>
           <div id="addr-map" style="height:240px;border-radius:12px"></div>
           <div id="addr-map-info" style="margin-top:8px;font-size:.82rem;color:#444;display:flex;gap:8px;flex-wrap:wrap">
             <span class="om-route-badge" id="addr-coords">—</span>

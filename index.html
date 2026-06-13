@@ -2824,9 +2824,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <div id="om-fee-note" style="display:none;color:#555;font-size:.88rem;line-height:1.5;margin-top:8px;border:1px dashed #d7ccc8;border-radius:10px;padding:10px;background:#fff8e1;"></div>
       </div>
       <div class="om-form" id="om-form-fields">
-        <div><label for="om-name">Your Name *</label><input type="text" id="om-name" dir="ltr" placeholder="Full name"/></div>
-        <div><label for="om-phone">Phone *</label><input type="tel" id="om-phone" dir="ltr" placeholder="10-digit mobile number" maxlength="10" pattern="[0-9]{10}" inputmode="numeric"/></div>
-        <div class="full"><label for="om-email">Email * (to link past orders)</label><input type="email" id="om-email" dir="ltr" placeholder="your@email.com"/></div>
+        <div><label for="om-name">Your Name *</label><input type="text" id="om-name" placeholder="Full name"/></div>
+        <div><label for="om-phone">Phone *</label><input type="tel" id="om-phone" placeholder="10-digit mobile number" maxlength="10" pattern="[0-9]{10}" inputmode="numeric"/></div>
+        <div class="full"><label for="om-email">Email * (to link past orders)</label><input type="email" id="om-email" placeholder="your@email.com"/></div>
         <div class="full" id="om-saved-address-wrap" style="display:none">
           <label for="om-saved-address">Saved Address</label>
           <div class="om-address-picker">
@@ -2855,7 +2855,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
         <div><label for="om-time">Delivery Time</label><select id="om-time"><option>ASAP (~30 mins)</option><option>In 1 hour</option><option>Schedule for later</option></select></div>
-        <div class="full"><label for="om-note">Special Instructions</label><textarea id="om-note" dir="ltr" rows="2" placeholder="Extra spicy, less oil..."></textarea></div>
+        <div class="full"><label for="om-note">Special Instructions</label><textarea id="om-note" rows="2" placeholder="Extra spicy, less oil..."></textarea></div>
         <div class="full">
           <div class="payment-section">
             <div class="payment-title">💳 Payment Method</div>
@@ -8139,9 +8139,6 @@ window.deepLinkUPI = function(app) {
 let rafScheduled = false;
 
 function requestTotalsRefresh() {
-    // Do not run while user is typing in a checkout field — avoids triggering
-    // the cursor-fix MutationObserver chain that resets Android cursor to 0
-    if (typeof window.isCheckoutTyping === 'function' && window.isCheckoutTyping()) return;
     if (rafScheduled) return;
 
     rafScheduled = true;
@@ -8261,13 +8258,10 @@ window.addEventListener('load', function() {
 
     // 2. Intercept Checkout/Order related pages called natively
     if (page === 'checkout' || page === 'order' || page === 'place-order') {
-      // Do not open order modal while user is typing in a checkout field
-      if (!(typeof window.isCheckoutTyping === 'function' && window.isCheckoutTyping())) {
-        if (typeof openOrderModal === 'function') {
-          openOrderModal();
-        } else if (typeof window.openOrderModal === 'function') {
-          window.openOrderModal();
-        }
+      if (typeof openOrderModal === 'function') {
+        openOrderModal();
+      } else if (typeof window.openOrderModal === 'function') {
+        window.openOrderModal();
       }
       page = 'menu';
     }
@@ -8329,17 +8323,9 @@ window.addEventListener('load', function() {
 (function() {
   'use strict';
 
-  // ── Guard: returns true when user is actively typing in a checkout field ──
-  window.isCheckoutTyping = function isCheckoutTyping() {
-    var el = document.activeElement;
-    return el && ['om-name','om-phone','om-email','om-address','om-landmark','om-note','om-map-search-input'].includes(el.id);
-  };
-
   // ── Single canonical openOrderModal ──────────────────────────────────
   window.openOrderModal = function() {
     console.log('[CleanModal] openOrderModal called');
-    // Do not open/rebuild modal while user is typing in a checkout field
-    if (window.isCheckoutTyping()) return;
 
     // STEP 1: Check cart not empty
     const cartKeys = typeof cart !== 'undefined' ? Object.keys(cart) : [];
@@ -8395,7 +8381,6 @@ window.addEventListener('load', function() {
     const nameEl = document.getElementById('om-name');
     const phoneEl = document.getElementById('om-phone');
     const emailEl = document.getElementById('om-email');
-    const addressEl = document.getElementById('om-address');
     console.log('Input listener attached:', 'om-name');
     console.log('Input listener attached:', 'om-phone');
     console.log('Input listener attached:', 'om-email');
@@ -8412,20 +8397,6 @@ window.addEventListener('load', function() {
     safePrefill(nameEl,  function(){ return prefName; });
     safePrefill(phoneEl, function(){ return prefPhone; });
     safePrefill(emailEl, function(){ return prefEmail; });
-
-    // Ensure Android WebView order modal fields are explicitly LTR before display.
-    [nameEl, phoneEl, emailEl, addressEl,
-     document.getElementById('om-landmark'),
-     document.getElementById('om-note'),
-     document.getElementById('om-map-search-input')].forEach(function(el) {
-      if (!el) return;
-      el.setAttribute('dir', 'ltr');
-      el.style.direction = 'ltr';
-      el.style.textAlign = 'left';
-      el.style.unicodeBidi = 'plaintext';
-      el.style.writingMode = 'horizontal-tb';
-      el.style.transform = 'none';
-    });
 
     // STEP 8: Sync totals
     if (window.currentDeliveryFee === undefined || window.currentDeliveryFee === null) {
@@ -8981,9 +8952,8 @@ window.addEventListener('load', function() {
       }
 
       // Show the map search input and focus it so user can pin manually
-      // Guard: do not steal focus/scroll while user is typing in a checkout field
       var searchInput = document.getElementById('om-map-search-input');
-      if (searchInput && !(typeof window.isCheckoutTyping === 'function' && window.isCheckoutTyping())) {
+      if (searchInput) {
         searchInput.focus();
         searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
@@ -9011,154 +8981,6 @@ window.addEventListener('load', function() {
 
 <!-- Removed duplicate runtime LTR MutationObserver patch: it was rewriting input attributes during typing in Android WebView. CSS/HTML LTR rules above remain. -->
 
-<!-- ✅ DEFINITIVE FIX: Prevent reverse-typing (cursor reset to 0) in order modal.
-     Root cause identified: when innerHTML rebuilds the modal, document.activeElement
-     becomes <body> — so any check on activeElement.id fails and cursor is never restored.
-     Fix: track the focused field ID in our OWN variable (_focusedId), not via
-     document.activeElement. After any modal DOM mutation, re-find element by ID,
-     restore value+cursor, and re-focus. _restoring flag prevents observer loops.
--->
-<script>
-(function gfyCursorFix() {
-  'use strict';
-
-  var PROTECTED_IDS = [
-    'om-name', 'om-phone', 'om-email',
-    'om-address', 'om-landmark', 'om-note', 'om-map-search-input'
-  ];
-
-  /* Our own tracking — document.activeElement becomes body after innerHTML rebuild */
-  var _focusedId  = null;   // ID of the protected field the user is typing in
-  var _snap       = {};     // { id: { value, start, end } }
-  var _restoring  = false;  // guard against observer→focus→mutation loops
-
-  /* ── Snapshot current value + cursor of a field ── */
-  function snap(el) {
-    if (!el || !el.id) return;
-    _snap[el.id] = {
-      value : el.value,
-      start : el.selectionStart,
-      end   : el.selectionEnd
-    };
-  }
-
-  /* ── Re-find element by ID, restore value + cursor, re-focus ── */
-  function restore(id) {
-    if (!id || !_snap[id]) return;
-    var el = document.getElementById(id);
-    if (!el) return;
-    var s = _snap[id];
-    /* Restore value only if it changed (e.g. innerHTML rebuilt with empty value) */
-    if (el.value !== s.value) el.value = s.value;
-    try { el.setSelectionRange(s.start, s.end); } catch(e) {}
-    /* Re-focus ONLY if the element lost focus — calling focus() on an already-focused
-       field resets cursor to 0 on Android WebView (soft keyboard dismiss+reshow). */
-    if (document.activeElement !== el) {
-      try { el.focus(); } catch(e) {}
-    }
-  }
-
-  /* ── Track focus using our own variable ── */
-  document.addEventListener('focus', function(e) {
-    if (e.target && PROTECTED_IDS.indexOf(e.target.id) !== -1) {
-      _focusedId = e.target.id;
-      snap(e.target);
-    }
-  }, true);
-
-  /* When user leaves a protected field, clear tracker */
-  document.addEventListener('blur', function(e) {
-    if (e.target && e.target.id === _focusedId) {
-      /* Small delay: innerHTML rebuild causes blur then immediately re-focus.
-         Keep _focusedId alive for 300ms so the observer can still restore. */
-      var savedId = _focusedId;
-      setTimeout(function() {
-        /* If focus moved to a non-protected element, clear tracker */
-        var ae = document.activeElement;
-        if (!ae || PROTECTED_IDS.indexOf(ae.id) === -1) {
-          if (_focusedId === savedId) _focusedId = null;
-        }
-      }, 300);
-    }
-  }, true);
-
-  /* ── Snapshot on every keystroke (AFTER browser updates .value) ── */
-  function onKey(e) {
-    var el = e.target;
-    if (el && PROTECTED_IDS.indexOf(el.id) !== -1) {
-      _focusedId = el.id;
-      requestAnimationFrame(function() { snap(el); });
-    }
-  }
-  document.addEventListener('keydown',  onKey, true);
-  document.addEventListener('keyup',    onKey, true);
-  document.addEventListener('keypress', onKey, true);
-  document.addEventListener('input',    onKey, true);
-
-  /* ── Wipe any runtime oninput/onkeyup handlers set by obfuscated code ── */
-  function clearHandlers() {
-    PROTECTED_IDS.forEach(function(id) {
-      var el = document.getElementById(id);
-      if (!el) return;
-      el.oninput = null; el.onkeyup = null;
-      el.onkeydown = null; el.onchange = null;
-    });
-  }
-
-  /* ── MutationObserver: restore cursor whenever modal DOM changes ── */
-  function startObserver() {
-    var modal = document.getElementById('order-modal-overlay');
-    if (!modal) { setTimeout(startObserver, 400); return; }
-
-    var obs = new MutationObserver(function(mutations) {
-      if (_restoring || !_focusedId) return;
-      /* Check modal is actually open */
-      if (!modal.classList.contains('open')) return;
-      /* Skip if every mutated node is inside a checkout field itself (keystrokes) */
-      var onlyTypingMutations = mutations.every(function(m) {
-        var t = m.target;
-        return t && PROTECTED_IDS.indexOf(t.id) !== -1;
-      });
-      if (onlyTypingMutations) return;
-      /* Skip if user is actively typing — avoids cursor-reset loop */
-      if (typeof window.isCheckoutTyping === 'function' && window.isCheckoutTyping()) return;
-      _restoring = true;
-      restore(_focusedId);   /* re-find by ID, restore value+cursor, re-focus */
-      clearHandlers();
-      /* After re-focus the snap is still valid; clear flag after one rAF */
-      requestAnimationFrame(function() { _restoring = false; });
-    });
-
-    obs.observe(modal, { childList: true, subtree: true, characterData: true });
-    console.log('[GFY] Cursor-restore fix active — tracking:', PROTECTED_IDS.join(', '));
-  }
-
-  /* ── Also clear handlers whenever the modal opens ── */
-  function patchOpen() {
-    if (typeof window.openOrderModal !== 'function') { setTimeout(patchOpen, 300); return; }
-    if (window.__gfyCursorPatchDone) return;
-    window.__gfyCursorPatchDone = true;
-    var orig = window.openOrderModal;
-    var wrapper = function() {
-      // Do not rebuild modal while user is typing in a checkout field
-      if (typeof window.isCheckoutTyping === 'function' && window.isCheckoutTyping()) return;
-      orig.apply(this, arguments);
-      setTimeout(clearHandlers, 200);
-    };
-    window.openOrderModal = wrapper;
-    if (typeof window.GFY_openOrderModal === 'function' && window.GFY_openOrderModal === orig) {
-      window.GFY_openOrderModal = wrapper;
-    }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() { startObserver(); patchOpen(); });
-  } else {
-    startObserver();
-    patchOpen();
-  }
-})();
-</script>
 
 </body>
 </html>

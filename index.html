@@ -1594,6 +1594,16 @@ input, textarea, select,
   writing-mode: horizontal-tb !important;
 }
 
+/* WebView LTR typing fix: enforce LTR and LTR-friendly attributes
+   on textual form controls and contenteditable regions. This
+   complements existing per-form rules and also handles dynamic
+   elements via a MutationObserver. */
+input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditable="false"]) {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: plaintext !important;
+}
+
 </style>
 </head>
 <body>
@@ -8840,6 +8850,57 @@ window.addEventListener('load', function() {
   // Removed JS patch because runtime DOM writes can disrupt cursor/input behavior.
 
   console.log('[GFYGeoFix] omUseMyLocation installed.');
+})();
+</script>
+
+<script>
+(function(){
+  if(window.__GFYForceLTRInstalled) return; window.__GFYForceLTRInstalled = true;
+
+  var skipTypes = {checkbox:1,radio:1,submit:1,button:1,reset:1,file:1,image:1,hidden:1,range:1,color:1};
+
+  function isTextControl(el){
+    if(!el || el.nodeType !== 1) return false;
+    var tag = el.tagName.toLowerCase();
+    if(tag === 'textarea') return true;
+    if(tag === 'input'){
+      var t = (el.getAttribute('type')||'').toLowerCase();
+      return !skipTypes[t];
+    }
+    return el.isContentEditable === true;
+  }
+
+  function applyLTR(el){
+    try{
+      if(isTextControl(el)){
+        if(el.getAttribute('dir') !== 'ltr') el.setAttribute('dir','ltr');
+        if(el.getAttribute('inputmode') !== 'text') el.setAttribute('inputmode','text');
+        if(el.getAttribute('autocomplete') !== 'off') el.setAttribute('autocomplete','off');
+        el.style.setProperty('direction','ltr','important');
+        el.style.setProperty('text-align','left','important');
+        el.style.setProperty('unicode-bidi','plaintext','important');
+      }
+    }catch(e){}
+  }
+
+  function scan(root){
+    if(!root) return;
+    if(root.querySelectorAll){
+      var nodes = root.querySelectorAll('input,textarea,[contenteditable="true"],[contenteditable]:not([contenteditable="false"])');
+      for(var i=0;i<nodes.length;i++) applyLTR(nodes[i]);
+    }
+    if(isTextControl(root)) applyLTR(root);
+  }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ scan(document); }); else setTimeout(function(){ scan(document); },0);
+
+  var mo = new MutationObserver(function(muts){
+    muts.forEach(function(m){
+      m.addedNodes && m.addedNodes.forEach(function(n){ if(n.nodeType===1) scan(n); });
+    });
+  });
+  try{ mo.observe(document.documentElement||document.body, {childList:true, subtree:true}); }catch(e){}
+
 })();
 </script>
 

@@ -421,7 +421,7 @@ document.addEventListener('error', function(e) {
     .om-form input:focus,.om-form textarea:focus{border-color:var(--saffron)}
     /* ── Android WebView fix: Prevent cursor jumping during input ── */
     #om-name,#om-phone,#om-email,#om-address,#om-landmark,#om-note,#om-time,
-    #om-map-search{direction:ltr !important;text-align:left !important;unicode-bidi:normal !important;writing-mode:horizontal-tb !important;}
+    #om-map-search-input{direction:ltr !important;text-align:left !important;unicode-bidi:normal !important;}
     .om-actions{display:flex;gap:10px;margin-top:18px}
     .om-cancel{flex:1;background:var(--cream);color:var(--brown);border:1.5px solid var(--border);border-radius:12px;padding:12px;font-size:.88rem;font-weight:700;cursor:pointer;touch-action:manipulation}
     .om-place{flex:2;background:linear-gradient(90deg,var(--brown),var(--saffron));color:#fff;border:none;border-radius:12px;padding:12px;font-family:"Yeseva One",serif;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;touch-action:manipulation}
@@ -1597,7 +1597,6 @@ input, textarea, select,
   unicode-bidi: isolate !important;
   text-align: left !important;
   transform: none !important;
-  writing-mode: horizontal-tb !important;
 }
 
 /* WebView LTR typing fix: enforce LTR and LTR-friendly attributes
@@ -2840,11 +2839,11 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="full" id="om-manual-address-wrap">
           <div class="om-manual-address-grid">
-            <div class="full"><textarea id="om-address" dir="ltr" inputmode="text" autocomplete="off" autocorrect="off" spellcheck="false" rows="2" placeholder="House No., Street, Area..."></textarea></div>
-            <div><input type="text" id="om-landmark" dir="ltr" inputmode="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Near school..." /></div>
+            <div class="full"><input type="text" id="om-address" dir="ltr" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="House No., Street, Area..."></div>
+            <div><input type="text" id="om-landmark" dir="ltr" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Near school..." /></div>
             <div class="full" style="margin-top:4px">
               <div class="om-map-label">📍 Pin Your Location <span style="font-weight:400;color:#888;font-size:.7rem;text-transform:none">(tap map to pin)</span></div>
-              <div class="om-map-search"><input type="text" id="om-map-search-input" dir="ltr" inputmode="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search area in Sircilla..." /></div>
+              <div class="om-map-search"><input type="text" id="om-map-search-input" dir="ltr" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Search area in Sircilla..." /></div>
               <button class="om-gps-btn" onclick="omUseMyLocation()">🎯 Use My Current Location</button>
               <div id="om-delivery-map"></div>
               <div class="om-map-pin-info" id="om-pin-info">
@@ -8498,7 +8497,7 @@ window.addEventListener('load', function() {
   addressEl,
   document.getElementById('om-landmark'),
   document.getElementById('om-note'),
-  document.getElementById('om-map-search')
+  document.getElementById('om-map-search-input')
 ].forEach(el => {
   if (el) {
     el.setAttribute('dir', 'ltr');
@@ -8980,56 +8979,8 @@ window.addEventListener('load', function() {
 })();
 </script>
 
-<script>
-(function(){
-  if(window.__GFYForceLTRInstalled) return; window.__GFYForceLTRInstalled = true;
+<!-- Removed duplicate runtime LTR MutationObserver patch: it was rewriting input attributes during typing in Android WebView. CSS/HTML LTR rules above remain. -->
 
-  var skipTypes = {checkbox:1,radio:1,submit:1,button:1,reset:1,file:1,image:1,hidden:1,range:1,color:1};
-
-  function isTextControl(el){
-    if(!el || el.nodeType !== 1) return false;
-    var tag = el.tagName.toLowerCase();
-    if(tag === 'textarea') return true;
-    if(tag === 'input'){
-      var t = (el.getAttribute('type')||'').toLowerCase();
-      return !skipTypes[t];
-    }
-    return el.isContentEditable === true;
-  }
-
-  function applyLTR(el){
-    try{
-      if(isTextControl(el)){
-        if(el.getAttribute('dir') !== 'ltr') el.setAttribute('dir','ltr');
-        if(el.getAttribute('inputmode') !== 'text') el.setAttribute('inputmode','text');
-        if(el.getAttribute('autocomplete') !== 'off') el.setAttribute('autocomplete','off');
-        el.style.setProperty('direction','ltr','important');
-        el.style.setProperty('text-align','left','important');
-        el.style.setProperty('unicode-bidi','plaintext','important');
-      }
-    }catch(e){}
-  }
-
-  function scan(root){
-    if(!root) return;
-    if(root.querySelectorAll){
-      var nodes = root.querySelectorAll('input,textarea,[contenteditable="true"],[contenteditable]:not([contenteditable="false"])');
-      for(var i=0;i<nodes.length;i++) applyLTR(nodes[i]);
-    }
-    if(isTextControl(root)) applyLTR(root);
-  }
-
-  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ scan(document); }); else setTimeout(function(){ scan(document); },0);
-
-  var mo = new MutationObserver(function(muts){
-    muts.forEach(function(m){
-      m.addedNodes && m.addedNodes.forEach(function(n){ if(n.nodeType===1) scan(n); });
-    });
-  });
-  try{ mo.observe(document.documentElement||document.body, {childList:true, subtree:true}); }catch(e){}
-
-})();
-</script>
 
 </body>
 </html>

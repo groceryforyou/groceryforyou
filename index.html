@@ -8981,12 +8981,12 @@ window.addEventListener('load', function() {
 
 <!-- Removed duplicate runtime LTR MutationObserver patch: it was rewriting input attributes during typing in Android WebView. CSS/HTML LTR rules above remain. -->
 
-<!-- ✅ DEFINITIVE FIX: Prevent reverse-typing in order modal.
-     The obfuscated code rebuilds modal innerHTML on every keypress.
-     stopPropagation cannot stop this — it is not event-driven.
-     Real fix: snapshot value+cursor on every keypress, then a MutationObserver
-     on the modal restores them instantly whenever the DOM is rebuilt.
-     Also nulls out .oninput/.onkeyup/.onchange to block runtime assignments.
+<!-- ✅ DEFINITIVE FIX: Prevent reverse-typing (cursor reset to 0) in order modal.
+     Root cause identified: when innerHTML rebuilds the modal, document.activeElement
+     becomes <body> — so any check on activeElement.id fails and cursor is never restored.
+     Fix: track the focused field ID in our OWN variable (_focusedId), not via
+     document.activeElement. After any modal DOM mutation, re-find element by ID,
+     restore value+cursor, and re-focus. _restoring flag prevents observer loops.
 -->
 <script>
 (function gfyCursorFix() {
@@ -8997,28 +8997,64 @@ window.addEventListener('load', function() {
     'om-address', 'om-landmark', 'om-note', 'om-map-search-input'
   ];
 
-  var _snap = {};
+  /* Our own tracking — document.activeElement becomes body after innerHTML rebuild */
+  var _focusedId  = null;   // ID of the protected field the user is typing in
+  var _snap       = {};     // { id: { value, start, end } }
+  var _restoring  = false;  // guard against observer→focus→mutation loops
 
-  function snapField(el) {
+  /* ── Snapshot current value + cursor of a field ── */
+  function snap(el) {
     if (!el || !el.id) return;
     _snap[el.id] = {
-      value: el.value,
-      start: el.selectionStart,
-      end:   el.selectionEnd
+      value : el.value,
+      start : el.selectionStart,
+      end   : el.selectionEnd
     };
   }
 
-  function restoreField(el) {
-    if (!el || !el.id || !_snap[el.id]) return;
-    var s = _snap[el.id];
+  /* ── Re-find element by ID, restore value + cursor, re-focus ── */
+  function restore(id) {
+    if (!id || !_snap[id]) return;
+    var el = document.getElementById(id);
+    if (!el) return;
+    var s = _snap[id];
+    /* Restore value only if it changed (e.g. innerHTML rebuilt with empty value) */
     if (el.value !== s.value) el.value = s.value;
     try { el.setSelectionRange(s.start, s.end); } catch(e) {}
+    /* Re-focus the element — innerHTML rebuild causes it to lose focus */
+    try { el.focus(); } catch(e) {}
   }
 
+  /* ── Track focus using our own variable ── */
+  document.addEventListener('focus', function(e) {
+    if (e.target && PROTECTED_IDS.indexOf(e.target.id) !== -1) {
+      _focusedId = e.target.id;
+      snap(e.target);
+    }
+  }, true);
+
+  /* When user leaves a protected field, clear tracker */
+  document.addEventListener('blur', function(e) {
+    if (e.target && e.target.id === _focusedId) {
+      /* Small delay: innerHTML rebuild causes blur then immediately re-focus.
+         Keep _focusedId alive for 300ms so the observer can still restore. */
+      var savedId = _focusedId;
+      setTimeout(function() {
+        /* If focus moved to a non-protected element, clear tracker */
+        var ae = document.activeElement;
+        if (!ae || PROTECTED_IDS.indexOf(ae.id) === -1) {
+          if (_focusedId === savedId) _focusedId = null;
+        }
+      }, 300);
+    }
+  }, true);
+
+  /* ── Snapshot on every keystroke (AFTER browser updates .value) ── */
   function onKey(e) {
     var el = e.target;
     if (el && PROTECTED_IDS.indexOf(el.id) !== -1) {
-      requestAnimationFrame(function() { snapField(el); });
+      _focusedId = el.id;
+      requestAnimationFrame(function() { snap(el); });
     }
   }
   document.addEventListener('keydown',  onKey, true);
@@ -9026,10 +9062,7 @@ window.addEventListener('load', function() {
   document.addEventListener('keypress', onKey, true);
   document.addEventListener('input',    onKey, true);
 
-  document.addEventListener('focus', function(e) {
-    if (e.target && PROTECTED_IDS.indexOf(e.target.id) !== -1) snapField(e.target);
-  }, true);
-
+  /* ── Wipe any runtime oninput/onkeyup handlers set by obfuscated code ── */
   function clearHandlers() {
     PROTECTED_IDS.forEach(function(id) {
       var el = document.getElementById(id);
@@ -9039,38 +9072,43 @@ window.addEventListener('load', function() {
     });
   }
 
-  function startModalObserver() {
+  /* ── MutationObserver: restore cursor whenever modal DOM changes ── */
+  function startObserver() {
     var modal = document.getElementById('order-modal-overlay');
-    if (!modal) { setTimeout(startModalObserver, 400); return; }
+    if (!modal) { setTimeout(startObserver, 400); return; }
+
     var obs = new MutationObserver(function() {
-      var focused = document.activeElement;
-      if (!focused || PROTECTED_IDS.indexOf(focused.id) === -1) return;
-      restoreField(focused);
+      if (_restoring || !_focusedId) return;
+      /* Check modal is actually open */
+      if (!modal.classList.contains('open')) return;
+      _restoring = true;
+      restore(_focusedId);   /* re-find by ID, restore value+cursor, re-focus */
       clearHandlers();
+      /* After re-focus the snap is still valid; clear flag after one rAF */
+      requestAnimationFrame(function() { _restoring = false; });
     });
+
     obs.observe(modal, { childList: true, subtree: true, characterData: true });
-    console.log('[GFY] Cursor-restore MutationObserver active.');
+    console.log('[GFY] Cursor-restore fix active — tracking:', PROTECTED_IDS.join(', '));
   }
 
-  function patchOpenModal() {
-    if (typeof window.openOrderModal !== 'function') { setTimeout(patchOpenModal, 300); return; }
+  /* ── Also clear handlers whenever the modal opens ── */
+  function patchOpen() {
+    if (typeof window.openOrderModal !== 'function') { setTimeout(patchOpen, 300); return; }
     if (window.__gfyCursorPatchDone) return;
     window.__gfyCursorPatchDone = true;
     var orig = window.openOrderModal;
     window.openOrderModal = function() {
       orig.apply(this, arguments);
-      setTimeout(clearHandlers, 150);
+      setTimeout(clearHandlers, 200);
     };
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-      startModalObserver();
-      patchOpenModal();
-    });
+    document.addEventListener('DOMContentLoaded', function() { startObserver(); patchOpen(); });
   } else {
-    startModalObserver();
-    patchOpenModal();
+    startObserver();
+    patchOpen();
   }
 })();
 </script>

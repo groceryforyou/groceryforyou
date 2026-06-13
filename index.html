@@ -8981,56 +8981,96 @@ window.addEventListener('load', function() {
 
 <!-- Removed duplicate runtime LTR MutationObserver patch: it was rewriting input attributes during typing in Android WebView. CSS/HTML LTR rules above remain. -->
 
-<!-- ✅ FIX: Prevent reverse-typing (cursor reset to 0) in order modal.
-     Root cause: any code that re-renders / rebuilds the modal DOM while the user
-     is typing resets the input cursor to position 0, making letters appear reversed.
-     Two guards below stop both paths:
-       1. stopPropagation (capture phase) — blocks bubble-phase listeners added by
-          obfuscated or other scripts that call a render function on 'input'/'keyup'.
-       2. isOrderModalOpen guard on any periodic refresh / MutationObserver callbacks
-          that call renderMenu / renderMenuPage while the modal is visible.
+<!-- ✅ DEFINITIVE FIX: Prevent reverse-typing in order modal.
+     The obfuscated code rebuilds modal innerHTML on every keypress.
+     stopPropagation cannot stop this — it is not event-driven.
+     Real fix: snapshot value+cursor on every keypress, then a MutationObserver
+     on the modal restores them instantly whenever the DOM is rebuilt.
+     Also nulls out .oninput/.onkeyup/.onchange to block runtime assignments.
 -->
 <script>
-(function fixOrderModalTyping() {
+(function gfyCursorFix() {
   'use strict';
 
-  /* All order-modal text fields that must NOT trigger a re-render on typing */
-  var PROTECTED_FIELDS = [
-    'om-name',
-    'om-phone',
-    'om-email',
-    'om-address',
-    'om-landmark',
-    'om-note',
-    'om-map-search-input'
+  var PROTECTED_IDS = [
+    'om-name', 'om-phone', 'om-email',
+    'om-address', 'om-landmark', 'om-note', 'om-map-search-input'
   ];
 
-  /* Events that could be listened to in order to trigger a re-render */
-  var BLOCKED_EVENTS = ['input', 'change', 'keyup', 'keydown'];
+  var _snap = {};
 
-  /**
-   * Capture-phase handler: stop the event from reaching any bubble-phase
-   * listener that was attached by obfuscated/other code to re-render the modal.
-   * We do NOT call preventDefault() so the browser still updates the input value.
-   */
-  function captureHandler(e) {
-    if (e.target && PROTECTED_FIELDS.indexOf(e.target.id) !== -1) {
-      e.stopPropagation();
-    }
+  function snapField(el) {
+    if (!el || !el.id) return;
+    _snap[el.id] = {
+      value: el.value,
+      start: el.selectionStart,
+      end:   el.selectionEnd
+    };
   }
 
-  function attachProtection() {
-    BLOCKED_EVENTS.forEach(function(evtName) {
-      /* useCapture=true → fires before bubble-phase listeners */
-      document.addEventListener(evtName, captureHandler, true);
+  function restoreField(el) {
+    if (!el || !el.id || !_snap[el.id]) return;
+    var s = _snap[el.id];
+    if (el.value !== s.value) el.value = s.value;
+    try { el.setSelectionRange(s.start, s.end); } catch(e) {}
+  }
+
+  function onKey(e) {
+    var el = e.target;
+    if (el && PROTECTED_IDS.indexOf(el.id) !== -1) {
+      requestAnimationFrame(function() { snapField(el); });
+    }
+  }
+  document.addEventListener('keydown',  onKey, true);
+  document.addEventListener('keyup',    onKey, true);
+  document.addEventListener('keypress', onKey, true);
+  document.addEventListener('input',    onKey, true);
+
+  document.addEventListener('focus', function(e) {
+    if (e.target && PROTECTED_IDS.indexOf(e.target.id) !== -1) snapField(e.target);
+  }, true);
+
+  function clearHandlers() {
+    PROTECTED_IDS.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.oninput = null; el.onkeyup = null;
+      el.onkeydown = null; el.onchange = null;
     });
-    console.log('[GFY] Reverse-typing fix active on:', PROTECTED_FIELDS.join(', '));
+  }
+
+  function startModalObserver() {
+    var modal = document.getElementById('order-modal-overlay');
+    if (!modal) { setTimeout(startModalObserver, 400); return; }
+    var obs = new MutationObserver(function() {
+      var focused = document.activeElement;
+      if (!focused || PROTECTED_IDS.indexOf(focused.id) === -1) return;
+      restoreField(focused);
+      clearHandlers();
+    });
+    obs.observe(modal, { childList: true, subtree: true, characterData: true });
+    console.log('[GFY] Cursor-restore MutationObserver active.');
+  }
+
+  function patchOpenModal() {
+    if (typeof window.openOrderModal !== 'function') { setTimeout(patchOpenModal, 300); return; }
+    if (window.__gfyCursorPatchDone) return;
+    window.__gfyCursorPatchDone = true;
+    var orig = window.openOrderModal;
+    window.openOrderModal = function() {
+      orig.apply(this, arguments);
+      setTimeout(clearHandlers, 150);
+    };
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', attachProtection);
+    document.addEventListener('DOMContentLoaded', function() {
+      startModalObserver();
+      patchOpenModal();
+    });
   } else {
-    attachProtection();
+    startModalObserver();
+    patchOpenModal();
   }
 })();
 </script>

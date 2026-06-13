@@ -5817,59 +5817,180 @@ function setupAdminOrderWatch(db){
 }
 
 // ── 3. CUSTOMER ORDER STATUS WATCHER ────────────────────────────────────
-// Uses localStorage key seenOrderStatus_<orderId>_<status> to prevent
-// repeated popups after page refresh. Only fires on 'modified' changes.
+// Uses localStorage keys:
+//   - shownOrderPopups_${orderId}_${status}: track each status popup
+//   - deliveredPopupShown_${orderId}: prevent duplicate delivered popups
+//   - ratingPopupShown_${orderId}: prevent duplicate rating popups
+// On initial load, marks all existing orders as "seen" so old popups don't replay.
+// On real-time changes, shows modal popups only once per status per order.
 let _custUnsub=null;
+let _customerWatcherInitialized=false;
 function setupCustomerWatch(db,uid){
   if(_custUnsub){_custUnsub();_custUnsub=null;}
   if(!uid)return;
   const MSGS={
-    'accepted':   {title:'🎉 Order Accepted!',   body:'Your Grocery is being prepared now! ~30 mins to delivery.', icon:'🛒'},
-    'rejected':   {title:'❌ Order Rejected',     body:'Sorry, we could not accept your order. Please try again.', icon:'⏰'},
-    'preparing':  {title:'🍳 Preparing Your Order', body:'Your items are being packed fresh for you!', icon:'🍳'},
-    'ready':      {title:'📦 Order Ready',        body:'Order packed! Delivery partner picking up soon.', icon:'📦'},
-    'out_for_delivery':{title:'🚴 Out for Delivery!', body:'Your order is on the way!', icon:'🛵'},
-    'completed':  {title:'✅ Order Delivered!',   body:'Enjoy your groceries! Rate your experience.', icon:'✅'},
-    'delivered':  {title:'✅ Order Delivered!',   body:'Enjoy your groceries! Rate your experience.', icon:'✅'},
-    'cancelled':  {title:'🚫 Order Cancelled',    body:'Your order was auto-cancelled. Please place a new order.', icon:'⏰'}
+    'accepted':   {title:'🎉 Order Accepted!',   body:'Your Grocery is being prepared now! ~30 mins to delivery.', icon:'🛒', type:'success'},
+    'rejected':   {title:'❌ Order Rejected',     body:'Sorry, we could not accept your order. Please try again.', icon:'⏰', type:'error'},
+    'preparing':  {title:'🍳 Preparing Your Order', body:'Your items are being packed fresh for you!', icon:'🍳', type:'success'},
+    'ready':      {title:'📦 Order Ready',        body:'Order packed! Delivery partner picking up soon.', icon:'📦', type:'info'},
+    'out_for_delivery':{title:'🚴 Out for Delivery!', body:'Your order is on the way!', icon:'🛵', type:'info'},
+    'completed':  {title:'✅ Order Delivered!',   body:'Enjoy your groceries! Rate your experience.', icon:'✅', type:'success'},
+    'delivered':  {title:'✅ Order Delivered!',   body:'Enjoy your groceries! Rate your experience.', icon:'✅', type:'success'},
+    'cancelled':  {title:'🚫 Order Cancelled',    body:'Your order was auto-cancelled. Please place a new order.', icon:'⏰', type:'error'}
   };
-  let _initialized = false;
+  
   try{
     _custUnsub=db.collection('orders')
       .where('customerUid','==',uid)
       .orderBy('createdAt','desc')
       .limit(5)
       .onSnapshot(snap=>{
-        if(!_initialized){
-          // On first load, just mark all existing statuses as seen
-          // so we do NOT show popups for old orders
+        // FIRST INITIALIZATION: Mark all existing statuses as seen
+        // so old popups don't appear on page load
+        if(!_customerWatcherInitialized){
           snap.forEach(doc=>{
             const s=(doc.data().status||'');
-            const lsKey='seenOrderStatus_'+doc.id+'_'+s;
-            localStorage.setItem(lsKey,'1');
+            if(s){
+              const popupKey='shownOrderPopups_'+doc.id+'_'+s;
+              localStorage.setItem(popupKey,'1');
+            }
+            // Also mark delivered popups as shown for old orders
+            if(s==='completed'||s==='delivered'){
+              const deliveredKey='deliveredPopupShown_'+doc.id;
+              localStorage.setItem(deliveredKey,'1');
+              const ratingKey='ratingPopupShown_'+doc.id;
+              localStorage.setItem(ratingKey,'1');
+            }
           });
-          _initialized=true;
+          _customerWatcherInitialized=true;
+          console.log('[CustomerWatch] Initialized - old orders marked as seen');
           return;
         }
-        // Only process real-time changes
-        let visibleCount=document.querySelectorAll('.gfy-status-toast').length;
+        
+        // REAL-TIME CHANGES: Only show popups for actual modifications
         snap.docChanges().forEach(ch=>{
           if(ch.type!=='modified')return;
-          const o=ch.doc.data(),s=o.status;
+          
+          const o=ch.doc.data();
+          const orderId=ch.doc.id;
+          const s=o.status;
+          
           if(!s)return;
-          const lsKey='seenOrderStatus_'+ch.doc.id+'_'+s;
-          if(localStorage.getItem(lsKey))return;
-          localStorage.setItem(lsKey,'1');
+          
+          // Check if we already showed this popup for this order+status
+          const popupKey='shownOrderPopups_'+orderId+'_'+s;
+          if(localStorage.getItem(popupKey)){
+            return; // Already shown, skip
+          }
+          
+          // Mark this status popup as shown
+          localStorage.setItem(popupKey,'1');
+          
           const info=MSGS[s];
           if(!info)return;
-          if(visibleCount>=2)return; // max 2 visible at a time
-          visibleCount++;
-          showStatusToast(ch.doc.id, info.title, info.body, info.icon);
+          
+          // DELIVERED & COMPLETED statuses: check if we should show delivered popup
+          if(s==='completed'||s==='delivered'){
+            const deliveredKey='deliveredPopupShown_'+orderId;
+            
+            // Only show if this is the FIRST TIME this order became delivered
+            // (not replayed from localStorage)
+            if(!localStorage.getItem(deliveredKey)){
+              localStorage.setItem(deliveredKey,'1');
+              
+              // Show delivered modal popup (not toast)
+              showCustomerAlertModal(
+                info.title,
+                '<small>Order ID: '+orderId+'</small><br/>'+info.body,
+                info.type,
+                function(){
+                  // After user closes delivered popup, show rating popup
+                  const ratingKey='ratingPopupShown_'+orderId;
+                  if(!localStorage.getItem(ratingKey)){
+                    localStorage.setItem(ratingKey,'1');
+                    setTimeout(()=>openRatingModal(orderId),600);
+                  }
+                },
+                '🎉 Order delivered!',
+                2000
+              );
+              gfyNotif('Grocery For You 🛒', info.title);
+            }
+            return;
+          }
+          
+          // OTHER STATUSES (accepted, ready, out_for_delivery, etc.)
+          // Show status modal popup
+          showCustomerAlertModal(
+            info.title,
+            '<small>Order ID: '+orderId+'</small><br/>'+info.body,
+            info.type,
+            null,
+            info.title,
+            2000
+          );
           gfyNotif('Grocery For You 🛒', info.title);
         });
       },e=>console.error('[Cust Watch]',e));
   }catch(e){console.error('[Cust Watch setup]',e);}
 }
+
+// ── 3b. DELIVERED POPUP CALLBACK HANDLER ─────────────────────────────────
+// Ensures rating popup appears when delivered popup is closed, even if user
+// clicks Dismiss or X button instead of "Got it!". Uses a global callback
+// mechanism that fires when closeCustomerAlertModal is called.
+(function setupDeliveredPopupHandler(){
+  let _pendingDeliveredCallback=null;
+  let _origCloseCAM=null;
+  
+  // Intercept showCustomerAlertModal to capture delivered popup callbacks
+  if(typeof window.showCustomerAlertModal==='function'){
+    const _orig=window.showCustomerAlertModal;
+    window.showCustomerAlertModal=function(title,body,type,callback,...args){
+      // Store callback if this is a delivered popup (title contains "Delivered")
+      if(title && title.includes('Delivered') && callback){
+        _pendingDeliveredCallback=callback;
+      }
+      return _orig.apply(this,arguments);
+    };
+  }
+  
+  // Intercept closeCustomerAlertModal to trigger pending delivered callback
+  function tryInterceptClose(){
+    if(typeof window.closeCustomerAlertModal!=='function')return;
+    if(_origCloseCAM)return; // Already intercepted
+    
+    _origCloseCAM=window.closeCustomerAlertModal;
+    window.closeCustomerAlertModal=function(){
+      // Trigger the pending callback if it exists
+      const cb=_pendingDeliveredCallback;
+      _pendingDeliveredCallback=null;
+      
+      // Call original close function
+      _origCloseCAM.apply(this,arguments);
+      
+      // Execute the callback (e.g., to show rating modal)
+      if(typeof cb==='function'){
+        try{cb();}catch(e){console.error('[DeliveredCallback]',e);}
+      }
+    };
+  }
+  
+  // Try to intercept immediately, or wait if closeCustomerAlertModal not defined yet
+  if(typeof window.closeCustomerAlertModal==='function'){
+    tryInterceptClose();
+  }else{
+    // Wait for it to be defined
+    const checkInterval=setInterval(()=>{
+      if(typeof window.closeCustomerAlertModal==='function'){
+        clearInterval(checkInterval);
+        tryInterceptClose();
+      }
+    },200);
+    // Stop checking after 10 seconds
+    setTimeout(()=>clearInterval(checkInterval),10000);
+  }
+})();
 
 // ── 4. RATING WITH EMAIL ─────────────────────────────────────────────────
 window.GFY_submitRating=async function(itemId,stars,reviewText){

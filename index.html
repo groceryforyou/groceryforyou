@@ -8258,10 +8258,13 @@ window.addEventListener('load', function() {
 
     // 2. Intercept Checkout/Order related pages called natively
     if (page === 'checkout' || page === 'order' || page === 'place-order') {
-      if (typeof openOrderModal === 'function') {
-        openOrderModal();
-      } else if (typeof window.openOrderModal === 'function') {
-        window.openOrderModal();
+      // Do not open order modal while user is typing in a checkout field
+      if (!(typeof window.isCheckoutTyping === 'function' && window.isCheckoutTyping())) {
+        if (typeof openOrderModal === 'function') {
+          openOrderModal();
+        } else if (typeof window.openOrderModal === 'function') {
+          window.openOrderModal();
+        }
       }
       page = 'menu';
     }
@@ -8323,9 +8326,17 @@ window.addEventListener('load', function() {
 (function() {
   'use strict';
 
+  // ── Guard: returns true when user is actively typing in a checkout field ──
+  window.isCheckoutTyping = function isCheckoutTyping() {
+    var el = document.activeElement;
+    return el && ['om-name','om-phone','om-email','om-address','om-landmark','om-note','om-map-search-input'].includes(el.id);
+  };
+
   // ── Single canonical openOrderModal ──────────────────────────────────
   window.openOrderModal = function() {
     console.log('[CleanModal] openOrderModal called');
+    // Do not open/rebuild modal while user is typing in a checkout field
+    if (window.isCheckoutTyping()) return;
 
     // STEP 1: Check cart not empty
     const cartKeys = typeof cart !== 'undefined' ? Object.keys(cart) : [];
@@ -8952,8 +8963,9 @@ window.addEventListener('load', function() {
       }
 
       // Show the map search input and focus it so user can pin manually
+      // Guard: do not steal focus/scroll while user is typing in a checkout field
       var searchInput = document.getElementById('om-map-search-input');
-      if (searchInput) {
+      if (searchInput && !(typeof window.isCheckoutTyping === 'function' && window.isCheckoutTyping())) {
         searchInput.focus();
         searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
@@ -9099,6 +9111,8 @@ window.addEventListener('load', function() {
     window.__gfyCursorPatchDone = true;
     var orig = window.openOrderModal;
     window.openOrderModal = function() {
+      // Do not rebuild modal while user is typing in a checkout field
+      if (typeof window.isCheckoutTyping === 'function' && window.isCheckoutTyping()) return;
       orig.apply(this, arguments);
       setTimeout(clearHandlers, 200);
     };

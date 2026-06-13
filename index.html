@@ -8981,6 +8981,59 @@ window.addEventListener('load', function() {
 
 <!-- Removed duplicate runtime LTR MutationObserver patch: it was rewriting input attributes during typing in Android WebView. CSS/HTML LTR rules above remain. -->
 
+<!-- ✅ FIX: Prevent reverse-typing (cursor reset to 0) in order modal.
+     Root cause: any code that re-renders / rebuilds the modal DOM while the user
+     is typing resets the input cursor to position 0, making letters appear reversed.
+     Two guards below stop both paths:
+       1. stopPropagation (capture phase) — blocks bubble-phase listeners added by
+          obfuscated or other scripts that call a render function on 'input'/'keyup'.
+       2. isOrderModalOpen guard on any periodic refresh / MutationObserver callbacks
+          that call renderMenu / renderMenuPage while the modal is visible.
+-->
+<script>
+(function fixOrderModalTyping() {
+  'use strict';
+
+  /* All order-modal text fields that must NOT trigger a re-render on typing */
+  var PROTECTED_FIELDS = [
+    'om-name',
+    'om-phone',
+    'om-email',
+    'om-address',
+    'om-landmark',
+    'om-note',
+    'om-map-search-input'
+  ];
+
+  /* Events that could be listened to in order to trigger a re-render */
+  var BLOCKED_EVENTS = ['input', 'change', 'keyup', 'keydown'];
+
+  /**
+   * Capture-phase handler: stop the event from reaching any bubble-phase
+   * listener that was attached by obfuscated/other code to re-render the modal.
+   * We do NOT call preventDefault() so the browser still updates the input value.
+   */
+  function captureHandler(e) {
+    if (e.target && PROTECTED_FIELDS.indexOf(e.target.id) !== -1) {
+      e.stopPropagation();
+    }
+  }
+
+  function attachProtection() {
+    BLOCKED_EVENTS.forEach(function(evtName) {
+      /* useCapture=true → fires before bubble-phase listeners */
+      document.addEventListener(evtName, captureHandler, true);
+    });
+    console.log('[GFY] Reverse-typing fix active on:', PROTECTED_FIELDS.join(', '));
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachProtection);
+  } else {
+    attachProtection();
+  }
+})();
+</script>
 
 </body>
 </html>

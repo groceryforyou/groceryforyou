@@ -417,11 +417,11 @@ document.addEventListener('error', function(e) {
     .om-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .om-form .full{grid-column:1/-1}
     .om-form label{font-size:.75rem;font-weight:800;color:var(--brown);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px}
-    .om-form input,.om-form textarea,.om-form select{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:.88rem;font-family:"Lato",sans-serif;background:#fff;outline:none;transition:border-color .2s;direction:ltr !important;text-align:left !important;unicode-bidi:plaintext !important}
+    .om-form input,.om-form textarea,.om-form select{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:.88rem;font-family:"Lato",sans-serif;background:#fff;outline:none;transition:border-color .2s;direction:ltr !important;text-align:left !important;unicode-bidi:normal !important}
     .om-form input:focus,.om-form textarea:focus{border-color:var(--saffron)}
     /* ── Android WebView fix: Prevent cursor jumping during input ── */
     #om-name,#om-phone,#om-email,#om-address,#om-landmark,#om-note,#om-time,
-    #om-map-search{direction:ltr !important;text-align:left !important;unicode-bidi:normal !important;writing-mode:horizontal-tb !important;}
+    #om-map-search-input{direction:ltr !important;text-align:left !important;unicode-bidi:normal !important;writing-mode:horizontal-tb !important;}
     .om-actions{display:flex;gap:10px;margin-top:18px}
     .om-cancel{flex:1;background:var(--cream);color:var(--brown);border:1.5px solid var(--border);border-radius:12px;padding:12px;font-size:.88rem;font-weight:700;cursor:pointer;touch-action:manipulation}
     .om-place{flex:2;background:linear-gradient(90deg,var(--brown),var(--saffron));color:#fff;border:none;border-radius:12px;padding:12px;font-family:"Yeseva One",serif;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;touch-action:manipulation}
@@ -1577,31 +1577,16 @@ animation:spinRefresh .7s linear infinite;
   }
 }
 
-/* ===== ORDER MODAL INPUT FIX: force LTR for all form fields ===== */
-/* Covers every possible CSS root cause of reversed typing:
-   direction:rtl, unicode-bidi:bidi-override, scaleX(-1), writing-mode, text-align:right */
+/* ===== ORDER MODAL INPUT FIX: force LTR for all form fields (Android WebView safe) ===== */
+/* Single authoritative rule — no duplicates. unicode-bidi:normal is safest for Android WebView. */
 input, textarea, select,
-.order-modal input,
-.order-modal textarea,
-.order-modal select,
-#order-modal-overlay input,
-#order-modal-overlay textarea,
-#order-modal-overlay select {
+.order-modal input, .order-modal textarea, .order-modal select,
+#order-modal-overlay input, #order-modal-overlay textarea, #order-modal-overlay select,
+[contenteditable="true"], [contenteditable]:not([contenteditable="false"]) {
   direction: ltr !important;
-  unicode-bidi: isolate !important;
+  unicode-bidi: normal !important;
   text-align: left !important;
-  transform: none !important;
   writing-mode: horizontal-tb !important;
-}
-
-/* WebView LTR typing fix: enforce LTR and LTR-friendly attributes
-   on textual form controls and contenteditable regions. This
-   complements existing per-form rules and also handles dynamic
-   elements via a MutationObserver. */
-input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditable="false"]) {
-  direction: ltr !important;
-  text-align: left !important;
-  unicode-bidi: plaintext !important;
 }
 
 </style>
@@ -2819,9 +2804,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <div id="om-fee-note" style="display:none;color:#555;font-size:.88rem;line-height:1.5;margin-top:8px;border:1px dashed #d7ccc8;border-radius:10px;padding:10px;background:#fff8e1;"></div>
       </div>
       <div class="om-form" id="om-form-fields">
-        <div><label for="om-name">Your Name *</label><input type="text" id="om-name" placeholder="Full name"/></div>
-        <div><label for="om-phone">Phone *</label><input type="tel" id="om-phone" placeholder="10-digit mobile number" maxlength="10" pattern="[0-9]{10}" inputmode="numeric"/></div>
-        <div class="full"><label for="om-email">Email * (to link past orders)</label><input type="email" id="om-email" placeholder="your@email.com"/></div>
+        <div><label for="om-name">Your Name *</label><input type="text" id="om-name" dir="ltr" autocomplete="name" autocorrect="off" spellcheck="false" placeholder="Full name"/></div>
+        <div><label for="om-phone">Phone *</label><input type="tel" id="om-phone" dir="ltr" autocomplete="tel" autocorrect="off" spellcheck="false" placeholder="10-digit mobile number" maxlength="10" pattern="[0-9]{10}" inputmode="numeric"/></div>
+        <div class="full"><label for="om-email">Email * (to link past orders)</label><input type="text" id="om-email" dir="ltr" autocomplete="email" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="email" placeholder="your@email.com"/></div>
         <div class="full" id="om-saved-address-wrap" style="display:none">
           <label for="om-saved-address">Saved Address</label>
           <div class="om-address-picker">

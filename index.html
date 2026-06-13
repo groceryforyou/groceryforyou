@@ -8139,6 +8139,9 @@ window.deepLinkUPI = function(app) {
 let rafScheduled = false;
 
 function requestTotalsRefresh() {
+    // Do not run while user is typing in a checkout field — avoids triggering
+    // the cursor-fix MutationObserver chain that resets Android cursor to 0
+    if (typeof window.isCheckoutTyping === 'function' && window.isCheckoutTyping()) return;
     if (rafScheduled) return;
 
     rafScheduled = true;
@@ -9033,8 +9036,11 @@ window.addEventListener('load', function() {
     /* Restore value only if it changed (e.g. innerHTML rebuilt with empty value) */
     if (el.value !== s.value) el.value = s.value;
     try { el.setSelectionRange(s.start, s.end); } catch(e) {}
-    /* Re-focus the element — innerHTML rebuild causes it to lose focus */
-    try { el.focus(); } catch(e) {}
+    /* Re-focus ONLY if the element lost focus — calling focus() on an already-focused
+       field resets cursor to 0 on Android WebView (soft keyboard dismiss+reshow). */
+    if (document.activeElement !== el) {
+      try { el.focus(); } catch(e) {}
+    }
   }
 
   /* ── Track focus using our own variable ── */
@@ -9089,10 +9095,18 @@ window.addEventListener('load', function() {
     var modal = document.getElementById('order-modal-overlay');
     if (!modal) { setTimeout(startObserver, 400); return; }
 
-    var obs = new MutationObserver(function() {
+    var obs = new MutationObserver(function(mutations) {
       if (_restoring || !_focusedId) return;
       /* Check modal is actually open */
       if (!modal.classList.contains('open')) return;
+      /* Skip if every mutated node is inside a checkout field itself (keystrokes) */
+      var onlyTypingMutations = mutations.every(function(m) {
+        var t = m.target;
+        return t && PROTECTED_IDS.indexOf(t.id) !== -1;
+      });
+      if (onlyTypingMutations) return;
+      /* Skip if user is actively typing — avoids cursor-reset loop */
+      if (typeof window.isCheckoutTyping === 'function' && window.isCheckoutTyping()) return;
       _restoring = true;
       restore(_focusedId);   /* re-find by ID, restore value+cursor, re-focus */
       clearHandlers();

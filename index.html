@@ -2824,9 +2824,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <div id="om-fee-note" style="display:none;color:#555;font-size:.88rem;line-height:1.5;margin-top:8px;border:1px dashed #d7ccc8;border-radius:10px;padding:10px;background:#fff8e1;"></div>
       </div>
       <div class="om-form" id="om-form-fields">
-        <div><label for="om-name">Your Name *</label><input type="text" id="om-name" placeholder="Full name"/></div>
-        <div><label for="om-phone">Phone *</label><input type="tel" id="om-phone" placeholder="10-digit mobile number" maxlength="10" pattern="[0-9]{10}" inputmode="numeric"/></div>
-        <div class="full"><label for="om-email">Email * (to link past orders)</label><input type="email" id="om-email" placeholder="your@email.com"/></div>
+        <div><label for="om-name">Your Name *</label><input type="text" id="om-name" dir="ltr" placeholder="Full name"/></div>
+        <div><label for="om-phone">Phone *</label><input type="tel" id="om-phone" dir="ltr" placeholder="10-digit mobile number" maxlength="10" pattern="[0-9]{10}" inputmode="numeric"/></div>
+        <div class="full"><label for="om-email">Email * (to link past orders)</label><input type="email" id="om-email" dir="ltr" placeholder="your@email.com"/></div>
         <div class="full" id="om-saved-address-wrap" style="display:none">
           <label for="om-saved-address">Saved Address</label>
           <div class="om-address-picker">
@@ -2855,7 +2855,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
         <div><label for="om-time">Delivery Time</label><select id="om-time"><option>ASAP (~30 mins)</option><option>In 1 hour</option><option>Schedule for later</option></select></div>
-        <div class="full"><label for="om-note">Special Instructions</label><textarea id="om-note" rows="2" placeholder="Extra spicy, less oil..."></textarea></div>
+        <div class="full"><label for="om-note">Special Instructions</label><textarea id="om-note" dir="ltr" rows="2" placeholder="Extra spicy, less oil..."></textarea></div>
         <div class="full">
           <div class="payment-section">
             <div class="payment-title">💳 Payment Method</div>
@@ -8395,6 +8395,7 @@ window.addEventListener('load', function() {
     const nameEl = document.getElementById('om-name');
     const phoneEl = document.getElementById('om-phone');
     const emailEl = document.getElementById('om-email');
+    const addressEl = document.getElementById('om-address');
     console.log('Input listener attached:', 'om-name');
     console.log('Input listener attached:', 'om-phone');
     console.log('Input listener attached:', 'om-email');
@@ -8411,6 +8412,20 @@ window.addEventListener('load', function() {
     safePrefill(nameEl,  function(){ return prefName; });
     safePrefill(phoneEl, function(){ return prefPhone; });
     safePrefill(emailEl, function(){ return prefEmail; });
+
+    // Ensure Android WebView order modal fields are explicitly LTR before display.
+    [nameEl, phoneEl, emailEl, addressEl,
+     document.getElementById('om-landmark'),
+     document.getElementById('om-note'),
+     document.getElementById('om-map-search-input')].forEach(function(el) {
+      if (!el) return;
+      el.setAttribute('dir', 'ltr');
+      el.style.direction = 'ltr';
+      el.style.textAlign = 'left';
+      el.style.unicodeBidi = 'plaintext';
+      el.style.writingMode = 'horizontal-tb';
+      el.style.transform = 'none';
+    });
 
     // STEP 8: Sync totals
     if (window.currentDeliveryFee === undefined || window.currentDeliveryFee === null) {
@@ -9124,12 +9139,16 @@ window.addEventListener('load', function() {
     if (window.__gfyCursorPatchDone) return;
     window.__gfyCursorPatchDone = true;
     var orig = window.openOrderModal;
-    window.openOrderModal = function() {
+    var wrapper = function() {
       // Do not rebuild modal while user is typing in a checkout field
       if (typeof window.isCheckoutTyping === 'function' && window.isCheckoutTyping()) return;
       orig.apply(this, arguments);
       setTimeout(clearHandlers, 200);
     };
+    window.openOrderModal = wrapper;
+    if (typeof window.GFY_openOrderModal === 'function' && window.GFY_openOrderModal === orig) {
+      window.GFY_openOrderModal = wrapper;
+    }
   }
 
   if (document.readyState === 'loading') {

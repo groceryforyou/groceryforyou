@@ -419,9 +419,17 @@ document.addEventListener('error', function(e) {
     .om-form label{font-size:.75rem;font-weight:800;color:var(--brown);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px}
     .om-form input,.om-form textarea,.om-form select{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:.88rem;font-family:"Lato",sans-serif;background:#fff;outline:none;transition:border-color .2s;direction:ltr !important;text-align:left !important;unicode-bidi:normal !important}
     .om-form input:focus,.om-form textarea:focus{border-color:var(--saffron)}
-    /* ── Android WebView fix: Prevent cursor jumping during input ── */
-    #om-name,#om-phone,#om-email,#om-address,#om-landmark,#om-note,#om-time,
-    #om-map-search-input{direction:ltr !important;text-align:left !important;unicode-bidi:normal !important;writing-mode:horizontal-tb !important;}
+    /* ── Android WebView LTR fix (CSS-only, safe for cursor) ── */
+    #om-name,
+    #om-phone,
+    #om-email,
+    #om-address,
+    #om-landmark,
+    #om-map-search-input {
+      direction: ltr !important;
+      text-align: left !important;
+      unicode-bidi: plaintext !important;
+    }
     .om-actions{display:flex;gap:10px;margin-top:18px}
     .om-cancel{flex:1;background:var(--cream);color:var(--brown);border:1.5px solid var(--border);border-radius:12px;padding:12px;font-size:.88rem;font-weight:700;cursor:pointer;touch-action:manipulation}
     .om-place{flex:2;background:linear-gradient(90deg,var(--brown),var(--saffron));color:#fff;border:none;border-radius:12px;padding:12px;font-family:"Yeseva One",serif;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;touch-action:manipulation}
@@ -8945,56 +8953,13 @@ window.addEventListener('load', function() {
 })();
 </script>
 
+<!-- NOTE: __GFYForceLTRInstalled JS block removed.
+     Runtime DOM writes (inline styles via MutationObserver) on active inputs
+     break cursor positioning on Android WebView. LTR is enforced by CSS only. -->
 <script>
-(function(){
-  if(window.__GFYForceLTRInstalled) return; window.__GFYForceLTRInstalled = true;
-
-  var skipTypes = {checkbox:1,radio:1,submit:1,button:1,reset:1,file:1,image:1,hidden:1,range:1,color:1};
-
-  function isTextControl(el){
-    if(!el || el.nodeType !== 1) return false;
-    var tag = el.tagName.toLowerCase();
-    if(tag === 'textarea') return true;
-    if(tag === 'input'){
-      var t = (el.getAttribute('type')||'').toLowerCase();
-      return !skipTypes[t];
-    }
-    return el.isContentEditable === true;
-  }
-
-  function applyLTR(el){
-    try{
-      if(isTextControl(el)){
-        if (document.activeElement === el) return;
-        if(el.getAttribute('dir') !== 'ltr') el.setAttribute('dir','ltr');
-        if(el.getAttribute('inputmode') !== 'text') el.setAttribute('inputmode','text');
-        if(el.getAttribute('autocomplete') !== 'off') el.setAttribute('autocomplete','off');
-        el.style.setProperty('direction','ltr','important');
-        el.style.setProperty('text-align','left','important');
-        el.style.setProperty('unicode-bidi','plaintext','important');
-      }
-    }catch(e){}
-  }
-
-  function scan(root){
-    if(!root) return;
-    if(root.querySelectorAll){
-      var nodes = root.querySelectorAll('input,textarea,[contenteditable="true"],[contenteditable]:not([contenteditable="false"])');
-      for(var i=0;i<nodes.length;i++) applyLTR(nodes[i]);
-    }
-    if(isTextControl(root)) applyLTR(root);
-  }
-
-  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ scan(document); }); else setTimeout(function(){ scan(document); },0);
-
-  var mo = new MutationObserver(function(muts){
-    muts.forEach(function(m){
-      m.addedNodes && m.addedNodes.forEach(function(n){ if(n.nodeType===1) scan(n); });
-    });
-  });
-  try{ mo.observe(document.documentElement||document.body, {childList:true, subtree:true}); }catch(e){}
-
-})();
+// LTR direction for order modal fields is enforced by CSS (direction:ltr, unicode-bidi:plaintext).
+// No JS inline-style patching needed — it breaks cursor on Android WebView.
+console.log('[GFY] LTR enforced via CSS only. JS patch removed.');
 </script>
 
 <script>

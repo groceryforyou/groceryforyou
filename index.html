@@ -5918,7 +5918,7 @@ function setupCustomerWatch(db,uid){
                     setTimeout(()=>openRatingModal(orderId),600);
                   }
                 },
-                '🎉 Order delivered!',
+                null,  // no toast — popup only
                 2000
               );
               gfyNotif('Grocery For You 🛒', info.title);
@@ -5927,13 +5927,13 @@ function setupCustomerWatch(db,uid){
           }
           
           // OTHER STATUSES (accepted, ready, out_for_delivery, etc.)
-          // Show status modal popup
+          // Show status modal popup only — no toast
           showCustomerAlertModal(
             info.title,
             '<small>Order ID: '+orderId+'</small><br/>'+info.body,
             info.type,
             null,
-            info.title,
+            null,  // no toast — popup only
             2000
           );
           gfyNotif('Grocery For You 🛒', info.title);

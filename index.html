@@ -9105,7 +9105,7 @@ window.addEventListener('load', function() {
 </script>
 
 
-<!-- ===== GFY TRACKING: Replace "In Progress" with "Enjoy Your Meal" on delivery ===== -->
+<!-- ===== GFY TRACKING: Replace "In Progress" → "Enjoy Your Meal 🍽️" when delivered ===== -->
 <script>
 (function() {
   'use strict';
@@ -9118,38 +9118,41 @@ window.addEventListener('load', function() {
     var content = document.getElementById('tracking-content');
     if (!content) return;
 
-    // Only patch when the last tracking step (Delivered) is active or done
-    var steps = content.querySelectorAll('.tracking-step');
-    if (!steps.length) return;
-    var lastStep = steps[steps.length - 1];
-    var isDelivered = lastStep.classList.contains('active') || lastStep.classList.contains('done');
+    // Confirm it's a delivered order by checking the edb-title element
+    // (shows "Order Delivered!" in the header card — clearly visible after delivery)
+    var titleEl = content.querySelector('.edb-title');
+    if (!titleEl) return;
+    var titleLower = (titleEl.textContent || '').toLowerCase();
+    var isDelivered = titleLower.indexOf('delivered') !== -1 || titleLower.indexOf('completed') !== -1;
     if (!isDelivered) return;
 
-    // PRIMARY: replace the step-desc text inside the last step directly
-    var lastDesc = lastStep.querySelector('.step-desc');
-    if (lastDesc && lastDesc.textContent.trim().toLowerCase().indexOf('in progress') !== -1) {
-      lastDesc.textContent = MEAL_TEXT;
-      return;
-    }
-
-    // FALLBACK: walk all text nodes in tracking-content, match case-insensitively
+    // Collect matching text nodes first (never modify during TreeWalker traversal)
+    var toReplace = [];
     var walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, null, false);
     var node;
     while ((node = walker.nextNode())) {
-      if (node.nodeValue && node.nodeValue.trim().toLowerCase() === 'in progress') {
-        node.nodeValue = MEAL_TEXT;
+      if ((node.nodeValue || '').trim().toLowerCase() === 'in progress') {
+        toReplace.push(node);
       }
     }
+
+    // Now replace all collected nodes safely
+    toReplace.forEach(function(n) { n.nodeValue = MEAL_TEXT; });
   }
 
-  // Watch tracking-content for DOM updates (obfuscated code rewrites innerHTML on each status change)
-  var _trackObs = new MutationObserver(function() { patchTrackingText(); });
+  // Debounced observer — waits 50 ms after last DOM mutation so the
+  // obfuscated render fully settles before we patch
+  var _debounceTimer = null;
+  var _trackObs = new MutationObserver(function() {
+    clearTimeout(_debounceTimer);
+    _debounceTimer = setTimeout(patchTrackingText, 50);
+  });
 
   function startTrackingPatch() {
     var el = document.getElementById('tracking-content');
     if (!el) return;
     _trackObs.observe(el, { childList: true, subtree: true });
-    patchTrackingText(); // run once for already-rendered content
+    patchTrackingText(); // also run immediately for already-rendered content
   }
 
   if (document.readyState === 'loading') {

@@ -1711,6 +1711,21 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
     setTimeout(patch, 100);
   }
 })();
+
+// Ensure categories are always sorted by `sortOrder` before rendering menu
+(function(){
+  if (window.__GFY_RENDER_WRAPPED__) return;
+  window.__GFY_RENDER_WRAPPED__ = true;
+  const _orig = window.renderMenuPage || function(f){ return; };
+  window.renderMenuPage = function(filter){
+    try {
+      if (Array.isArray(window.categories)) {
+        window.categories.sort((a,b)=> (typeof a.sortOrder === 'number' ? a.sortOrder : 0) - (typeof b.sortOrder === 'number' ? b.sortOrder : 0));
+      }
+    } catch(e) { console.warn('[renderMenuPage] sort guard failed', e); }
+    return _orig.call(this, filter);
+  };
+})();
 </script>
   <!-- Visually hidden but accessible H1 for screen readers + SEO -->
   <h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Grocery For You Sicsilla — Online Grocery Delivery in Sircilla</h1>
@@ -7441,10 +7456,18 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     }
 
     try {
+      // determine a sensible sortOrder: put new category at the end
+      let maxOrder = 0;
+      try {
+        const existing = Array.isArray(window.categories) ? window.categories : [];
+        existing.forEach(c => { if (typeof c.sortOrder === 'number' && c.sortOrder > maxOrder) maxOrder = c.sortOrder; });
+      } catch (e) { /* ignore */ }
+
       await firebaseDB.collection('categories').doc(catId).set({
         id: catId,
         name: name,
         emoji: emoji,
+        sortOrder: maxOrder + 1,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
@@ -7466,11 +7489,19 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const listContainer = document.getElementById('manage-cats-list');
     if (!listContainer) return;
 
-    const allCats = (typeof window.categories !== 'undefined') ? window.categories : [];
-    
+    const allCats = (typeof window.categories !== 'undefined') ? window.categories.slice() : [];
+
+    // Ensure display sorts by sortOrder (fallback to existing array order)
+    allCats.sort((a,b) => {
+      const as = (typeof a.sortOrder === 'number') ? a.sortOrder : 0;
+      const bs = (typeof b.sortOrder === 'number') ? b.sortOrder : 0;
+      return as - bs;
+    });
+
     listContainer.innerHTML = allCats.map(cat => `
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--cream); border:1.5px solid var(--border); border-radius:12px; gap:10px;">
-        <div style="display:flex; align-items:center; gap:8px;">
+      <div class="manage-cat-row" draggable="true" data-cat-id="${cat.id}" style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--cream); border:1.5px solid var(--border); border-radius:12px; gap:10px;">
+        <div style="display:flex; align-items:center; gap:10px; cursor:grab;">
+          <span class="cat-drag-handle" style="font-size:1.1rem; color:#888;">⋮⋮</span>
           <span style="font-size:1.3rem;">${cat.emoji}</span>
           <span style="font-weight:700; color:var(--brown); font-size:.9rem;">${cat.name}</span>
         </div>
@@ -7480,6 +7511,11 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         </div>
       </div>
     `).join('');
+
+    // Setup drag & touch handlers (admin only)
+    setTimeout(() => {
+      try { enableManageCatsDragHandlers(listContainer); } catch (e) { console.warn('[ManageCats] Drag handlers failed', e); }
+    }, 30);
 
     const overlay = document.getElementById('manage-cats-modal-overlay');
     if (overlay) overlay.classList.add('open');
@@ -7493,6 +7529,186 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       if (typeof window.unlockBodyScroll === 'function') window.unlockBodyScroll();
     }
   };
+
+  // Enable drag & drop (desktop) and touch (mobile) handlers for manage categories list
+  function enableManageCatsDragHandlers(container) {
+    if (!container) return;
+    let dragEl = null;
+    let touchDragEl = null;
+
+    container.querySelectorAll('.manage-cat-row').forEach(row => {
+      row.addEventListener('dragstart', (e) => {
+        if (currentRole !== 'admin') { e.preventDefault(); return; }
+        dragEl = row;
+        row.classList.add('dragging');
+        try { e.dataTransfer.effectAllowed = 'move'; } catch (err) {}
+      });
+
+      row.addEventListener('dragend', () => { if (dragEl) dragEl.classList.remove('dragging'); dragEl = null; });
+
+      row.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (!dragEl) return;
+        const target = e.currentTarget;
+        if (target === dragEl) return;
+        const rect = target.getBoundingClientRect();
+        const after = (e.clientY - rect.top) > (rect.height / 2);
+        if (after) target.parentNode.insertBefore(dragEl, target.nextSibling);
+        else target.parentNode.insertBefore(dragEl, target);
+      });
+
+      row.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (dragEl) dragEl.classList.remove('dragging');
+        dragEl = null;
+        // Persist new order
+        persistCategoryOrder(container);
+      });
+
+      // Touch support: long-press to activate drag, follow finger with a clone,
+      // insert a placeholder and persist order on drop.
+      (function() {
+        let lpTimer = null;
+        let startX = 0, startY = 0;
+        let dragging = false;
+        let clone = null;
+        let placeholder = null;
+
+        function clearLongPress() {
+          if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
+        }
+
+        row.addEventListener('touchstart', function(e) {
+          if (currentRole !== 'admin') return;
+          const t = e.touches && e.touches[0];
+          if (!t) return;
+          startX = t.clientX; startY = t.clientY;
+          lpTimer = setTimeout(() => {
+            // Activate drag
+            dragging = true;
+            touchDragEl = row;
+            row.classList.add('dragging');
+
+            // create placeholder
+            placeholder = document.createElement('div');
+            placeholder.className = 'manage-cat-placeholder';
+            placeholder.style.height = row.getBoundingClientRect().height + 'px';
+            placeholder.style.margin = window.getComputedStyle(row).margin;
+            row.parentNode.insertBefore(placeholder, row.nextSibling);
+
+            // create clone to follow finger
+            clone = row.cloneNode(true);
+            clone.style.position = 'fixed';
+            clone.style.left = (t.clientX - row.getBoundingClientRect().width/2) + 'px';
+            clone.style.top = (t.clientY - row.getBoundingClientRect().height/2) + 'px';
+            clone.style.width = row.getBoundingClientRect().width + 'px';
+            clone.style.zIndex = 9999;
+            clone.style.pointerEvents = 'none';
+            clone.style.opacity = '0.95';
+            clone.classList.add('drag-clone');
+            document.body.appendChild(clone);
+
+            // hide original row visually (keep in DOM)
+            row.style.visibility = 'hidden';
+          }, 220); // long-press threshold
+        }, {passive:true});
+
+        row.addEventListener('touchmove', function(e) {
+          const t = e.touches && e.touches[0];
+          if (!t) return;
+          const dx = Math.abs(t.clientX - startX);
+          const dy = Math.abs(t.clientY - startY);
+          // if user is scrolling before long-press, cancel
+          if (!dragging && (dx > 10 || dy > 10)) {
+            clearLongPress();
+          }
+          if (dragging && clone) {
+            e.preventDefault();
+            clone.style.left = (t.clientX - clone.getBoundingClientRect().width/2) + 'px';
+            clone.style.top = (t.clientY - clone.getBoundingClientRect().height/2) + 'px';
+            // detect target row under finger
+            const el = document.elementFromPoint(t.clientX, t.clientY);
+            const targetRow = el && el.closest ? el.closest('.manage-cat-row') : null;
+            if (targetRow && targetRow !== row && targetRow !== placeholder) {
+              const rect = targetRow.getBoundingClientRect();
+              const after = (t.clientY - rect.top) > (rect.height / 2);
+              if (after) targetRow.parentNode.insertBefore(placeholder, targetRow.nextSibling);
+              else targetRow.parentNode.insertBefore(placeholder, targetRow);
+            }
+          }
+        }, {passive:false});
+
+        row.addEventListener('touchend', function(e) {
+          clearLongPress();
+          if (!dragging) { touchDragEl = null; return; }
+          // finish drag
+          dragging = false;
+          if (clone && placeholder) {
+            placeholder.parentNode.insertBefore(row, placeholder);
+            placeholder.parentNode.removeChild(placeholder);
+            document.body.removeChild(clone);
+            clone = null; placeholder = null;
+            row.style.visibility = '';
+            row.classList.remove('dragging');
+            touchDragEl = null;
+            // Persist new order
+            persistCategoryOrder(container);
+          } else {
+            // cleanup
+            if (clone && clone.parentNode) clone.parentNode.removeChild(clone);
+            if (placeholder && placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
+            if (row) { row.style.visibility = ''; row.classList.remove('dragging'); }
+            touchDragEl = null;
+          }
+        }, {passive:true});
+
+        row.addEventListener('touchcancel', function() {
+          clearLongPress();
+          if (dragging) {
+            dragging = false;
+            if (clone && clone.parentNode) clone.parentNode.removeChild(clone);
+            if (placeholder && placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
+            if (row) { row.style.visibility = ''; row.classList.remove('dragging'); }
+            touchDragEl = null;
+          }
+        }, {passive:true});
+      })();
+    });
+  }
+
+  async function persistCategoryOrder(container) {
+    if (currentRole !== 'admin') { if (typeof showToast === 'function') showToast('⚠️ Only admin can reorder'); return; }
+    const rows = Array.from(container.querySelectorAll('.manage-cat-row'));
+    const ids = rows.map(r => r.dataset.catId).filter(Boolean);
+    if (!ids.length) return;
+
+    // Reorder window.categories in-place to preserve references
+    if (Array.isArray(window.categories)) {
+      const map = {};
+      window.categories.forEach(c => { if (c && c.id) map[c.id] = c; });
+      window.categories.length = 0;
+      ids.forEach((id, idx) => {
+        const c = map[id] || { id: id, name: '', emoji: '📂' };
+        c.sortOrder = idx + 1;
+        window.categories.push(c);
+      });
+    }
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+    if (!firebaseDB) { if (typeof showToast === 'function') showToast('⚠️ Database not ready'); return; }
+
+    try {
+      const promises = ids.map((id, idx) => {
+        return firebaseDB.collection('categories').doc(id).set({ sortOrder: idx + 1 }, { merge: true });
+      });
+      await Promise.all(promises);
+      if (typeof showToast === 'function') showToast('✅ Category order saved', 2000);
+    } catch (err) {
+      console.error('[PersistOrder] Firestore update failed:', err);
+      if (typeof showToast === 'function') showToast('⚠️ Could not save category order', 3000);
+    }
+  }
  
   window.openEditCatModal = function(catId) {
     const allCats = (typeof window.categories !== 'undefined') ? window.categories : [];
@@ -7731,7 +7947,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
               id: doc.id,
               name: data.name || '',
               emoji: data.emoji || '📂',
-              deleted: data.deleted === true
+              deleted: data.deleted === true,
+              sortOrder: (typeof data.sortOrder === 'number') ? data.sortOrder : null
             });
           });
         }
@@ -7748,6 +7965,30 @@ window.updateOrderCardStatus = updateOrderCardStatus;
             mergedCats.push(lc);
           }
         });
+
+        // Assign fallback sortOrder for categories that don't have one (preserve display order)
+        try {
+          const existingOrders = mergedCats.filter(c => typeof c.sortOrder === 'number').map(c => c.sortOrder);
+          let maxOrder = existingOrders.length ? Math.max(...existingOrders) : 0;
+          const toPersist = [];
+          mergedCats.forEach(c => {
+            if (typeof c.sortOrder !== 'number') {
+              maxOrder += 1;
+              c.sortOrder = maxOrder;
+              toPersist.push({ id: c.id, sortOrder: c.sortOrder });
+            }
+          });
+          // Persist missing sortOrder values back to Firestore so old categories gain a stable order
+          if (toPersist.length && firebaseDB) {
+            const batchPromises = toPersist.map(x => firebaseDB.collection('categories').doc(x.id).set({ sortOrder: x.sortOrder }, { merge: true }).catch(err => { console.warn('[startCategoriesSync] Could not persist sortOrder for', x.id, err); }));
+            Promise.all(batchPromises).then(() => { console.log('[startCategoriesSync] Persisted fallback sortOrder for', toPersist.length, 'categories'); });
+          }
+        } catch (err) {
+          console.warn('[startCategoriesSync] Failed to assign fallback sortOrder', err);
+        }
+
+        // Always sort categories by sortOrder ascending for consistent UI
+        mergedCats.sort((a,b) => (typeof a.sortOrder === 'number' ? a.sortOrder : 0) - (typeof b.sortOrder === 'number' ? b.sortOrder : 0));
 
         // Update arrays in-place to preserve references
         if (typeof categories !== 'undefined' && Array.isArray(categories)) {

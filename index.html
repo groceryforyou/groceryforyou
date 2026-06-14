@@ -314,8 +314,6 @@ document.addEventListener('error', function(e) {
   bottom:0;
   width:100vw;
   max-width:100vw;
-  height:100vh;
-  min-height:850px;
   background:#fff;
   z-index:100000;
   display:flex;
@@ -1261,8 +1259,8 @@ document.addEventListener('error', function(e) {
     .add-btn,.card-qty-btn{min-height:36px;min-width:36px}
     .mob-nav-item span:not(.mni-icon):not(.mni-badge){font-size:.58rem}
 
-    /* Prevent body scroll when modal open — position:fixed + saved scroll prevents layout jump */
-    body.modal-open{overflow:hidden;position:fixed;width:100%;left:0;right:0;}
+    /* Prevent body scroll when modal open */
+    body.modal-open{overflow:hidden;}
 
     /* Loading skeleton */
     .skel-line{
@@ -7070,12 +7068,9 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   window.lockBodyScroll = function() {
     _scrollPos = window.scrollY;
     document.body.classList.add('modal-open');
-    document.body.style.top = '-' + _scrollPos + 'px';
   };
   window.unlockBodyScroll = function() {
     document.body.classList.remove('modal-open');
-    document.body.style.top = '';
-    window.scrollTo(0, _scrollPos);
   };
 
   /* ── 6. Input font-size fix — already handled in CSS (16px) ── */
@@ -8428,13 +8423,8 @@ window.addEventListener('load', function() {
     if (typeof window.lockBodyScroll === 'function') {
       window.lockBodyScroll();
     } else {
-      // Fallback: manual lock preserving scroll position
-      var _sp = window.scrollY || window.pageYOffset || 0;
-      document.body.style.top = '-' + _sp + 'px';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
+      // Fallback: manual lock without fixing body layout.
       document.body.style.overflow = 'hidden';
-      document._gfyScrollPos = _sp;
     }
 
     // STEP 10: Payment options and address
@@ -8555,12 +8545,7 @@ window.addEventListener('load', function() {
       window.unlockBodyScroll();
     } else {
       // Fallback: restore manually
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.width = '';
       document.body.style.overflow = '';
-      var _sp = document._gfyScrollPos || 0;
-      window.scrollTo(0, _sp);
     }
   };
 
@@ -9101,6 +9086,135 @@ window.addEventListener('load', function() {
       }
     }, true);
   });
+})();
+</script>
+
+<!-- ENHANCED CUSTOMER DISPLAY WITH EXPANDABLE ORDERS -->
+<script>
+(function() {
+  'use strict';
+
+  // Override displayCustomers to show one card per customer with expandable orders
+  window.displayCustomers = function(customersArray) {
+    const container = document.getElementById('customers-list');
+    const countLabel = document.getElementById('cust-count-label');
+
+    if (!container) return;
+
+    // Update count label
+    if (countLabel) {
+      countLabel.textContent = customersArray.length + ' customer' + (customersArray.length !== 1 ? 's' : '');
+    }
+
+    // Handle empty state
+    if (!customersArray || !customersArray.length) {
+      container.innerHTML = '<div class="empty-cat-msg"><div class="big">👥</div>No customers yet.</div>';
+      return;
+    }
+
+    // Build customer cards with expandable orders
+    container.innerHTML = customersArray.map((customer, idx) => {
+      const completedCount = (customer.orders || []).filter(o => o.status === 'completed' || o.status === 'delivered').length;
+      const pendingCount = (customer.orders || []).filter(o => o.status === 'pending' || o.status === 'accepted').length;
+      const expandId = 'expand-orders-' + idx;
+      const ordersId = 'orders-detail-' + idx;
+
+      return `
+        <div class="customer-card" style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #fafafa; margin-bottom: 10px;">
+          <!-- Customer Header -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div>
+              <strong style="font-size: 1rem;">${customer.name || '—'}</strong>
+              <div style="font-size: 0.8rem; color: #666;">
+                📞 ${customer.phone || '—'} · ✉️ ${customer.email || '—'}
+              </div>
+            </div>
+            <button id="${expandId}" class="cat-save-btn" style="font-size: 0.75rem; padding: 6px 12px; flex-shrink: 0;" onclick="toggleOrdersExpand('${ordersId}', '${expandId}')">
+              ▼ Orders (${customer.orders ? customer.orders.length : 0})
+            </button>
+          </div>
+
+          <!-- Summary Stats -->
+          <div style="font-size: 0.85rem; color: #555; margin-bottom: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+            <span>💰 Total Spent: ₹${(customer.totalSpent || 0).toFixed(2)}</span> · 
+            <span>✅ Completed: ${completedCount}</span> · 
+            <span>⏳ Pending: ${pendingCount}</span>
+          </div>
+
+          <!-- Expandable Orders -->
+          <div id="${ordersId}" style="display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;">
+            ${(customer.orders || []).map((order, oIdx) => `
+              <div style="margin-bottom: 10px; padding: 8px; background: #fff; border-left: 3px solid ${getStatusColor(order.status)}; border-radius: 4px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <strong>Order ID:</strong> ${order.id || '—'}<br/>
+                    <strong>Date:</strong> ${formatOrderDate(order.createdAt) || '—'}<br/>
+                    <strong>Status:</strong> <span style="color: ${getStatusColor(order.status)}; font-weight: bold;">${order.status || '—'}</span>
+                  </div>
+                </div>
+                <div style="margin-top: 6px; font-size: 0.8rem; color: #555;">
+                  <strong>Items:</strong> ${formatOrderItems(order.items) || 'N/A'}<br/>
+                  <strong>Total:</strong> ₹${order.total || 0}<br/>
+                  <strong>Phone:</strong> ${order.customerPhone || '—'}<br/>
+                  <strong>Email:</strong> ${order.customerEmail || '—'}<br/>
+                  <strong>Address:</strong> ${order.deliveryAddress || order.address || '—'}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+  };
+
+  // Helper: Toggle orders expansion
+  window.toggleOrdersExpand = function(ordersId, buttonId) {
+    const ordersDiv = document.getElementById(ordersId);
+    const btn = document.getElementById(buttonId);
+    if (!ordersDiv) return;
+
+    const isOpen = ordersDiv.style.display !== 'none';
+    ordersDiv.style.display = isOpen ? 'none' : 'block';
+    if (btn) {
+      btn.textContent = (isOpen ? '▶' : '▼') + ' Orders (' + (ordersDiv.parentElement.querySelector('[id^="orders-detail-"]').innerHTML.match(/<div/g) || []).length + ')';
+    }
+  };
+
+  // Helper: Get status color
+  window.getStatusColor = function(status) {
+    const colors = {
+      'completed': '#0d3b1a',
+      'delivered': '#0d3b1a',
+      'pending': '#ff9800',
+      'accepted': '#2196F3',
+      'preparing': '#4CAF50',
+      'out-for-delivery': '#2196F3',
+      'cancelled': '#f44336',
+      'rejected': '#d32f2f'
+    };
+    return colors[status] || '#999';
+  };
+
+  // Helper: Format order date
+  window.formatOrderDate = function(createdAt) {
+    if (!createdAt) return '';
+    try {
+      if (typeof createdAt.toDate === 'function') {
+        const date = createdAt.toDate();
+        return date.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+      return '';
+    } catch (e) {
+      return '';
+    }
+  };
+
+  // Helper: Format order items
+  window.formatOrderItems = function(items) {
+    if (!items || !Array.isArray(items)) return 'N/A';
+    return items.map(item => `${item.name || 'Item'} (${item.qty || 1})`).slice(0, 3).join(', ') + (items.length > 3 ? '...' : '');
+  };
+
 })();
 </script>
 

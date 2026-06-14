@@ -5824,7 +5824,7 @@ function setupAdminOrderWatch(db){
 
 // ── 3. CUSTOMER ORDER STATUS WATCHER ────────────────────────────────────
 // Uses localStorage keys:
-//   - shownStatusPopup_${orderId}_${status}: track each status popup
+//   - shownOrderPopups_${orderId}_${status}: track each status popup
 //   - deliveredPopupShown_${orderId}: prevent duplicate delivered popups
 //   - ratingPopupShown_${orderId}: prevent duplicate rating popups
 // On initial load, marks all existing orders as "seen" so old popups don't replay.
@@ -5846,10 +5846,6 @@ function setupCustomerWatch(db,uid){
   };
   
   try{
-    // Ensure fresh initialization for this UID: clear previous init flag so
-    // the first snapshot after sign-in silently marks existing statuses as seen.
-    _customerWatcherInitialized = false;
-
     _custUnsub=db.collection('orders')
       .where('customerUid','==',uid)
       .orderBy('createdAt','desc')
@@ -5857,11 +5853,11 @@ function setupCustomerWatch(db,uid){
       .onSnapshot(snap=>{
         // FIRST INITIALIZATION: Mark all existing statuses as seen
         // so old popups don't appear on page load
-          if(!_customerWatcherInitialized){
+        if(!_customerWatcherInitialized){
           snap.forEach(doc=>{
             const s=(doc.data().status||'');
             if(s){
-              const popupKey='shownStatusPopup_'+doc.id+'_'+s;
+              const popupKey='shownOrderPopups_'+doc.id+'_'+s;
               localStorage.setItem(popupKey,'1');
             }
             // Also mark delivered popups as shown for old orders
@@ -5878,7 +5874,7 @@ function setupCustomerWatch(db,uid){
         }
         
         // REAL-TIME CHANGES: Only show popups for actual modifications
-          snap.docChanges().forEach(ch=>{
+        snap.docChanges().forEach(ch=>{
           if(ch.type!=='modified')return;
           
           const o=ch.doc.data();
@@ -5888,7 +5884,7 @@ function setupCustomerWatch(db,uid){
           if(!s)return;
           
           // Check if we already showed this popup for this order+status
-          const popupKey='shownStatusPopup_'+orderId+'_'+s;
+          const popupKey='shownOrderPopups_'+orderId+'_'+s;
           if(localStorage.getItem(popupKey)){
             return; // Already shown, skip
           }
@@ -6059,10 +6055,7 @@ waitFor(
     window.db=db; // Expose db to window.db
     firebase.auth().onAuthStateChanged(async user=>{
       if(!user){
-          if(_custUnsub){_custUnsub();_custUnsub=null;}
-          // Reset the initialization flag so next sign-in will silently mark
-          // existing order statuses as seen for the new user.
-          _customerWatcherInitialized = false;
+        if(_custUnsub){_custUnsub();_custUnsub=null;}
         if(_adminOrderUnsub){_adminOrderUnsub();_adminOrderUnsub=null;_adminInit=false;}
         // Clear user-specific UI state on logout
         window.currentUser=null;

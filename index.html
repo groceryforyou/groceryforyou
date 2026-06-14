@@ -5833,6 +5833,7 @@ let _custUnsub=null;
 let _customerWatcherInitialized=false;
 function setupCustomerWatch(db,uid){
   if(_custUnsub){_custUnsub();_custUnsub=null;}
+  _customerWatcherInitialized=false; // Reset so re-sign-in always silently skips initial snapshot
   if(!uid)return;
   const MSGS={
     'accepted':   {title:'🎉 Order Accepted!',   body:'Your Grocery is being prepared now! ~30 mins to delivery.', icon:'🛒', type:'success'},

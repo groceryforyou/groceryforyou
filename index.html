@@ -4116,184 +4116,7 @@ function toggleSidebar() {
       try {
         const result = await submitSupportTicketInternal(...args);
         console.log('[TicketSubmit] ✅ Submission completed successfully');
-        // Reload after a short delay to let Firestore write settle
-        setTimeout(() => { loadTickets(); }, 800);
-        return result;
-      } catch (err) {
-        // Only show a toast for unexpected errors (validation already shows its own)
-        const msg = err && (err.message || err.code || String(err));
-        console.error('[TicketSubmit] ❌ Error:', msg, err);
-        const knownErrors = ['Missing support description','Missing order ID','Firestore not ready',
-          'Not a valid order ID','Order does not belong to current customer',
-          'Active support ticket already exists for this order'];
-        if (!knownErrors.includes(msg)) {
-          showToast('⚠️ Could not submit ticket. Please try again.', 4000);
-        }
-      }
-    };
-  }
-
-  async function submitSupportTicketInternal() {
-    // Safe access to currentUser (may be defined in obfuscated global scope)
-    const _cu = (typeof currentUser !== 'undefined') ? currentUser : null;
-
-    const type    = document.getElementById('support-type')?.value || 'Other';
-    const desc    = (document.getElementById('support-desc')?.value || '').trim();
-    const orderId = (document.getElementById('support-order-id')?.value || '').trim();
-
-    if (!desc) {
-      showToast('⚠️ Please describe your issue');
-      throw new Error('Missing support description');
-    }
-    if (!orderId) {
-      showToast('⚠️ Please enter your Order ID (e.g. CE-XXXXXX)');
-      throw new Error('Missing order ID');
-    }
-
-    // Wait for Firestore (db comes from obfuscated code)
-    if (typeof db === 'undefined' || !db) {
-      showToast('⚠️ Not connected. Please refresh the page and try again.', 4000);
-      throw new Error('Firestore not ready');
-    }
-
-    // Gather customer identity
-    let customerEmail = _cu ? (_cu.email || '') : '';
-    let customerUid   = _cu ? (_cu.uid   || null) : null;
-    if (!customerEmail) {
-      try {
-        const lastOrder = JSON.parse(localStorage.getItem('lastOrder') || 'null');
-        if (lastOrder && lastOrder.email) customerEmail = lastOrder.email;
-      } catch (_e) {}
-    }
-
-    // Validate order exists in Firestore
-    let orderDoc = null;
-    try {
-      const orderSnap = await db.collection('orders').where('orderId', '==', orderId).get();
-      if (!orderSnap || orderSnap.empty || !orderSnap.docs.length) {
-        showToast('⚠️ Order ID not found. Please check and try again.');
-        throw new Error('Not a valid order ID');
-      }
-      orderDoc = orderSnap.docs[0].data();
-    } catch (err) {
-      if (err.message === 'Not a valid order ID') throw err;
-      // Firestore query itself failed (rules / network) — still allow submit
-      console.warn('[TicketSubmit] Order lookup failed (Firestore rules?):', err.code || err.message);
-    }
-
-    // Only verify ownership when we got the order doc
-    if (orderDoc) {
-      const orderEmail = (orderDoc.customerEmail || '').toLowerCase();
-      const orderUid   = orderDoc.customerUid || null;
-      const matches = _cu
-        ? (orderUid === _cu.uid || orderEmail === (_cu.email || '').toLowerCase())
-        : (customerEmail && orderEmail && orderEmail === customerEmail.toLowerCase());
-      if (!matches) {
-        showToast('⚠️ This Order ID does not belong to your account.');
-        throw new Error('Order does not belong to current customer');
-      }
-    }
-
-    // Check for duplicate open ticket
-    try {
-      const supportSnap = await db.collection('support').where('orderId', '==', orderId).get();
-      const hasOpen = supportSnap && supportSnap.docs.some(d => {
-        return (d.data().status || '').toLowerCase() !== 'resolved';
-      });
-      if (hasOpen) {
-        showToast('⚠️ A ticket for this order is already open. Please wait for a response.');
-        throw new Error('Active support ticket already exists for this order');
-      }
-    } catch (err) {
-      if (err.message === 'Active support ticket already exists for this order') throw err;
-      // Duplicate check failed — proceed anyway
-      console.warn('[TicketSubmit] Duplicate check failed:', err.code || err.message);
-    }
-
-    // Build server timestamp with safe fallback
-    const _ts = () => (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
-      ? firebase.firestore.FieldValue.serverTimestamp()
-      : new Date();
-
-    // Write ticket to Firestore
-    const ticketData = {
-      type,
-      desc,
-      orderId,
-      customerEmail,
-      customerUid,
-      createdAt: _ts(),
-      status: 'open'
-    };
-    const supportDoc = await db.collection('support').add(ticketData);
-
-    // Write admin notification (best-effort)
-    try {
-      await db.collection('admin_notifications').add({
-        title: 'New Support Ticket',
-        message: `Support ticket for order ${orderId} has been submitted.`,
-        ticketId: supportDoc.id,
-        orderId,
-        customerEmail,
-        customerUid,
-        type: 'support',
-        createdAt: _ts(),
-        read: false
-      });
-    } catch (notifErr) {
-      console.warn('[TicketSubmit] Admin notification failed:', notifErr.code || notifErr.message);
-    }
-
-    // Success feedback
-    showToast('✅ Ticket submitted! We\'ll get back to you soon.', 4000);
-
-    // Clear form
-    const descEl    = document.getElementById('support-desc');
-    const orderEl   = document.getElementById('support-order-id');
-    if (descEl)  descEl.value  = '';
-    if (orderEl) orderEl.value = '';
-
-    // Switch to ticket list view
-    if (typeof window.closeSupportForm === 'function') window.closeSupportForm();
-    showTicketList();
-
-    return supportDoc;
-  }
-
-  function filterAdminSupportTickets() {
-    const query = document.getElementById('admin-support-search')?.value.trim().toLowerCase() || '';
-    const list = document.getElementById('admin-support-list');
-    if (!list) return;
-    Array.from(list.children).forEach(card => {
-      const text = (card.innerText || '').toLowerCase();
-      card.style.display = !query || text.includes(query) ? '' : 'none';
-    });
-  }
-
-  const DELIVERY_SETTINGS_KEY = 'deliverySettings';
-  const DEFAULT_DELIVERY_SETTINGS = {
-    feeEnabled: false,
-    feeAmount: 0,
-    freeAbove: 200,
-    freeOffer: false,
-    highDemandEnabled: false,
-    highDemandAmount: 0,
-    highDemandMessage: 'Delivery partner demand is high due to heavy rain or hot weather. Extra fee applies.',
-    businessHoursEnabled: false,
-    openHour: 6,
-    closeHour: 20,
-    outOfServiceMessage: 'Orders are only accepted during business hours. Please try again later.',
-    businessOpen: true,
-    updatedAt: ''
-  };
   
-  var _deliverySettingsListener = null; // Real-time listener unsubscriber
-
-  function getDeliverySettings() {
-    try {
-      const saved = localStorage.getItem(DELIVERY_SETTINGS_KEY);
-      if (!saved) return { ...DEFAULT_DELIVERY_SETTINGS };
-      const parsed = JSON.parse(saved);
       // Only merge with defaults for missing properties, don't override with defaults
       return {
         feeEnabled: parsed.feeEnabled !== undefined ? parsed.feeEnabled : DEFAULT_DELIVERY_SETTINGS.feeEnabled,
@@ -7493,6 +7316,102 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       if (typeof window.unlockBodyScroll === 'function') window.unlockBodyScroll();
     }
   };
+
+  // Enable drag & drop (desktop) and touch (mobile) handlers for manage categories list
+  function enableManageCatsDragHandlers(container) {
+    if (!container) return;
+    let dragEl = null;
+    let touchDragEl = null;
+
+    container.querySelectorAll('.manage-cat-row').forEach(row => {
+      row.addEventListener('dragstart', (e) => {
+        if (currentRole !== 'admin') { e.preventDefault(); return; }
+        dragEl = row;
+        row.classList.add('dragging');
+        try { e.dataTransfer.effectAllowed = 'move'; } catch (err) {}
+      });
+
+      row.addEventListener('dragend', () => { if (dragEl) dragEl.classList.remove('dragging'); dragEl = null; });
+
+      row.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (!dragEl) return;
+        const target = e.currentTarget;
+        if (target === dragEl) return;
+        const rect = target.getBoundingClientRect();
+        const after = (e.clientY - rect.top) > (rect.height / 2);
+        if (after) target.parentNode.insertBefore(dragEl, target.nextSibling);
+        else target.parentNode.insertBefore(dragEl, target);
+      });
+
+      row.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (dragEl) dragEl.classList.remove('dragging');
+        dragEl = null;
+        // Persist new order
+        persistCategoryOrder(container);
+      });
+
+      // Touch fallback: simple touchstart/touchend reorder by dropping on target
+      row.addEventListener('touchstart', (e) => {
+        if (currentRole !== 'admin') return;
+        touchDragEl = row;
+        row.classList.add('dragging');
+      }, {passive:true});
+
+      row.addEventListener('touchend', (e) => {
+        if (!touchDragEl) return;
+        const touch = (e.changedTouches && e.changedTouches[0]) || null;
+        if (touch) {
+          const el = document.elementFromPoint(touch.clientX, touch.clientY);
+          const targetRow = el && el.closest ? el.closest('.manage-cat-row') : null;
+          if (targetRow && targetRow !== touchDragEl) {
+            const rect = targetRow.getBoundingClientRect();
+            const after = (touch.clientY - rect.top) > (rect.height / 2);
+            if (after) targetRow.parentNode.insertBefore(touchDragEl, targetRow.nextSibling);
+            else targetRow.parentNode.insertBefore(touchDragEl, targetRow);
+            persistCategoryOrder(container);
+          }
+        }
+        touchDragEl.classList.remove('dragging');
+        touchDragEl = null;
+      }, {passive:true});
+    });
+  }
+
+  async function persistCategoryOrder(container) {
+    if (currentRole !== 'admin') { if (typeof showToast === 'function') showToast('⚠️ Only admin can reorder'); return; }
+    const rows = Array.from(container.querySelectorAll('.manage-cat-row'));
+    const ids = rows.map(r => r.dataset.catId).filter(Boolean);
+    if (!ids.length) return;
+
+    // Reorder window.categories in-place to preserve references
+    if (Array.isArray(window.categories)) {
+      const map = {};
+      window.categories.forEach(c => { if (c && c.id) map[c.id] = c; });
+      window.categories.length = 0;
+      ids.forEach((id, idx) => {
+        const c = map[id] || { id: id, name: '', emoji: '📂' };
+        c.sortOrder = idx + 1;
+        window.categories.push(c);
+      });
+    }
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
+                       (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+    if (!firebaseDB) { if (typeof showToast === 'function') showToast('⚠️ Database not ready'); return; }
+
+    try {
+      const promises = ids.map((id, idx) => {
+        return firebaseDB.collection('categories').doc(id).set({ sortOrder: idx + 1 }, { merge: true });
+      });
+      await Promise.all(promises);
+      if (typeof showToast === 'function') showToast('✅ Category order saved', 2000);
+    } catch (err) {
+      console.error('[PersistOrder] Firestore update failed:', err);
+      if (typeof showToast === 'function') showToast('⚠️ Could not save category order', 3000);
+    }
+  }
  
   window.openEditCatModal = function(catId) {
     const allCats = (typeof window.categories !== 'undefined') ? window.categories : [];

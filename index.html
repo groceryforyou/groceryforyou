@@ -9104,5 +9104,52 @@ window.addEventListener('load', function() {
 })();
 </script>
 
+
+<!-- ===== GFY TRACKING: Replace "In Progress" with "Enjoy Your Meal" on delivery ===== -->
+<script>
+(function() {
+  'use strict';
+  if (window.__GFY_DELIVERED_TEXT_PATCH__) return;
+  window.__GFY_DELIVERED_TEXT_PATCH__ = true;
+
+  function patchTrackingText() {
+    var content = document.getElementById('tracking-content');
+    if (!content) return;
+
+    // Only replace when the last tracking step (Order Delivered) is active or done
+    var steps = content.querySelectorAll('.tracking-step');
+    if (!steps.length) return;
+    var lastStep = steps[steps.length - 1];
+    var isDelivered = lastStep.classList.contains('active') || lastStep.classList.contains('done');
+    if (!isDelivered) return;
+
+    // Walk all text nodes inside tracking-content and replace "In Progress"
+    var walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, null, false);
+    var node;
+    while ((node = walker.nextNode())) {
+      if (node.nodeValue && node.nodeValue.trim() === 'In Progress') {
+        node.nodeValue = 'Enjoy Your Meal \uD83C\uDF7D\uFE0F';
+      }
+    }
+  }
+
+  // Watch tracking-content for any DOM updates (obfuscated code rewrites innerHTML on each status change)
+  var _trackObs = new MutationObserver(function() { patchTrackingText(); });
+
+  function startTrackingPatch() {
+    var el = document.getElementById('tracking-content');
+    if (!el) return;
+    _trackObs.observe(el, { childList: true, subtree: true });
+    patchTrackingText(); // run once for already-rendered content
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startTrackingPatch);
+  } else {
+    startTrackingPatch();
+  }
+})();
+</script>
+
 </body>
 </html>

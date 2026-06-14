@@ -9112,28 +9112,37 @@ window.addEventListener('load', function() {
   if (window.__GFY_DELIVERED_TEXT_PATCH__) return;
   window.__GFY_DELIVERED_TEXT_PATCH__ = true;
 
+  var MEAL_TEXT = 'Enjoy Your Meal \uD83C\uDF7D\uFE0F';
+
   function patchTrackingText() {
     var content = document.getElementById('tracking-content');
     if (!content) return;
 
-    // Only replace when the last tracking step (Order Delivered) is active or done
+    // Only patch when the last tracking step (Delivered) is active or done
     var steps = content.querySelectorAll('.tracking-step');
     if (!steps.length) return;
     var lastStep = steps[steps.length - 1];
     var isDelivered = lastStep.classList.contains('active') || lastStep.classList.contains('done');
     if (!isDelivered) return;
 
-    // Walk all text nodes inside tracking-content and replace "In Progress"
+    // PRIMARY: replace the step-desc text inside the last step directly
+    var lastDesc = lastStep.querySelector('.step-desc');
+    if (lastDesc && lastDesc.textContent.trim().toLowerCase().indexOf('in progress') !== -1) {
+      lastDesc.textContent = MEAL_TEXT;
+      return;
+    }
+
+    // FALLBACK: walk all text nodes in tracking-content, match case-insensitively
     var walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, null, false);
     var node;
     while ((node = walker.nextNode())) {
-      if (node.nodeValue && node.nodeValue.trim() === 'In Progress') {
-        node.nodeValue = 'Enjoy Your Meal \uD83C\uDF7D\uFE0F';
+      if (node.nodeValue && node.nodeValue.trim().toLowerCase() === 'in progress') {
+        node.nodeValue = MEAL_TEXT;
       }
     }
   }
 
-  // Watch tracking-content for any DOM updates (obfuscated code rewrites innerHTML on each status change)
+  // Watch tracking-content for DOM updates (obfuscated code rewrites innerHTML on each status change)
   var _trackObs = new MutationObserver(function() { patchTrackingText(); });
 
   function startTrackingPatch() {

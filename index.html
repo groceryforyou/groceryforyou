@@ -7441,18 +7441,10 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     }
 
     try {
-      // determine a sensible sortOrder: put new category at the end
-      let maxOrder = 0;
-      try {
-        const existing = Array.isArray(window.categories) ? window.categories : [];
-        existing.forEach(c => { if (typeof c.sortOrder === 'number' && c.sortOrder > maxOrder) maxOrder = c.sortOrder; });
-      } catch (e) { /* ignore */ }
-
       await firebaseDB.collection('categories').doc(catId).set({
         id: catId,
         name: name,
         emoji: emoji,
-        sortOrder: maxOrder + 1,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
@@ -7474,19 +7466,11 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const listContainer = document.getElementById('manage-cats-list');
     if (!listContainer) return;
 
-    const allCats = (typeof window.categories !== 'undefined') ? window.categories.slice() : [];
-
-    // Ensure display sorts by sortOrder (fallback to existing array order)
-    allCats.sort((a,b) => {
-      const as = (typeof a.sortOrder === 'number') ? a.sortOrder : 0;
-      const bs = (typeof b.sortOrder === 'number') ? b.sortOrder : 0;
-      return as - bs;
-    });
-
+    const allCats = (typeof window.categories !== 'undefined') ? window.categories : [];
+    
     listContainer.innerHTML = allCats.map(cat => `
-      <div class="manage-cat-row" draggable="true" data-cat-id="${cat.id}" style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--cream); border:1.5px solid var(--border); border-radius:12px; gap:10px;">
-        <div style="display:flex; align-items:center; gap:10px; cursor:grab;">
-          <span class="cat-drag-handle" style="font-size:1.1rem; color:#888;">⋮⋮</span>
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--cream); border:1.5px solid var(--border); border-radius:12px; gap:10px;">
+        <div style="display:flex; align-items:center; gap:8px;">
           <span style="font-size:1.3rem;">${cat.emoji}</span>
           <span style="font-weight:700; color:var(--brown); font-size:.9rem;">${cat.name}</span>
         </div>
@@ -7496,11 +7480,6 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         </div>
       </div>
     `).join('');
-
-    // Setup drag & touch handlers (admin only)
-    setTimeout(() => {
-      try { enableManageCatsDragHandlers(listContainer); } catch (e) { console.warn('[ManageCats] Drag handlers failed', e); }
-    }, 30);
 
     const overlay = document.getElementById('manage-cats-modal-overlay');
     if (overlay) overlay.classList.add('open');

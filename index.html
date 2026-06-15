@@ -612,7 +612,11 @@ document.addEventListener('error', function(e) {
     .order-card-close{background:none;border:none;font-size:1rem;cursor:pointer;color:#6c6c6c;padding:0;flex-shrink:0;line-height:1}
     .order-card-body{padding:14px 16px 12px;color:#333;font-size:.82rem;line-height:1.55;background:#fbfff9}
     .order-card-body strong{color:var(--brown);font-weight:700}
-    .order-card-body-line{margin:6px 0;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .order-card-body-line{margin:6px 0;display:block;overflow:visible;text-overflow:clip;white-space:normal;word-break:break-word}
+    .order-card-item{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;margin:6px 0;}
+    .order-card-item-name{flex:1;min-width:0;white-space:normal;word-break:break-word;color:#333;font-weight:600}
+    .order-card-item-meta{flex-shrink:0;color:#555;white-space:nowrap}
+    .order-card-item-options{width:100%;margin-top:4px;color:#555;font-size:.78rem;line-height:1.4;overflow-wrap:anywhere;word-break:break-word}
     .order-card-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 16px 16px}
     .order-card-action-btn{border:none;border-radius:14px;padding:10px 8px;font-family:"Yeseva One",serif;font-size:.82rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:opacity .2s;touch-action:manipulation;font-weight:700;white-space:nowrap;line-height:1.2}
     .order-card-accept{background:linear-gradient(90deg,var(--green),#43a047);color:#fff}
@@ -6068,8 +6072,29 @@ function addOrderCard(orderId, orderData) {
   if (!container) return;
 
   const items = Array.isArray(orderData.items) ? orderData.items : [];
-  const itemsPreview = items.slice(0, 3).map(item => `${item.name || item.title}×${item.qty || 1}`).join(' | ');
-  const moreIndicator = items.length > 3 ? ` +${items.length - 3}` : '';
+  const itemsHTML = items.map(item => {
+    const name = escapeHtml(item.name || item.title || 'Item');
+    const qty = item.qty || item.quantity || 1;
+    const priceText = item.price != null ? ` · ₹${item.price}` : '';
+    const optionsValue = item.selectedOptions || item.options || item.variant || item.variants;
+    let optionParts = [];
+
+    if (Array.isArray(optionsValue)) {
+      optionParts = optionsValue.map(opt => {
+        if (opt === null || opt === undefined) return '';
+        if (typeof opt === 'string' || typeof opt === 'number') return escapeHtml(String(opt));
+        if (typeof opt === 'object') return escapeHtml(opt.name || opt.label || opt.value || JSON.stringify(opt));
+        return escapeHtml(String(opt));
+      }).filter(Boolean);
+    } else if (optionsValue && typeof optionsValue === 'object') {
+      optionParts = Object.entries(optionsValue).map(([key, value]) => `${escapeHtml(String(key))}: ${escapeHtml(typeof value === 'string' || typeof value === 'number' ? String(value) : JSON.stringify(value))}`);
+    } else if (optionsValue != null) {
+      optionParts = [escapeHtml(String(optionsValue))];
+    }
+
+    const optionsHTML = optionParts.length ? `<div class="order-card-item-options">${optionParts.join(' · ')}</div>` : '';
+    return `<div class="order-card-item"><span class="order-card-item-name">${name}</span><span class="order-card-item-meta">x${qty}${priceText}</span>${optionsHTML}</div>`;
+  }).join('');
 
   const cardHTML = `
     <div class="admin-order-card" data-order-id="${orderId}">
@@ -6082,7 +6107,7 @@ function addOrderCard(orderId, orderData) {
       </div>
       <div class="order-card-body">
         <span class="order-card-body-line"><strong>${orderData.customerName || 'Customer'}</strong> · ₹${orderData.total || 0}</span>
-        <span class="order-card-body-line"><strong>📦</strong> ${itemsPreview}${moreIndicator}</span>
+        ${itemsHTML}
         <span class="order-card-body-line"><strong>📍</strong> ${(orderData.address || 'N/A').substring(0, 40)}</span>
         <span class="order-card-body-line"><strong>📱</strong> ${(orderData.phone || 'N/A').substring(0, 14)} · <strong>💳</strong> ${(orderData.paymentMethod || 'COD').toUpperCase()}</span>
       </div>

@@ -8883,21 +8883,45 @@ window.addEventListener('load', function() {
     });
   });
 
-  /* ── 4. Fix checkout button in cart: open order modal safely ────────── */
-  document.addEventListener('DOMContentLoaded', function() {
-    var checkoutBtn = document.querySelector('.checkout-btn');
-    if (checkoutBtn) {
-      // Replace inline onclick with a safe function call
-      checkoutBtn.removeAttribute('onclick');
-      checkoutBtn.addEventListener('click', function() {
-        if (typeof closeCart === 'function') closeCart();
-        // Small delay so cart closes smoothly before order modal opens
+  /* ── 4. Fix checkout and place-order buttons: open order modal safely ────────── */
+  function bindOrderButtons() {
+    document.querySelectorAll('.checkout-btn, .fob-btn').forEach(function(btn) {
+      btn.removeAttribute('onclick');
+      btn.removeAttribute('href');
+      btn.addEventListener('click', function(e) {
+        if (btn.classList.contains('checkout-btn') && typeof closeCart === 'function') {
+          closeCart();
+        }
         setTimeout(function() {
-          if (typeof window.openOrderModal === 'function') window.openOrderModal();
+          if (typeof window.openOrderModal === 'function') {
+            window.openOrderModal();
+          }
+        }, 120);
+      });
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', bindOrderButtons);
+  document.body.addEventListener('click', function(event) {
+    var btn = event.target.closest('.checkout-btn, .fob-btn');
+    if (!btn) return;
+    // If the button was added dynamically after DOMContentLoaded, ensure it is bound.
+    if (!btn.dataset.gfyOrderBound) {
+      btn.dataset.gfyOrderBound = '1';
+      btn.removeAttribute('onclick');
+      btn.removeAttribute('href');
+      btn.addEventListener('click', function() {
+        if (btn.classList.contains('checkout-btn') && typeof closeCart === 'function') {
+          closeCart();
+        }
+        setTimeout(function() {
+          if (typeof window.openOrderModal === 'function') {
+            window.openOrderModal();
+          }
         }, 120);
       });
     }
-  });
+  }, true);
 
   /* ── 5. Ensure finalizeOrder always stores customerUid ─────────────── */
   // Wrap finalizeOrder to inject uid from currentUser if missing

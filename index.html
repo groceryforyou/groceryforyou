@@ -1228,12 +1228,10 @@ document.addEventListener('error', function(e) {
     }
     #admin-mob-menu-btn:active{background:rgba(255,255,255,0.25)}
 
-    /* Keyboard-visible layout fix
-       Keep order modal at bottom while keyboard is open.
-       Previous flex-start rule pushed the form too high in Android WebView. */
+    /* Keyboard-visible layout fix */
     @media screen and (max-height:500px) and (max-width:768px){
-      .order-modal-overlay{align-items:flex-end;padding-top:0;padding-bottom:0}
-      .order-modal{max-height:72dvh;max-height:72vh;border-radius:20px 20px 0 0;overflow-y:auto}
+      .order-modal-overlay{align-items:flex-start;padding-top:0}
+      .order-modal{max-height:100dvh;max-height:100vh;border-radius:0;overflow-y:auto}
       .cart-panel{height:100dvh;height:100vh}
       .mob-bottom-nav{display:none}
     }
@@ -1263,10 +1261,8 @@ document.addEventListener('error', function(e) {
     .add-btn,.card-qty-btn{min-height:36px;min-width:36px}
     .mob-nav-item span:not(.mni-icon):not(.mni-badge){font-size:.58rem}
 
-    /* Prevent background scroll when modal open.
-       Do NOT use position:fixed/top here because Android WebView keyboard resizing
-       can push the order form too high while typing. */
-    body.modal-open{overflow:hidden;width:100%;left:0;right:0;}
+    /* Prevent body scroll when modal open — position:fixed + saved scroll prevents layout jump */
+    body.modal-open{overflow:hidden;position:fixed;width:100%;left:0;right:0;}
 
     /* Loading skeleton */
     .skel-line{
@@ -7072,15 +7068,14 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   /* ── 5. Body scroll lock when cart/modal open ── */
   var _scrollPos = 0;
   window.lockBodyScroll = function() {
-    _scrollPos = window.scrollY || window.pageYOffset || 0;
+    _scrollPos = window.scrollY;
     document.body.classList.add('modal-open');
-    // Do not set body.style.top or body position here.
-    // Android WebView keyboard resize + fixed body causes the page to jump too high.
+    document.body.style.top = '-' + _scrollPos + 'px';
   };
   window.unlockBodyScroll = function() {
     document.body.classList.remove('modal-open');
     document.body.style.top = '';
-    // Do not force window.scrollTo here; preserving natural WebView scroll prevents jump.
+    window.scrollTo(0, _scrollPos);
   };
 
   /* ── 6. Input font-size fix — already handled in CSS (16px) ── */

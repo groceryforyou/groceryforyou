@@ -8940,11 +8940,18 @@ window.addEventListener('load', function() {
         showToast(msg, 5500);
       }
 
-      // Show the map search input and focus it so user can pin manually
+      // Show the map search input and focus it so user can pin manually.
+      // Avoid Android WebView scrollIntoView jitter when the keyboard opens.
       var searchInput = document.getElementById('om-map-search-input');
       if (searchInput) {
-        searchInput.focus();
-        searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        try {
+          searchInput.focus({ preventScroll: true });
+        } catch (e) {
+          searchInput.focus();
+        }
+        if (!/Android/i.test(navigator.userAgent)) {
+          searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }
     }
 

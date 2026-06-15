@@ -1261,8 +1261,10 @@ document.addEventListener('error', function(e) {
     .add-btn,.card-qty-btn{min-height:36px;min-width:36px}
     .mob-nav-item span:not(.mni-icon):not(.mni-badge){font-size:.58rem}
 
-    /* Prevent body scroll when modal open */
-    body.modal-open{overflow:hidden;width:100%;left:0;right:0;}
+    /* Prevent background scroll when any modal is open.
+       Use class-based overflow hiding only to avoid Android WebView keyboard jump.
+       html.modal-open is included for consistency with documentElement-level locking. */
+    html.modal-open, body.modal-open{overflow:hidden;}
 
     /* Loading skeleton */
     .skel-line{
@@ -7069,10 +7071,15 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   var _scrollPos = 0;
   window.lockBodyScroll = function() {
     _scrollPos = window.scrollY;
+    document.documentElement.classList.add('modal-open');
     document.body.classList.add('modal-open');
   };
   window.unlockBodyScroll = function() {
+    document.documentElement.classList.remove('modal-open');
     document.body.classList.remove('modal-open');
+    if (window.scrollY !== _scrollPos) {
+      window.scrollTo(0, _scrollPos);
+    }
   };
 
   /* ── 6. Input font-size fix — already handled in CSS (16px) ── */
@@ -8539,17 +8546,8 @@ window.addEventListener('load', function() {
   window.closeOrderModal = function() {
     const overlay = document.getElementById('order-modal-overlay');
     if (overlay) { overlay.classList.remove('open'); overlay.style.display = 'none'; }
-    // Unlock body scroll and restore previous scroll position
     if (typeof window.unlockBodyScroll === 'function') {
       window.unlockBodyScroll();
-    } else {
-      // Fallback: restore manually
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.width = '';
-      document.body.style.overflow = '';
-      var _sp = document._gfyScrollPos || 0;
-      window.scrollTo(0, _sp);
     }
   };
 

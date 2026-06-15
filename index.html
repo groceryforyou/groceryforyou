@@ -405,8 +405,8 @@ document.addEventListener('error', function(e) {
     .order-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;align-items:center;justify-content:center;padding:10px}
     .order-modal-overlay.open{display:flex}
     .order-modal{background:#fff;border-radius:20px;width:100%;max-width:600px;max-height:96vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1);scroll-padding-bottom:260px;scroll-padding-top:18px}
-    .android-webview .order-modal-overlay.open{align-items:flex-end; padding-top:0}
-    .android-webview .order-modal{scroll-padding-bottom:260px; max-height:calc(100vh - 180px); margin:0 auto; margin-top:auto; position:relative; transition:transform .18s ease, max-height .18s ease;}
+    .android-webview .order-modal-overlay.open{align-items:flex-start; padding-top:18px}
+    .android-webview .order-modal{scroll-padding-bottom:260px; max-height:calc(100vh - 220px); margin:0 auto;}
     .android-webview .order-modal .om-body{padding-bottom:18px}
     .android-webview .order-modal input:focus,
     .android-webview .order-modal textarea:focus,
@@ -1244,11 +1244,6 @@ document.addEventListener('error', function(e) {
       .cart-panel{height:100dvh;height:100vh}
       .mob-bottom-nav{display:none}
     }
-
-    /* Android WebView: keep order modal bottom-anchored and allow inner scroll when keyboard opens */
-    html.android-webview .order-modal-overlay.open{align-items:flex-end !important; padding-top:0 !important; padding-bottom:12px !important;}
-    html.android-webview .order-modal{max-height:calc(100vh - 140px) !important; border-radius:20px 20px 0 0 !important; overflow-y:auto !important;}
-    html.android-webview .order-modal .om-body{padding-bottom:28px !important;}
 
     /* Smooth page transitions */
     .page{opacity:0;transition:opacity .18s ease}
@@ -7085,18 +7080,10 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   var _scrollPos = 0;
   window.lockBodyScroll = function() {
     _scrollPos = window.scrollY;
-    if (document.documentElement.classList.contains('android-webview')) {
-      // Avoid overflow:hidden on Android WebView during keyboard interaction.
-      // Keep the overlay fixed and let the viewport adjust naturally.
-      return;
-    }
     document.documentElement.classList.add('modal-open');
     document.body.classList.add('modal-open');
   };
   window.unlockBodyScroll = function() {
-    if (document.documentElement.classList.contains('android-webview')) {
-      return;
-    }
     document.documentElement.classList.remove('modal-open');
     document.body.classList.remove('modal-open');
     if (window.scrollY !== _scrollPos) {
@@ -7106,84 +7093,12 @@ window.updateOrderCardStatus = updateOrderCardStatus;
 
   (function detectAndroidWebView() {
     var ua = navigator.userAgent || '';
-    var isAndroid = /Android/i.test(ua);
-    if (isAndroid) {
+    var isAndroidWebView = /Android/i.test(ua) && (/wv/.test(ua) || /Version\/\d/.test(ua));
+    if (isAndroidWebView) {
       document.documentElement.classList.add('android-webview');
       document.documentElement.classList.add('webview-keyboard-fix');
     }
   })();
-
-  function getAndroidModalViewportHeight() {
-    if (window.visualViewport) {
-      return window.visualViewport.height || window.innerHeight;
-    }
-    return window.innerHeight;
-  }
-
-  function updateAndroidWebViewOrderModalPosition(event) {
-    if (!document.documentElement.classList.contains('android-webview')) return;
-    var overlay = document.getElementById('order-modal-overlay');
-    var modal = document.querySelector('.order-modal');
-    if (!overlay || !modal || !overlay.classList.contains('open')) return;
-
-    var viewportHeight = getAndroidModalViewportHeight();
-    modal.style.maxHeight = Math.max(260, viewportHeight - 140) + 'px';
-
-    var active = event && event.target ? event.target : document.activeElement;
-    if (!active || !modal.contains(active) || active === overlay) {
-      return;
-    }
-
-    var modalRect = modal.getBoundingClientRect();
-    var activeRect = active.getBoundingClientRect();
-    var keyboardThreshold = viewportHeight - 180;
-
-    if (activeRect.bottom > keyboardThreshold) {
-      var offset = activeRect.bottom - keyboardThreshold + 10;
-      modal.scrollBy({ top: offset, left: 0, behavior: 'smooth' });
-      return;
-    }
-
-    if (activeRect.top < modalRect.top + 24) {
-      var offsetUp = (activeRect.top - (modalRect.top + 24)) - 10;
-      modal.scrollBy({ top: offsetUp, left: 0, behavior: 'smooth' });
-      return;
-    }
-  }
-
-  function installAndroidWebViewKeyboardFixes() {
-    if (!document.documentElement.classList.contains('android-webview')) return;
-
-    document.addEventListener('focusin', function(event) {
-      if (event.target.closest('.order-modal')) {
-        setTimeout(function() {
-          updateAndroidWebViewOrderModalPosition(event);
-        }, 220);
-      }
-    }, true);
-
-    document.addEventListener('focusout', function(event) {
-      if (event.target.closest('.order-modal')) {
-        setTimeout(function() {
-          updateAndroidWebViewOrderModalPosition(event);
-        }, 220);
-      }
-    }, true);
-
-    window.addEventListener('resize', function() {
-      setTimeout(updateAndroidWebViewOrderModalPosition, 120);
-    });
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', function() {
-        setTimeout(updateAndroidWebViewOrderModalPosition, 120);
-      });
-      window.visualViewport.addEventListener('scroll', function() {
-        setTimeout(updateAndroidWebViewOrderModalPosition, 120);
-      });
-    }
-  }
-
-  installAndroidWebViewKeyboardFixes();
 
   /* ── 6. Input font-size fix — already handled in CSS (16px) ── */
   /* ── 7. Prevent double-tap zoom on buttons ── */
@@ -8536,10 +8451,6 @@ window.addEventListener('load', function() {
       window.lockBodyScroll();
     }
 
-    if (document.documentElement.classList.contains('android-webview')) {
-      setTimeout(updateAndroidWebViewOrderModalPosition, 260);
-    }
-
     // STEP 10: Payment options and address
     // PATCH [cursor-fix]: Delay address subscription so Firestore snapshot callbacks
     // cannot fire during initial render and reset cursor on focused fields.
@@ -8652,9 +8563,7 @@ window.addEventListener('load', function() {
   // ── Single canonical closeOrderModal ─────────────────────────────────
   window.closeOrderModal = function() {
     const overlay = document.getElementById('order-modal-overlay');
-    const modal = document.querySelector('.order-modal');
     if (overlay) { overlay.classList.remove('open'); overlay.style.display = 'none'; }
-    if (modal) { modal.style.transform = ''; }
     if (typeof window.unlockBodyScroll === 'function') {
       window.unlockBodyScroll();
     }
@@ -8883,45 +8792,21 @@ window.addEventListener('load', function() {
     });
   });
 
-  /* ── 4. Fix checkout and place-order buttons: open order modal safely ────────── */
-  function bindOrderButtons() {
-    document.querySelectorAll('.checkout-btn, .fob-btn').forEach(function(btn) {
-      btn.removeAttribute('onclick');
-      btn.removeAttribute('href');
-      btn.addEventListener('click', function(e) {
-        if (btn.classList.contains('checkout-btn') && typeof closeCart === 'function') {
-          closeCart();
-        }
+  /* ── 4. Fix checkout button in cart: open order modal safely ────────── */
+  document.addEventListener('DOMContentLoaded', function() {
+    var checkoutBtn = document.querySelector('.checkout-btn');
+    if (checkoutBtn) {
+      // Replace inline onclick with a safe function call
+      checkoutBtn.removeAttribute('onclick');
+      checkoutBtn.addEventListener('click', function() {
+        if (typeof closeCart === 'function') closeCart();
+        // Small delay so cart closes smoothly before order modal opens
         setTimeout(function() {
-          if (typeof window.openOrderModal === 'function') {
-            window.openOrderModal();
-          }
-        }, 120);
-      });
-    });
-  }
-
-  document.addEventListener('DOMContentLoaded', bindOrderButtons);
-  document.body.addEventListener('click', function(event) {
-    var btn = event.target.closest('.checkout-btn, .fob-btn');
-    if (!btn) return;
-    // If the button was added dynamically after DOMContentLoaded, ensure it is bound.
-    if (!btn.dataset.gfyOrderBound) {
-      btn.dataset.gfyOrderBound = '1';
-      btn.removeAttribute('onclick');
-      btn.removeAttribute('href');
-      btn.addEventListener('click', function() {
-        if (btn.classList.contains('checkout-btn') && typeof closeCart === 'function') {
-          closeCart();
-        }
-        setTimeout(function() {
-          if (typeof window.openOrderModal === 'function') {
-            window.openOrderModal();
-          }
+          if (typeof window.openOrderModal === 'function') window.openOrderModal();
         }, 120);
       });
     }
-  }, true);
+  });
 
   /* ── 5. Ensure finalizeOrder always stores customerUid ─────────────── */
   // Wrap finalizeOrder to inject uid from currentUser if missing

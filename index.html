@@ -1261,8 +1261,8 @@ document.addEventListener('error', function(e) {
     .add-btn,.card-qty-btn{min-height:36px;min-width:36px}
     .mob-nav-item span:not(.mni-icon):not(.mni-badge){font-size:.58rem}
 
-    /* Prevent body scroll when modal open — position:fixed + saved scroll prevents layout jump */
-    body.modal-open{overflow:hidden;position:fixed;width:100%;left:0;right:0;}
+    /* Prevent body scroll when modal open */
+    body.modal-open{overflow:hidden;width:100%;left:0;right:0;}
 
     /* Loading skeleton */
     .skel-line{
@@ -7070,12 +7070,9 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   window.lockBodyScroll = function() {
     _scrollPos = window.scrollY;
     document.body.classList.add('modal-open');
-    document.body.style.top = '-' + _scrollPos + 'px';
   };
   window.unlockBodyScroll = function() {
     document.body.classList.remove('modal-open');
-    document.body.style.top = '';
-    window.scrollTo(0, _scrollPos);
   };
 
   /* ── 6. Input font-size fix — already handled in CSS (16px) ── */
@@ -8427,14 +8424,6 @@ window.addEventListener('load', function() {
     // Lock body scroll WITHOUT causing a layout jump (saves & restores scroll position)
     if (typeof window.lockBodyScroll === 'function') {
       window.lockBodyScroll();
-    } else {
-      // Fallback: manual lock preserving scroll position
-      var _sp = window.scrollY || window.pageYOffset || 0;
-      document.body.style.top = '-' + _sp + 'px';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-      document.body.style.overflow = 'hidden';
-      document._gfyScrollPos = _sp;
     }
 
     // STEP 10: Payment options and address

@@ -8944,12 +8944,19 @@ window.addEventListener('load', function() {
       // Avoid Android WebView scrollIntoView jitter when the keyboard opens.
       var searchInput = document.getElementById('om-map-search-input');
       if (searchInput) {
-        try {
-          searchInput.focus({ preventScroll: true });
-        } catch (e) {
-          searchInput.focus();
-        }
-        if (!/Android/i.test(navigator.userAgent)) {
+        var isAndroidWebView = /Android/i.test(navigator.userAgent);
+        if (isAndroidWebView) {
+          try {
+            searchInput.focus({ preventScroll: true });
+          } catch (e) {
+            // Avoid raw focus on Android WebView if preventScroll isn't supported.
+          }
+        } else {
+          try {
+            searchInput.focus({ preventScroll: true });
+          } catch (e) {
+            searchInput.focus();
+          }
           searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }

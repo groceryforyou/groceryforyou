@@ -393,13 +393,15 @@ document.addEventListener('error', function(e) {
     .auth-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;padding:14px}
     .auth-overlay.open{display:flex}
     .auth-modal{background:#fff;border-radius:20px;width:100%;max-width:420px;box-shadow:0 20px 80px rgba(0,0,0,0.4);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1);overflow:hidden;max-height:96vh;overflow-y:auto}
-    .auth-modal-header{background:linear-gradient(135deg,var(--brown),#1e7a3a);padding:22px 20px;text-align:center}
-    .auth-modal-header h2{font-family:"Yeseva One",serif;color:var(--turmeric);font-size:1.5rem;margin-bottom:5px}
-    .auth-modal-header p{color:#c8e6c9;font-size:.88rem}
+    .auth-modal-header{background:linear-gradient(135deg,var(--brown),#1e7a3a);padding:22px 20px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+    .auth-modal-header img.auth-logo{width:clamp(90px,22vw,140px);max-width:140px;height:auto;display:block;margin:0 auto;border-radius:18px;background:rgba(255,255,255,0.12);padding:8px}
+    .auth-modal-header h2{font-family:"Yeseva One",serif;color:var(--turmeric);font-size:1.5rem;margin:0}
+    .auth-modal-header p{color:#c8e6c9;font-size:.88rem;margin:0}
     .auth-modal-body{padding:24px 20px}
     .google-signin-btn{width:100%;background:#fff;border:2px solid #e0e0e0;border-radius:12px;padding:13px 18px;font-size:.95rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;color:var(--brown);font-family:"Lato",sans-serif}
     .google-signin-btn:hover{background:#f8f8f8;border-color:var(--saffron)}
-     @keyframes modalIn{from{opacity:0;transform:scale(0.9) translate3d(0,20px,0)}to{opacity:1;transform:scale(1) translate3d(0,0,0)}}
+    @media (max-width:420px){.auth-modal{margin:0 8px;max-width:100%}.auth-modal-header{padding:18px 16px}.auth-modal-body{padding:20px 18px}}
+    @keyframes modalIn{from{opacity:0;transform:scale(0.9) translate3d(0,20px,0)}to{opacity:1;transform:scale(1) translate3d(0,0,0)}}
 
     /* ===== ORDER MODAL ===== */
     .order-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;align-items:center;justify-content:center;padding:10px}
@@ -1923,7 +1925,11 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
 <div class="auth-overlay" id="auth-overlay" onclick="if(event.target===this){this.classList.remove('open');this.style.display='none';}">
   <div class="auth-modal" style="position:relative">
     <button onclick="document.getElementById('auth-overlay').classList.remove('open');document.getElementById('auth-overlay').style.display='none';" style="position:absolute;top:10px;right:14px;background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888;line-height:1;padding:4px" aria-label="Close sign-in">✕</button>
-    <div class="auth-modal-header"><h2>🔐 Sign In</h2><p>Continue to place your order</p></div>
+    <div class="auth-modal-header">
+      <img src="fevicon.jpeg" alt="Grocery For You Logo" class="auth-logo" loading="lazy" />
+      <h2>🔐 Sign In</h2>
+      <p>Continue to place your order</p>
+    </div>
     <div class="auth-modal-body">
       <button class="google-signin-btn" id="google-signin-btn" onclick="signInWithGoogle()"><span style="font-weight:900;font-size:1.1rem">G</span> Sign In with Google</button>
     </div>

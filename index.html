@@ -9061,5 +9061,146 @@ window.addEventListener('load', function() {
 })();
 </script>
 
+<!-- Customer multi-order tracking UI: renders multiple active orders for signed-in customer -->
+<script>
+(function customerTrackingUI(){
+  'use strict';
+  let _queryUnsub = null;
+  const _perOrderUnsubs = new Map();
+
+  function ensureContainer(){
+    let root = document.getElementById('page-tracking') || document.getElementById('tracking-content') || document.getElementById('page-orders') || document.body;
+    let list = document.getElementById('gfy-tracking-list');
+    if(!list){
+      list = document.createElement('div');
+      list.id = 'gfy-tracking-list';
+      list.style.cssText = 'display:flex;flex-direction:column;gap:12px;max-height:60vh;overflow:auto;padding:12px';
+      // Insert at top of tracking area when possible
+      if(root && root.appendChild){ root.insertBefore(list, root.firstChild); }
+    }
+    return list;
+  }
+
+  function escapeHtml(s){ return String(s||'').replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  function buildCard(orderId, data){
+    const card = document.createElement('div');
+    card.className = 'gfy-tracking-card';
+    card.dataset.orderId = orderId;
+    card.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 6px 20px rgba(0,0,0,0.06);color:#111';
+    const items = Array.isArray(data.items) ? data.items.map(i=>`<div style="font-size:.9rem;margin:.12rem 0">${escapeHtml(i.name||i.title||'Item')} × ${escapeHtml(i.qty||i.quantity||1)}<span style="float:right;color:#666">₹${escapeHtml(i.price||0)}</span></div>`).join('') : '';
+    const status = escapeHtml(data.status||'');
+    const meta = `Order: <strong>${escapeHtml(data.orderId||orderId)}</strong> · <span style="color:#0b8457;font-weight:700">${status}</span>`;
+    const when = data.updatedAt && data.updatedAt.toDate ? data.updatedAt.toDate().toLocaleString() : (data.updatedAt||'');
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;margin-bottom:6px">${meta}</div>
+          <div style="font-size:.86rem;color:#444">${items || '<span style=\"color:#888\">No line items</span>'}</div>
+        </div>
+        <div style="text-align:right;min-width:120px">
+          <div style="font-size:.78rem;color:#666">${when}</div>
+          <div style="margin-top:8px"><button onclick="showPage('orders')" style="background:#00b04e;color:#fff;border:none;padding:8px 10px;border-radius:8px;cursor:pointer">View</button></div>
+        </div>
+      </div>`;
+    return card;
+  }
+
+  function updateOrCreateCard(orderId, data){
+    const list = ensureContainer();
+    let existing = list.querySelector(`[data-order-id="${orderId}"]`);
+    if(existing){
+      // Update status and items quickly
+      const status = data.status || '';
+      const when = data.updatedAt && data.updatedAt.toDate ? data.updatedAt.toDate().toLocaleString() : (data.updatedAt||'');
+      existing.querySelector('div div') && (existing.querySelector('div div').innerHTML = `Order: <strong>${escapeHtml(data.orderId||orderId)}</strong> · <span style="color:#0b8457;font-weight:700">${escapeHtml(status)}</span>`);
+      const body = existing.querySelector('div[style*="font-size:.86rem"]');
+      if(body){
+        const items = Array.isArray(data.items) ? data.items.map(i=>`<div style="font-size:.9rem;margin:.12rem 0">${escapeHtml(i.name||i.title||'Item')} × ${escapeHtml(i.qty||i.quantity||1)}<span style="float:right;color:#666">₹${escapeHtml(i.price||0)}</span></div>`).join('') : '';
+        body.innerHTML = items || '<span style="color:#888">No line items</span>';
+      }
+      const whenEl = existing.querySelector('div[style*="font-size:.78rem"]'); if(whenEl) whenEl.textContent = when;
+      return existing;
+    }
+    const card = buildCard(orderId, data);
+    ensureContainer().appendChild(card);
+    return card;
+  }
+
+  function removeCard(orderId){
+    const list = document.getElementById('gfy-tracking-list'); if(!list) return;
+    const el = list.querySelector(`[data-order-id="${orderId}"]`);
+    if(el){ el.remove(); }
+  }
+
+  function startForUser(db, uid){
+    if(!db || !uid) return;
+    // active statuses we want to show in tracking UI
+    const activeStatuses = ['pending','placed','accepted','preparing','ready','out_for_delivery'];
+
+    if(_queryUnsub){ _queryUnsub(); _queryUnsub = null; }
+
+    try{
+      _queryUnsub = db.collection('orders')
+        .where('customerUid','==', uid)
+        .where('status','in', activeStatuses)
+        .orderBy('createdAt','desc')
+        .onSnapshot(snap => {
+          const seen = new Set();
+          snap.forEach(doc => {
+            const id = doc.id; seen.add(id);
+            // attach per-order doc listener if not present
+            if(!_perOrderUnsubs.has(id)){
+              const unsub = db.collection('orders').doc(id).onSnapshot(d => {
+                const od = d.data();
+                if(!od) return;
+                const st = (od.status||'').toLowerCase();
+                // If order became delivered/completed/cancelled, remove listeners & card
+                if(st === 'completed' || st === 'delivered' || st === 'cancelled'){
+                  const u = _perOrderUnsubs.get(id); if(u) try{u();}catch(e){}
+                  _perOrderUnsubs.delete(id);
+                  removeCard(id);
+                  return;
+                }
+                // Update or create card without triggering popups
+                updateOrCreateCard(id, od);
+              }, e=>console.warn('[CustTrack] per-order listener error', e));
+              _perOrderUnsubs.set(id, unsub);
+            }
+          });
+
+          // remove any per-order listeners that are no longer active
+          Array.from(_perOrderUnsubs.keys()).forEach(id => {
+            if(!seen.has(id)){
+              const u = _perOrderUnsubs.get(id); if(u) try{u();}catch(e){}
+              _perOrderUnsubs.delete(id);
+              removeCard(id);
+            }
+          });
+        }, err => console.warn('[CustTrack] query error', err));
+    }catch(e){ console.error('[CustTrack] startForUser failed', e); }
+  }
+
+  function stopAll(){ if(_queryUnsub){ try{_queryUnsub(); }catch(e){} _queryUnsub=null; } _perOrderUnsubs.forEach(u=>{ try{u(); }catch(e){} }); _perOrderUnsubs.clear(); const list = document.getElementById('gfy-tracking-list'); if(list) list.innerHTML=''; }
+
+  // Hook auth state to start/stop tracker
+  (function hookAuth(){
+    const tryHook = function(){
+      if(typeof firebase === 'undefined' || !firebase.auth || !firebase.firestore) { setTimeout(tryHook, 600); return; }
+      const db = firebase.firestore();
+      firebase.auth().onAuthStateChanged(user => {
+        if(user && user.uid){ startForUser(db, user.uid); }
+        else { stopAll(); }
+      });
+    };
+    tryHook();
+  })();
+
+  // Expose stop for debugging
+  window._gfyStopCustomerTrackingUI = stopAll;
+
+})();
+</script>
+
 </body>
 </html>

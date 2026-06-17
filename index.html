@@ -273,6 +273,12 @@ document.addEventListener('error', function(e) {
     .section-title{font-family:"Yeseva One",serif;font-size:1.5rem;color:var(--brown);margin-bottom:18px;display:flex;align-items:center;gap:10px;border-left:4px solid var(--saffron);padding-left:12px}
     .page{display:none}
     .page.active{display:block}
+    .page-auth-loading{position:fixed;inset:0;z-index:10050;background:linear-gradient(180deg,#f4fff6,#e8f7ed);display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px}
+    .auth-loading-card{width:100%;max-width:360px;background:rgba(255,255,255,0.96);border-radius:28px;box-shadow:0 28px 80px rgba(0,0,0,0.08);padding:36px 28px;text-align:center}
+    .auth-loading-logo{width:180px;height:auto;border-radius:24px;margin:0 auto 20px;display:block;box-shadow:0 18px 48px rgba(0,0,0,0.08)}
+    .auth-loading-message{font-family:"Yeseva One",serif;font-size:1.3rem;color:var(--brown);margin-bottom:20px}
+    .auth-loading-spinner{width:44px;height:44px;margin:0 auto;border:5px solid rgba(0,0,0,0.08);border-top-color:var(--saffron);border-radius:50%;animation:spin 1s linear infinite}
+    @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
     .page-login{position:fixed;inset:0;z-index:10050;background:linear-gradient(180deg,#f4fff6,#e8f7ed);display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px}
     .login-card{width:100%;max-width:420px;background:#fff;border-radius:28px;box-shadow:0 28px 80px rgba(0,0,0,0.0);padding:100px 40px;text-align:center}
     .login-logo{width:210px;height:auto;border-radius:55px;margin:0 auto 20px;box-shadow:0 16px 40px rgba(0,0,0,0.12)}
@@ -1637,8 +1643,17 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
 <!-- Offline Banner -->
 <div id="offline-banner"><span class="ob-icon">📡</span> No internet connection. Please check your network.</div>
 
+<!-- Auth loading splash while Firebase checks current user -->
+<div class="page page-auth-loading active" id="page-auth-loading">
+  <div class="auth-loading-card">
+    <img src="./fevicon.jpeg" alt="Grocery For You logo" class="auth-loading-logo" />
+    <div class="auth-loading-message">Checking your account…</div>
+    <div class="auth-loading-spinner" aria-hidden="true"></div>
+  </div>
+</div>
+
 <!-- Login Page (first screen for unauthenticated users) -->
-<div class="page page-login active" id="page-login">
+<div class="page page-login" id="page-login">
   <div class="login-card">
     <img src="./fevicon.jpeg" alt="Grocery For You logo" class="login-logo" />
     <h1>Grocery For You</h1>
@@ -5735,15 +5750,17 @@ function toggleSidebar() {
 </script>
 <script>
 (function initLoginRouting() {
+  window.authStateReady = false;
   function route() {
     if (typeof auth === 'undefined' || !auth || typeof auth.onAuthStateChanged !== 'function') {
       setTimeout(route, 300);
       return;
     }
     auth.onAuthStateChanged(function(user) {
+      window.authStateReady = true;
       if (user) {
         const activePage = document.querySelector('.page.active');
-        if (!activePage || activePage.id === 'page-login') {
+        if (!activePage || activePage.id === 'page-login' || activePage.id === 'page-auth-loading') {
           if (typeof showPage === 'function') {
             showPage('menu');
           }
@@ -8209,6 +8226,7 @@ window.addEventListener('load', function() {
   // Map of bare name → real element ID in the HTML
   var PAGE_ID_MAP = {
     'login'           : 'page-login',
+    'auth-loading'    : 'page-auth-loading',
     'home'            : 'page-menu',
     'menu'            : 'page-menu',
     'cart'            : 'page-menu',       // cart is a slide-over panel, not a page
@@ -8227,7 +8245,7 @@ window.addEventListener('load', function() {
   };
 
   var ALL_PAGE_IDS = [
-    'page-login','page-menu','page-tracking','page-orders','page-support',
+    'page-auth-loading','page-login','page-menu','page-tracking','page-orders','page-support',
     'page-dashboard','page-manage','page-payments','page-customers',
     'page-delivery','page-admin-support','page-business-hours',
     'page-delivery-settings'
@@ -8276,6 +8294,11 @@ window.addEventListener('load', function() {
         window.openOrderModal();
       }
       page = 'menu';
+    }
+
+    // Prevent login page from showing until auth state has been resolved.
+    if (page === 'login' && !window.authStateReady) {
+      page = 'auth-loading';
     }
 
     // 3. Try original chained wrappers first (if any are left)

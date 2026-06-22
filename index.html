@@ -8501,8 +8501,14 @@ window.addEventListener('load', function() {
     return '<div class="empty-cat-msg"><div class="big">⏳</div>Loading details...</div>';
   };
 
-  window.getProfilePageSignInHtml = function(message) {
-    return '<div class="empty-cat-msg" style="padding:18px"><div class="big">👋</div>' + message + '<br/><br/><button class="cat-save-btn" onclick="document.getElementById(\'auth-overlay\')?.classList.add(\'open\')">Sign in</button></div>';
+  window.getProfileAuthUser = function() {
+    return window.currentUser || (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
+  };
+
+  window.getProfileAuthSource = function() {
+    if (window.currentUser) return 'window.currentUser';
+    if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) return 'firebase.auth().currentUser';
+    return 'none';
   };
 
   window.renderProfilePage = function() {
@@ -8511,8 +8517,24 @@ window.addEventListener('load', function() {
       const detailView = document.getElementById('profile-detail-view');
       if (!menuView || !detailView) return;
 
-      if (!window.currentUser) {
-        menuView.innerHTML = window.getProfilePageSignInHtml('Please sign in to view your profile sections.');
+      const authUser = window.getProfileAuthUser();
+      console.log('[Profile] Current auth source:', window.getProfileAuthSource());
+      console.log('[Profile] Customer object loaded:', authUser);
+      console.log('[Profile] Profile auth check result:', !!authUser);
+
+      if (!authUser) {
+        if (window.authStateReady === false) {
+          menuView.innerHTML = window.getProfilePageLoadingHtml();
+          menuView.style.display = '';
+          detailView.style.display = 'none';
+          detailView.innerHTML = '';
+          return;
+        }
+        if (typeof showPage === 'function') {
+          showPage('login');
+          return;
+        }
+        menuView.innerHTML = '<div class="empty-cat-msg" style="padding:18px"><div class="big">👋</div>Please sign in to view your profile sections.<br/><br/><button class="cat-save-btn" onclick="showPage(\'login\')">Sign in</button></div>';
         menuView.style.display = '';
         detailView.style.display = 'none';
         detailView.innerHTML = '';
@@ -8527,14 +8549,14 @@ window.addEventListener('load', function() {
         if (!detailContent) return;
 
         if (window.profileSelectedSection === 'email') {
-          const email = window.currentUser.email || 'Email not available.';
+          const email = authUser.email || 'Email not available.';
           detailContent.innerHTML = '<div class="profile-card"><div class="pc-top"><div><strong class="pc-title">Signed in as</strong><div class="pc-sub">' + escapeHtml(email) + '</div></div></div></div>';
           return;
         }
 
         if (window.profileSelectedSection === 'orders') {
           detailContent.innerHTML = window.getProfilePageLoadingHtml();
-          const email = window.currentUser.email || '';
+          const email = authUser.email || '';
           if (typeof db === 'undefined' || !db) {
             setTimeout(function() { window.renderProfilePage(); }, 300);
             return;
@@ -8616,8 +8638,8 @@ window.addEventListener('load', function() {
             setTimeout(function() { window.renderProfilePage(); }, 300);
             return;
           }
-          const uid = currentUser.uid || null;
-          const email = currentUser.email || '';
+          const uid = authUser.uid || null;
+          const email = authUser.email || '';
           var query = uid ? db.collection('razorpay_payments').where('customerUid','==', uid).orderBy('paidAt','desc').limit(50) : db.collection('razorpay_payments').where('customerEmail','==', email).orderBy('paidAt','desc').limit(50);
           query.get().then(function(snap){
             const docs = snap.docs.map(function(d){ return {id:d.id, ...d.data()}; });

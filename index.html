@@ -2197,6 +2197,26 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
     </section>
   </div>
 
+  <!-- PROFILE PAGE -->
+  <div class="page" id="page-profile">
+    <button class="back-btn-light" onclick="showPage('menu')">← Back to Menu</button>
+    <div class="section-title">👤 Profile</div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:18px;padding:18px;margin-top:16px;box-shadow:var(--shadow)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="font-size:2rem">👤</div>
+        <div>
+          <div style="font-size:1.05rem;font-weight:800">Your Profile</div>
+          <div style="color:#666;font-size:.9rem">Manage your account details and order preferences.</div>
+        </div>
+      </div>
+      <div style="display:grid;gap:12px">
+        <div><strong>Name</strong><div id="profile-name" style="margin-top:6px;color:#333">—</div></div>
+        <div><strong>Email</strong><div id="profile-email" style="margin-top:6px;color:#333">—</div></div>
+        <div><strong>Phone</strong><div id="profile-phone" style="margin-top:6px;color:#333">—</div></div>
+      </div>
+    </div>
+  </div>
+
   <!-- TRACKING PAGE -->
   <div class="page" id="page-tracking">
     <button class="back-btn-light" onclick="showPage('menu')">← Back to Menu</button>
@@ -8265,7 +8285,7 @@ window.addEventListener('load', function() {
     'menu'            : 'page-menu',
     'cart'            : 'page-menu',       // cart is a slide-over panel, not a page
     'orders'          : 'page-orders',
-    'profile'         : 'page-menu',       // profile uses a modal, not a page div
+    'profile'         : 'page-profile',    // profile page container
     'support'         : 'page-support',
     'tracking'        : 'page-tracking',
     'dashboard'       : 'page-dashboard',
@@ -8279,7 +8299,7 @@ window.addEventListener('load', function() {
   };
 
   var ALL_PAGE_IDS = [
-    'page-auth-loading','page-login','page-menu','page-tracking','page-orders','page-support',
+    'page-auth-loading','page-login','page-menu','page-profile','page-tracking','page-orders','page-support',
     'page-dashboard','page-manage','page-payments','page-customers',
     'page-delivery','page-admin-support','page-business-hours',
     'page-delivery-settings'

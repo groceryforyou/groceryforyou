@@ -2207,84 +2207,20 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
   <!-- PROFILE PAGE -->
   <div class="page" id="page-profile">
     <button class="back-btn-light" onclick="showPage('menu')">← Back to Menu</button>
-    
-    <!-- Profile Header -->
-    <div style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:28px 24px;margin-bottom:20px;text-align:center;box-shadow:var(--shadow)">
-      <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#ffc107,#ff9800);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:#fff">👤</div>
-      <div id="profile-name" style="font-weight:800;font-size:1.3rem;color:var(--brown);margin-bottom:4px">Guest User</div>
-      <div id="profile-email-display" style="font-size:.9rem;color:#888;margin-bottom:4px">—</div>
-      <div style="font-size:.75rem;color:#aaa">Your profile & account settings</div>
+    <div class="section-title">👤 Profile</div>
+    <div class="menu-card" style="padding:18px;display:flex;flex-direction:column;gap:10px;background:#fff;border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow)">
+      <div style="font-weight:800;color:var(--brown);font-size:1rem">Customer Email</div>
+      <div id="profile-email-label" style="font-size:.95rem;color:#444;word-break:break-all">Customer Email: —</div>
+      <div style="font-size:.84rem;color:#666;line-height:1.5">Quick access to your orders, saved address, and payment history from one place.</div>
     </div>
-
-    <!-- Profile Menu Items -->
-    <div style="display:grid;gap:0;background:#fff;border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:var(--shadow)">
-      
-      <button type="button" onclick="openAddressModal()" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
-        <div style="display:flex;align-items:center;gap:12px;flex:1">
-          <span style="font-size:1.4rem">👤</span>
-          <div>
-            <div style="font-weight:700;color:var(--brown);font-size:.95rem">Personal Information</div>
-            <div style="font-size:.75rem;color:#999">Name, email & contact</div>
-          </div>
-        </div>
-        <span style="color:#ccc;font-size:1.2rem">›</span>
+    <div style="display:grid;gap:12px;margin-top:18px">
+      <button class="new-cat-btn" type="button" style="text-align:left;justify-content:space-between;display:flex;align-items:center" disabled>
+        <span>📧 Customer Email</span>
+        <span id="profile-email-value" style="font-weight:700;color:var(--brown)">—</span>
       </button>
-
-      <button type="button" onclick="openOrdersModal()" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
-        <div style="display:flex;align-items:center;gap:12px;flex:1">
-          <span style="font-size:1.4rem">🧾</span>
-          <div>
-            <div style="font-weight:700;color:var(--brown);font-size:.95rem">My Orders</div>
-            <div style="font-size:.75rem;color:#999">View all your orders</div>
-          </div>
-        </div>
-        <span style="color:#ccc;font-size:1.2rem">›</span>
-      </button>
-
-      <button type="button" onclick="openAddressModal()" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
-        <div style="display:flex;align-items:center;gap:12px;flex:1">
-          <span style="font-size:1.4rem">📍</span>
-          <div>
-            <div style="font-weight:700;color:var(--brown);font-size:.95rem">Addresses</div>
-            <div style="font-size:.75rem;color:#999">Manage delivery addresses</div>
-          </div>
-        </div>
-        <span style="color:#ccc;font-size:1.2rem">›</span>
-      </button>
-
-      <button type="button" onclick="showToast('⚙️ Settings coming soon')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
-        <div style="display:flex;align-items:center;gap:12px;flex:1">
-          <span style="font-size:1.4rem">⚙️</span>
-          <div>
-            <div style="font-weight:700;color:var(--brown);font-size:.95rem">Settings</div>
-            <div style="font-size:.75rem;color:#999">App preferences</div>
-          </div>
-        </div>
-        <span style="color:#ccc;font-size:1.2rem">›</span>
-      </button>
-
-      <button type="button" onclick="showPage('support')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
-        <div style="display:flex;align-items:center;gap:12px;flex:1">
-          <span style="font-size:1.4rem">❓</span>
-          <div>
-            <div style="font-weight:700;color:var(--brown);font-size:.95rem">Help & Support</div>
-            <div style="font-size:.75rem;color:#999">Contact us & FAQs</div>
-          </div>
-        </div>
-        <span style="color:#ccc;font-size:1.2rem">›</span>
-      </button>
-
-      <button type="button" onclick="logoutUser()" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;text-align:left;transition:background-color 0.2s;color:#c62828" onmouseover="this.style.background='#ffebee'" onmouseout="this.style.background='none'">
-        <div style="display:flex;align-items:center;gap:12px;flex:1">
-          <span style="font-size:1.4rem">🚪</span>
-          <div>
-            <div style="font-weight:700;color:#c62828;font-size:.95rem">Logout</div>
-            <div style="font-size:.75rem;color:#c62828;opacity:0.7">Sign out of your account</div>
-          </div>
-        </div>
-        <span style="color:#c62828;font-size:1.2rem">›</span>
-      </button>
-
+      <button class="new-cat-btn" type="button" onclick="openOrdersModal()">🧾 My Orders</button>
+      <button class="new-cat-btn" type="button" onclick="openAddressModal()">🏠 My Address</button>
+      <button class="new-cat-btn" type="button" onclick="openOrdersModal()">💳 Payment History</button>
     </div>
   </div>
 
@@ -8445,16 +8381,13 @@ window.addEventListener('load', function() {
 
       if (page === 'profile') {
         var profileEmail = (window.currentUser && window.currentUser.email) || '—';
-        var profileName = (window.currentUser && window.currentUser.displayName) || 'Guest User';
-        
-        var profileNameEl = document.getElementById('profile-name');
-        var profileEmailDisplay = document.getElementById('profile-email-display');
-        
-        if (profileNameEl) {
-          profileNameEl.textContent = profileName;
+        var profileEmailValue = document.getElementById('profile-email-value');
+        var profileEmailLabel = document.getElementById('profile-email-label');
+        if (profileEmailValue) {
+          profileEmailValue.textContent = profileEmail;
         }
-        if (profileEmailDisplay) {
-          profileEmailDisplay.textContent = profileEmail;
+        if (profileEmailLabel) {
+          profileEmailLabel.textContent = 'Customer Email: ' + profileEmail;
         }
       }
     } else {

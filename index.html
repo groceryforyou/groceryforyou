@@ -2252,12 +2252,12 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
         <span style="color:#ccc;font-size:1.2rem">›</span>
       </button>
 
-      <button type="button" onclick="showPage('payment-history')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
+      <button type="button" onclick="showPage('payments')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">💳</span>
           <div>
-            <div style="font-weight:700;color:var(--brown);font-size:.95rem">Payment History</div>
-            <div style="font-size:.75rem;color:#999">View UPI payment history</div>
+            <div style="font-weight:700;color:var(--brown);font-size:.95rem">Payment Methods</div>
+            <div style="font-size:.75rem;color:#999">Manage your payments</div>
           </div>
         </div>
         <span style="color:#ccc;font-size:1.2rem">›</span>
@@ -2431,19 +2431,6 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
         <input type="text" id="pay-search" class="aip-input" placeholder="🔍 Search by order ID, name..." oninput="filterPaymentSearch()" style="width:200px;font-size:.8rem"/>
       </div>
       <div id="payments-list" style="display:grid;gap:8px;margin-top:14px;max-height:520px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--saffron) #f0e0c8"><div class="empty-cat-msg"><div class="big">💳</div>Loading payments...</div></div>
-    </div>
-  </div>
-
-  <!-- PAYMENT HISTORY PAGE -->
-  <div class="page" id="page-payment-history">
-    <button class="back-btn-light" onclick="showPage('profile')">← Back to Profile</button>
-    <div class="section-title">📱 UPI Payment History</div>
-    <div style="margin-bottom:12px;font-size:.9rem;color:#666">Your signed-in UPI payments made through Razorpay.</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
-      <div style="font-size:.82rem;color:#888" id="customer-payments-count">Loading...</div>
-    </div>
-    <div id="customer-payments-list" style="display:grid;gap:10px;margin-top:0;max-height:520px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--saffron) #f0e0c8">
-      <div class="empty-cat-msg"><div class="big">💳</div>Loading payment history...</div>
     </div>
   </div>
 
@@ -8379,7 +8366,6 @@ window.addEventListener('load', function() {
     'dashboard'       : 'page-dashboard',
     'manage'          : 'page-manage',
     'payments'        : 'page-payments',
-    'payment-history' : 'page-payment-history',
     'customers'       : 'page-customers',
     'delivery'        : 'page-delivery',
     'admin-support'   : 'page-admin-support',
@@ -8389,7 +8375,7 @@ window.addEventListener('load', function() {
 
   var ALL_PAGE_IDS = [
     'page-auth-loading','page-login','page-menu','page-profile','page-tracking','page-orders','page-support',
-    'page-dashboard','page-manage','page-payments','page-payment-history','page-customers',
+    'page-dashboard','page-manage','page-payments','page-customers',
     'page-delivery','page-admin-support','page-business-hours',
     'page-delivery-settings'
   ];
@@ -8498,11 +8484,6 @@ window.addEventListener('load', function() {
     }
 
     // 6. Trigger Support tickets loading if page is support
-    if (page === 'payment-history') {
-      if (typeof renderCustomerPaymentHistoryPage === 'function') {
-        renderCustomerPaymentHistoryPage();
-      }
-    }
     if (page === 'support') {
       setTimeout(function() {
         if (typeof loadTickets === 'function') {
@@ -8514,84 +8495,6 @@ window.addEventListener('load', function() {
     }
   };
 })();
-</script>
-
-<script>
-var _customerPaymentsUnsub = null;
-
-function renderCustomerPaymentHistoryPage() {
-  var countEl = document.getElementById('customer-payments-count');
-  var listEl = document.getElementById('customer-payments-list');
-  if (!countEl || !listEl) return;
-
-  countEl.textContent = 'Loading...';
-  listEl.innerHTML = '<div class="empty-cat-msg"><div class="big">💳</div>Loading payment history...</div>';
-
-  if (!window.currentUser || !window.currentUser.uid) {
-    countEl.textContent = 'Please sign in to view payment history.';
-    listEl.innerHTML = '<div class="empty-cat-msg"><div class="big">🔒</div>Please sign in to view your payments.</div>';
-    return;
-  }
-
-  if (!window.db) {
-    countEl.textContent = 'Waiting for Firestore...';
-    listEl.innerHTML = '<div class="empty-cat-msg"><div class="big">💳</div>Loading payment history...</div>';
-    return;
-  }
-
-  if (_customerPaymentsUnsub) {
-    _customerPaymentsUnsub();
-    _customerPaymentsUnsub = null;
-  }
-
-  _customerPaymentsUnsub = db.collection('razorpay_payments')
-    .where('customerUid', '==', window.currentUser.uid)
-    .orderBy('paidAt', 'desc')
-    .onSnapshot(function(snapshot) {
-      var payments = [];
-      snapshot.forEach(function(doc) {
-        payments.push({ id: doc.id, data: doc.data() });
-      });
-
-      if (!payments.length) {
-        countEl.textContent = 'No payment history found.';
-        listEl.innerHTML = '<div class="empty-cat-msg"><div class="big">💳</div>No payment history found.<br/><span style="font-size:.8rem;color:#888">UPI payments will appear here once completed.</span></div>';
-        return;
-      }
-
-      countEl.textContent = payments.length + ' payment' + (payments.length === 1 ? '' : 's') + ' found';
-      listEl.innerHTML = payments.map(function(entry) {
-        var payment = entry.data;
-        var amount = payment.amount || 0;
-        var paidAt = payment.paidAt && typeof payment.paidAt.toDate === 'function'
-          ? payment.paidAt.toDate()
-          : payment.paidAt ? new Date(payment.paidAt) : null;
-        var paidAtText = paidAt ? paidAt.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
-        var name = payment.customerName || payment.customerEmail || 'Your payment';
-        var phone = payment.customerPhone ? ' · ' + escapeHtml(payment.customerPhone) : '';
-        var paymentId = payment.razorpayPaymentId || payment.paymentId || entry.id || '';
-        var statusText = payment.status ? escapeHtml(payment.status) : '';
-
-        return '<div class="txn-item" style="border-left:4px solid #43a047;flex-wrap:wrap">'
-          + '<div class="txn-info" style="flex:1;min-width:0">'
-          + '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
-          + '<div style="font-weight:700;color:#222">' + escapeHtml(name) + phone + '</div>'
-          + '<div style="font-size:.85rem;color:#555">' + escapeHtml(paidAtText) + '</div>'
-          + '</div>'
-          + '<div style="margin-top:8px;font-size:.92rem;color:#333">'
-          + '<strong>₹' + amount.toLocaleString('en-IN') + '</strong>'
-          + (paymentId ? '<span style="margin-left:10px;color:#777;font-size:.82rem">ID: ' + escapeHtml(paymentId) + '</span>' : '')
-          + '</div>'
-          + (statusText ? '<div style="margin-top:6px;font-size:.82rem;color:#666">Status: ' + statusText + '</div>' : '')
-          + '</div>'
-          + '</div>';
-      }).join('');
-    }, function(err) {
-      console.warn('[PaymentHistory] Firestore error:', err);
-      countEl.textContent = 'Unable to load payment history';
-      listEl.innerHTML = '<div class="empty-cat-msg"><div class="big">⚠️</div>Could not load payments. Please refresh.</div>';
-    });
-}
 </script>
 
 <!-- CLEAN GROCERY ORDER MODAL IMPLEMENTATION -->

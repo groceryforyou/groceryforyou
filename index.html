@@ -2219,7 +2219,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
     <!-- Profile Menu Items -->
     <div style="display:grid;gap:0;background:#fff;border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:var(--shadow)">
       
-      <button type="button" onclick="openPersonalInfoModal()" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
+      <button type="button" onclick="openAddressModal()" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">👤</span>
           <div>
@@ -2252,6 +2252,16 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
         <span style="color:#ccc;font-size:1.2rem">›</span>
       </button>
 
+      <button type="button" onclick="showPage('payments')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
+        <div style="display:flex;align-items:center;gap:12px;flex:1">
+          <span style="font-size:1.4rem">💳</span>
+          <div>
+            <div style="font-weight:700;color:var(--brown);font-size:.95rem">Payment Methods</div>
+            <div style="font-size:.75rem;color:#999">Manage your payments</div>
+          </div>
+        </div>
+        <span style="color:#ccc;font-size:1.2rem">›</span>
+      </button>
 
       <button type="button" onclick="showToast('⚙️ Settings coming soon')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
@@ -9406,209 +9416,6 @@ window.addEventListener('load', function() {
   // Expose stop for debugging
   window._gfyStopCustomerTrackingUI = stopAll;
 
-})();
-</script>
-
-<!-- ADDRESS MODAL GLOBAL SHIM
-     The obfuscated IIFE defines openAddressModal/closeAddressModal internally
-     but never assigns them to window. This shim exposes them globally so that
-     onclick="openAddressModal()" in the profile menu can find them.
-     It does NOT duplicate any HTML or address logic. -->
-<script>
-(function() {
-  'use strict';
-  if (window.__gfyAddressModalShimInstalled) return;
-  window.__gfyAddressModalShimInstalled = true;
-
-  window.openAddressModal = function() {
-    var overlay = document.getElementById('address-overlay');
-    if (!overlay) return;
-    overlay.classList.add('open');
-    overlay.style.display = 'flex';
-    // Trigger the obfuscated renderAddresses if it was defined on window
-    if (typeof window.renderAddresses === 'function') {
-      try { window.renderAddresses(); } catch(e) {}
-    }
-    // Also try any renderAddressList variant
-    if (typeof window.renderAddressList === 'function') {
-      try { window.renderAddressList(); } catch(e) {}
-    }
-  };
-
-  window.closeAddressModal = function() {
-    var overlay = document.getElementById('address-overlay');
-    if (!overlay) return;
-    overlay.classList.remove('open');
-    overlay.style.display = 'none';
-  };
-
-  // Close on backdrop click (matches the obfuscated code's pattern)
-  document.addEventListener('click', function(e) {
-    var overlay = document.getElementById('address-overlay');
-    if (overlay && overlay.classList.contains('open') && e.target === overlay) {
-      window.closeAddressModal();
-    }
-  });
-
-  console.log('[GFY] openAddressModal / closeAddressModal shim installed.');
-})();
-</script>
-
-<!-- PERSONAL INFORMATION MODAL -->
-<div class="auth-overlay" id="personal-info-overlay" style="display:none">
-  <div class="auth-modal" style="max-width:480px">
-    <div class="auth-modal-header">
-      <h2>👤 Personal Information</h2>
-      <p>Update your name &amp; contact</p>
-    </div>
-    <div class="auth-modal-body">
-      <button class="back-btn-light" type="button" onclick="closePersonalInfoModal()">← Back</button>
-      <div style="display:grid;gap:14px;margin-top:16px">
-
-        <!-- Full Name (editable) -->
-        <div>
-          <label for="pi-name-input" style="font-size:.72rem;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px">Full Name</label>
-          <input id="pi-name-input" type="text" dir="ltr" inputmode="text" autocomplete="name"
-            placeholder="Your full name"
-            style="width:100%;box-sizing:border-box;padding:12px 14px;border:1.5px solid var(--border,#e0d8c8);border-radius:12px;font-size:.95rem;font-weight:600;color:var(--brown,#3e2723);background:var(--cream,#f9f6f0);outline:none;font-family:inherit"/>
-        </div>
-
-        <!-- Email (read-only) -->
-        <div>
-          <label style="font-size:.72rem;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px">Email Address</label>
-          <div id="pi-email-display" style="padding:12px 14px;border:1.5px solid var(--border,#e0d8c8);border-radius:12px;font-size:.95rem;font-weight:600;color:#888;background:#f5f5f5;word-break:break-all">—</div>
-          <div style="font-size:.7rem;color:#aaa;margin-top:4px">🔒 Email cannot be changed here</div>
-        </div>
-
-        <!-- Phone Number (editable) -->
-        <div>
-          <label for="pi-phone-input" style="font-size:.72rem;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px">Contact Number</label>
-          <input id="pi-phone-input" type="tel" dir="ltr" inputmode="numeric" autocomplete="tel"
-            placeholder="10-digit phone number"
-            style="width:100%;box-sizing:border-box;padding:12px 14px;border:1.5px solid var(--border,#e0d8c8);border-radius:12px;font-size:.95rem;font-weight:600;color:var(--brown,#3e2723);background:var(--cream,#f9f6f0);outline:none;font-family:inherit"/>
-        </div>
-
-      </div>
-
-      <!-- Save / Cancel -->
-      <div style="display:flex;gap:12px;margin-top:22px">
-        <button type="button" onclick="closePersonalInfoModal()"
-          style="flex:1;padding:12px;border:1.5px solid var(--border,#e0d8c8);border-radius:12px;background:#fff;color:var(--brown,#3e2723);font-size:.95rem;font-weight:700;cursor:pointer">Cancel</button>
-        <button type="button" id="pi-save-btn" onclick="savePersonalInfo()"
-          style="flex:2;padding:12px;border:none;border-radius:12px;background:var(--brown,#3e2723);color:#fff;font-size:.95rem;font-weight:700;cursor:pointer">✅ Save Changes</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-(function() {
-  'use strict';
-  if (window.__gfyPersonalInfoInstalled) return;
-  window.__gfyPersonalInfoInstalled = true;
-
-  window.openPersonalInfoModal = function() {
-    var overlay = document.getElementById('personal-info-overlay');
-    if (!overlay) return;
-
-    // Prefer currentUserProfile (maintained by obfuscated code) for name/phone
-    var profile = window.currentUserProfile || {};
-    var user    = window.currentUser ||
-                  (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
-
-    var name  = profile.name  || (user && (user.displayName || user.name))  || '';
-    var phone = profile.phone || (user && user.phoneNumber) || '';
-    var email = (user && user.email) || profile.email || '';
-
-    document.getElementById('pi-name-input').value  = name;
-    document.getElementById('pi-phone-input').value = phone;
-    document.getElementById('pi-email-display').textContent = email || '—';
-
-    overlay.style.display = 'flex';
-    overlay.classList.add('open');
-  };
-
-  window.closePersonalInfoModal = function() {
-    var overlay = document.getElementById('personal-info-overlay');
-    if (!overlay) return;
-    overlay.classList.remove('open');
-    overlay.style.display = 'none';
-  };
-
-  window.savePersonalInfo = function() {
-    var name  = (document.getElementById('pi-name-input').value  || '').trim();
-    var phone = (document.getElementById('pi-phone-input').value || '').trim();
-
-    if (!name) {
-      if (typeof showToast === 'function') showToast('⚠️ Please enter your name');
-      document.getElementById('pi-name-input').focus();
-      return;
-    }
-    if (phone && !/^[0-9]{10}$/.test(phone)) {
-      if (typeof showToast === 'function') showToast('⚠️ Phone must be 10 digits');
-      document.getElementById('pi-phone-input').focus();
-      return;
-    }
-
-    var btn = document.getElementById('pi-save-btn');
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ Saving...'; }
-
-    function onDone(err) {
-      if (btn) { btn.disabled = false; btn.textContent = '✅ Save Changes'; }
-      if (err) {
-        if (typeof showToast === 'function') showToast('❌ Could not save: ' + (err.message || err));
-        return;
-      }
-      // Update in-memory profile so other parts of the page see new values
-      if (window.currentUserProfile) {
-        window.currentUserProfile.name  = name;
-        window.currentUserProfile.phone = phone;
-      }
-      if (typeof showToast === 'function') showToast('✅ Profile updated!');
-      window.closePersonalInfoModal();
-    }
-
-    // Use the obfuscated helper if it is exposed on window
-    if (typeof window.saveCustomerProfileContact === 'function') {
-      try {
-        var result = window.saveCustomerProfileContact(name, phone);
-        // It returns a Promise
-        if (result && typeof result.then === 'function') {
-          result.then(function() { onDone(); }).catch(onDone);
-        } else {
-          onDone();
-        }
-        return;
-      } catch(e) { /* fall through to direct Firestore write */ }
-    }
-
-    // Direct Firestore write (fallback — mirrors saveCustomerProfileContact exactly)
-    var user = window.currentUser ||
-               (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
-    if (!user || !user.uid || typeof db === 'undefined' || !db) {
-      onDone(new Error('Not signed in or database not ready'));
-      return;
-    }
-    var payload = {
-      name: name,
-      phone: phone,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    db.collection('users').doc(user.uid)
-      .set(payload, { merge: true })
-      .then(function() { onDone(); })
-      .catch(onDone);
-  };
-
-  // Close on backdrop click
-  document.addEventListener('click', function(e) {
-    var overlay = document.getElementById('personal-info-overlay');
-    if (overlay && overlay.classList.contains('open') && e.target === overlay) {
-      window.closePersonalInfoModal();
-    }
-  });
-
-  console.log('[GFY] openPersonalInfoModal (editable) installed.');
 })();
 </script>
 

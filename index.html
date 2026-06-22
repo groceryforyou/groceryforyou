@@ -271,9 +271,10 @@ document.addEventListener('error', function(e) {
     /* ===== MAIN ===== */
     .main{max-width:1200px;margin:0 auto;padding:24px 14px 120px;width:100%;overflow-x:hidden}
     .section-title{font-family:"Yeseva One",serif;font-size:1.5rem;color:var(--brown);margin-bottom:18px;display:flex;align-items:center;gap:10px;border-left:4px solid var(--saffron);padding-left:12px}
-    .page{display:none}
-    .page.active{display:block}
-    .page-auth-loading{position:fixed;inset:0;z-index:10050;background:linear-gradient(180deg,#f4fff6,#e8f7ed);display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px}
+    .page{display:none;opacity:0;transition:opacity .3s ease-in-out}
+    .page.active{display:block;opacity:1}
+    .page-auth-loading{position:fixed;inset:0;z-index:10050;background:linear-gradient(180deg,#f4fff6,#e8f7ed);display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px;opacity:0;transition:opacity .3s ease-in-out}
+    .page-auth-loading.active{opacity:1}
     .auth-loading-card{width:100%;max-width:360px;background:rgba(255,255,255,0.96);border-radius:28px;box-shadow:0 28px 80px rgba(0,0,0,0.08);padding:36px 28px;text-align:center}
     .auth-loading-logo{width:180px;height:auto;border-radius:24px;margin:0 auto 20px;display:block;box-shadow:0 18px 48px rgba(0,0,0,0.08)}
     .auth-loading-message{font-family:"Yeseva One",serif;font-size:1.3rem;color:var(--brown);margin-bottom:20px}
@@ -1644,7 +1645,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
 <div id="offline-banner"><span class="ob-icon">📡</span> No internet connection. Please check your network.</div>
 
 <!-- Auth loading splash while Firebase checks current user -->
-<div class="page page-auth-loading active" id="page-auth-loading">
+<div class="page page-auth-loading" id="page-auth-loading">
   <div class="auth-loading-card">
     <img src="./fevicon.jpeg" alt="Grocery For You logo" class="auth-loading-logo" />
     <div class="auth-loading-message">Checking your account…</div>
@@ -5247,11 +5248,8 @@ function toggleSidebar() {
     }, 500);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bootstrap);
-  } else {
-    setTimeout(bootstrap, 100);
-  }
+  // Note: bootstrap() is already triggered by the first listener above
+  // No need to add a second DOMContentLoaded listener here
   
   // Expose for debugging
   window._supportNotifyDebug = {
@@ -5751,14 +5749,49 @@ function toggleSidebar() {
 <script>
 (function initLoginRouting() {
   window.authStateReady = false;
+  
+  // Check if user is cached in sessionStorage to avoid showing auth-loading screen on refresh
+  function getCachedAuthState() {
+    try {
+      const cached = sessionStorage.getItem('_gfy_auth_cached');
+      return cached ? JSON.parse(cached) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  // Cache auth state to speed up next navigation
+  function setCachedAuthState(isLoggedIn) {
+    try {
+      sessionStorage.setItem('_gfy_auth_cached', JSON.stringify({ isLoggedIn, ts: Date.now() }));
+    } catch (e) {}
+  }
+  
   function route() {
     if (typeof auth === 'undefined' || !auth || typeof auth.onAuthStateChanged !== 'function') {
       setTimeout(route, 300);
       return;
     }
+    
+    // Show the appropriate page based on cached state while auth check completes
+    const cachedState = getCachedAuthState();
+    if (cachedState && Date.now() - cachedState.ts < 300000) { // Cache valid for 5 minutes
+      if (cachedState.isLoggedIn) {
+        if (typeof showPage === 'function') showPage('menu');
+      } else {
+        if (typeof showPage === 'function') showPage('login');
+      }
+    } else {
+      // Show loading screen only if no cached state
+      if (document.getElementById('page-auth-loading')) {
+        document.getElementById('page-auth-loading').classList.add('active');
+      }
+    }
+    
     auth.onAuthStateChanged(function(user) {
       window.authStateReady = true;
       if (user) {
+        setCachedAuthState(true);
         const activePage = document.querySelector('.page.active');
         if (!activePage || activePage.id === 'page-login' || activePage.id === 'page-auth-loading') {
           if (typeof showPage === 'function') {
@@ -5766,6 +5799,7 @@ function toggleSidebar() {
           }
         }
       } else {
+        setCachedAuthState(false);
         if (typeof showPage === 'function') {
           showPage('login');
         }

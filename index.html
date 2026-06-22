@@ -5714,11 +5714,16 @@ function toggleSidebar() {
       const overlay = document.getElementById('auth-overlay');
       if (overlay) overlay.classList.remove('open');
 
-      authInst.signInWithPopup(provider)
-        .then(result => {
-          if (typeof showToast === 'function') showToast('✅ Signed in as ' + result.user.email, 2500);
-        })
-        .catch(err => {
+      // Ensure auth persistence is LOCAL so sign-in survives page reloads
+      authInst.setPersistence && authInst.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(pErr){
+        console.warn('[Auth] setPersistence failed, continuing:', pErr && pErr.message);
+      }).finally(function(){
+        authInst.signInWithPopup(provider)
+          .then(result => {
+            try{ localStorage.setItem('gfy_is_logged_in', '1'); }catch(e){}
+            if (typeof showToast === 'function') showToast('✅ Signed in as ' + result.user.email, 2500);
+          })
+          .catch(err => {
           const code = err && err.code ? err.code : '';
           // Fallback to redirect for blocked popups or unauthorized domain
           if (
@@ -5735,7 +5740,8 @@ function toggleSidebar() {
             if (typeof showToast === 'function') showToast('❌ Sign in failed: ' + msg, 3000);
             console.error('[SignIn]', err);
           }
-        });
+          });
+      });
     };
   }
 
@@ -5754,16 +5760,22 @@ function toggleSidebar() {
   function getCachedAuthState() {
     try {
       const cached = sessionStorage.getItem('_gfy_auth_cached');
-      return cached ? JSON.parse(cached) : null;
+      if (cached) return JSON.parse(cached);
+      // Fallback to long-lived localStorage flag if sessionStorage is cleared
+      const lf = localStorage.getItem('gfy_is_logged_in');
+      if (lf !== null) return { isLoggedIn: lf === '1', ts: Date.now() };
+      return null;
     } catch (e) {
       return null;
     }
   }
   
-  // Cache auth state to speed up next navigation
+  // Cache auth state to speed up next navigation (writes both session and local storage)
   function setCachedAuthState(isLoggedIn) {
     try {
-      sessionStorage.setItem('_gfy_auth_cached', JSON.stringify({ isLoggedIn, ts: Date.now() }));
+      const payload = JSON.stringify({ isLoggedIn, ts: Date.now() });
+      try { sessionStorage.setItem('_gfy_auth_cached', payload); } catch (e) {}
+      try { localStorage.setItem('gfy_is_logged_in', isLoggedIn ? '1' : '0'); } catch (e) {}
     } catch (e) {}
   }
   

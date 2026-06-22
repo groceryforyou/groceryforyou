@@ -1915,7 +1915,6 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
             <button class="user-menu-item" onclick="userMenuGo('menu')">🍽 Menu</button>
             <button class="user-menu-item" onclick="userMenuGo('tracking')">📦 Track Order</button>
             <button class="user-menu-item" id="user-menu-orders-btn" onclick="openOrdersModal()">🧾 Orders</button>
-            <button class="user-menu-item" onclick="openProfile()">👤 Profile</button>
             <button class="user-menu-item" onclick="userMenuGo('support')">💬 Support</button>
             <div id="role-buttons-container" style="display:none;gap:5px;flex-direction:column">
               <button class="user-menu-item" onclick="switchRole('customer')">👤 Customer View</button>
@@ -2826,7 +2825,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="mni-icon">🛒</div><span>Cart</span>
       <span class="mni-badge" id="mob-cart-badge">0</span>
     </button>
-    <button class="mob-nav-item" id="mob-nav-profile" onclick="toggleUserMenu()">
+    <button class="mob-nav-item" id="mob-nav-profile" onclick="showPage('profile');setMobNav('profile')">
       <div class="mni-icon">👤</div><span>Profile</span>
     </button>
     <button class="mob-nav-item" id="mob-nav-more" onclick="showPage('support');setMobNav('more')">
@@ -5715,16 +5714,11 @@ function toggleSidebar() {
       const overlay = document.getElementById('auth-overlay');
       if (overlay) overlay.classList.remove('open');
 
-      // Ensure auth persistence is LOCAL so sign-in survives page reloads
-      authInst.setPersistence && authInst.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(pErr){
-        console.warn('[Auth] setPersistence failed, continuing:', pErr && pErr.message);
-      }).finally(function(){
-        authInst.signInWithPopup(provider)
-          .then(result => {
-            try{ localStorage.setItem('gfy_is_logged_in', '1'); }catch(e){}
-            if (typeof showToast === 'function') showToast('✅ Signed in as ' + result.user.email, 2500);
-          })
-          .catch(err => {
+      authInst.signInWithPopup(provider)
+        .then(result => {
+          if (typeof showToast === 'function') showToast('✅ Signed in as ' + result.user.email, 2500);
+        })
+        .catch(err => {
           const code = err && err.code ? err.code : '';
           // Fallback to redirect for blocked popups or unauthorized domain
           if (
@@ -5741,8 +5735,7 @@ function toggleSidebar() {
             if (typeof showToast === 'function') showToast('❌ Sign in failed: ' + msg, 3000);
             console.error('[SignIn]', err);
           }
-          });
-      });
+        });
     };
   }
 
@@ -5761,22 +5754,16 @@ function toggleSidebar() {
   function getCachedAuthState() {
     try {
       const cached = sessionStorage.getItem('_gfy_auth_cached');
-      if (cached) return JSON.parse(cached);
-      // Fallback to long-lived localStorage flag if sessionStorage is cleared
-      const lf = localStorage.getItem('gfy_is_logged_in');
-      if (lf !== null) return { isLoggedIn: lf === '1', ts: Date.now() };
-      return null;
+      return cached ? JSON.parse(cached) : null;
     } catch (e) {
       return null;
     }
   }
   
-  // Cache auth state to speed up next navigation (writes both session and local storage)
+  // Cache auth state to speed up next navigation
   function setCachedAuthState(isLoggedIn) {
     try {
-      const payload = JSON.stringify({ isLoggedIn, ts: Date.now() });
-      try { sessionStorage.setItem('_gfy_auth_cached', payload); } catch (e) {}
-      try { localStorage.setItem('gfy_is_logged_in', isLoggedIn ? '1' : '0'); } catch (e) {}
+      sessionStorage.setItem('_gfy_auth_cached', JSON.stringify({ isLoggedIn, ts: Date.now() }));
     } catch (e) {}
   }
   

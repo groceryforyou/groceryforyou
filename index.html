@@ -271,27 +271,9 @@ document.addEventListener('error', function(e) {
     /* ===== MAIN ===== */
     .main{max-width:1200px;margin:0 auto;padding:24px 14px 120px;width:100%;overflow-x:hidden}
     .section-title{font-family:"Yeseva One",serif;font-size:1.5rem;color:var(--brown);margin-bottom:18px;display:flex;align-items:center;gap:10px;border-left:4px solid var(--saffron);padding-left:12px}
-    .page{display:none;opacity:0;transition:opacity .3s ease-in-out}
-    .page.active{display:block;opacity:1}
-    .profile-option-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-    .profile-option-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:18px;text-align:left;display:flex;align-items:flex-start;gap:14px;cursor:pointer;transition:transform .2s,box-shadow .2s;min-height:120px}
-    .profile-option-card:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,0.08)}
-    .profile-option-card .option-icon{font-size:1.6rem;width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#f0faf4,#e8f7d5);display:flex;align-items:center;justify-content:center}
-    .profile-option-card strong{font-size:1rem;color:var(--brown);display:block}
-    .option-subtext{font-size:.84rem;color:#666;margin-top:6px;line-height:1.4}
-    .profile-detail-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:18px;box-shadow:var(--shadow)}
-    .profile-detail-card .detail-title{font-family:"Yeseva One",serif;font-size:1.15rem;color:var(--brown);margin-bottom:10px}
-    .profile-card-list{display:grid;gap:12px;margin-top:12px}
-    .profile-card{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px}
-    .profile-card .pc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-    .profile-card .pc-title{font-weight:800;color:var(--brown)}
-    .profile-card .pc-sub{font-size:.82rem;color:#666;margin-top:6px}
-    .profile-card .pc-items{margin-top:10px;font-size:.88rem;color:#444;display:grid;gap:8px}
-    .profile-card .pc-item{display:flex;justify-content:space-between;gap:8px;align-items:center}
-    .profile-card .pc-item-name{color:#333;flex:1;min-width:0}
-    .profile-card .pc-item-qty{color:#666}
-    .page-auth-loading{position:fixed;inset:0;z-index:10050;background:linear-gradient(180deg,#f4fff6,#e8f7ed);display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px;opacity:0;transition:opacity .3s ease-in-out}
-    .page-auth-loading.active{opacity:1}
+    .page{display:none}
+    .page.active{display:block}
+    .page-auth-loading{position:fixed;inset:0;z-index:10050;background:linear-gradient(180deg,#f4fff6,#e8f7ed);display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px}
     .auth-loading-card{width:100%;max-width:360px;background:rgba(255,255,255,0.96);border-radius:28px;box-shadow:0 28px 80px rgba(0,0,0,0.08);padding:36px 28px;text-align:center}
     .auth-loading-logo{width:180px;height:auto;border-radius:24px;margin:0 auto 20px;display:block;box-shadow:0 18px 48px rgba(0,0,0,0.08)}
     .auth-loading-message{font-family:"Yeseva One",serif;font-size:1.3rem;color:var(--brown);margin-bottom:20px}
@@ -1662,7 +1644,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
 <div id="offline-banner"><span class="ob-icon">📡</span> No internet connection. Please check your network.</div>
 
 <!-- Auth loading splash while Firebase checks current user -->
-<div class="page page-auth-loading" id="page-auth-loading">
+<div class="page page-auth-loading active" id="page-auth-loading">
   <div class="auth-loading-card">
     <img src="./fevicon.jpeg" alt="Grocery For You logo" class="auth-loading-logo" />
     <div class="auth-loading-message">Checking your account…</div>
@@ -2212,47 +2194,6 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
         <span style="font-size:.8rem;color:#666">Serving Sircilla &amp; Rajanna Sircilla District for fast grocery home delivery</span></p>
       </div>
     </section>
-  </div>
-
-  <!-- PROFILE PAGE -->
-  <div class="page" id="page-profile">
-    <button class="back-btn-light" onclick="showPage('menu')">← Back to Menu</button>
-    <div class="section-title">👤 Profile</div>
-
-    <div id="profile-menu-view" style="margin-top:16px">
-      <div class="profile-option-grid">
-        <button class="profile-option-card" type="button" onclick="showProfileSection('email')">
-          <div class="option-icon">✉️</div>
-          <div>
-            <strong>Customer Email</strong>
-            <div class="option-subtext">View signed-in account email</div>
-          </div>
-        </button>
-        <button class="profile-option-card" type="button" onclick="showProfileSection('orders')">
-          <div class="option-icon">🧾</div>
-          <div>
-            <strong>My Orders</strong>
-            <div class="option-subtext">View your order history</div>
-          </div>
-        </button>
-        <button class="profile-option-card" type="button" onclick="showProfileSection('address')">
-          <div class="option-icon">🏠</div>
-          <div>
-            <strong>My Address</strong>
-            <div class="option-subtext">View saved delivery address</div>
-          </div>
-        </button>
-        <button class="profile-option-card" type="button" onclick="showProfileSection('payments')">
-          <div class="option-icon">💳</div>
-          <div>
-            <strong>Payment History</strong>
-            <div class="option-subtext">View your UPI payment history</div>
-          </div>
-        </button>
-      </div>
-    </div>
-
-    <div id="profile-detail-view" style="display:none;margin-top:20px"></div>
   </div>
 
   <!-- TRACKING PAGE -->
@@ -2883,7 +2824,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="mni-icon">🛒</div><span>Cart</span>
       <span class="mni-badge" id="mob-cart-badge">0</span>
     </button>
-    <button class="mob-nav-item" id="mob-nav-profile" onclick="showPage('profile');setMobNav('profile')">
+    <button class="mob-nav-item" id="mob-nav-profile" onclick="toggleUserMenu()">
       <div class="mni-icon">👤</div><span>Profile</span>
     </button>
     <button class="mob-nav-item" id="mob-nav-more" onclick="showPage('support');setMobNav('more')">
@@ -5306,8 +5247,11 @@ function toggleSidebar() {
     }, 500);
   }
 
-  // Note: bootstrap() is already triggered by the first listener above
-  // No need to add a second DOMContentLoaded listener here
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrap);
+  } else {
+    setTimeout(bootstrap, 100);
+  }
   
   // Expose for debugging
   window._supportNotifyDebug = {
@@ -5807,49 +5751,14 @@ function toggleSidebar() {
 <script>
 (function initLoginRouting() {
   window.authStateReady = false;
-  
-  // Check if user is cached in sessionStorage to avoid showing auth-loading screen on refresh
-  function getCachedAuthState() {
-    try {
-      const cached = sessionStorage.getItem('_gfy_auth_cached');
-      return cached ? JSON.parse(cached) : null;
-    } catch (e) {
-      return null;
-    }
-  }
-  
-  // Cache auth state to speed up next navigation
-  function setCachedAuthState(isLoggedIn) {
-    try {
-      sessionStorage.setItem('_gfy_auth_cached', JSON.stringify({ isLoggedIn, ts: Date.now() }));
-    } catch (e) {}
-  }
-  
   function route() {
     if (typeof auth === 'undefined' || !auth || typeof auth.onAuthStateChanged !== 'function') {
       setTimeout(route, 300);
       return;
     }
-    
-    // Show the appropriate page based on cached state while auth check completes
-    const cachedState = getCachedAuthState();
-    if (cachedState && Date.now() - cachedState.ts < 300000) { // Cache valid for 5 minutes
-      if (cachedState.isLoggedIn) {
-        if (typeof showPage === 'function') showPage('menu');
-      } else {
-        if (typeof showPage === 'function') showPage('login');
-      }
-    } else {
-      // Show loading screen only if no cached state
-      if (document.getElementById('page-auth-loading')) {
-        document.getElementById('page-auth-loading').classList.add('active');
-      }
-    }
-    
     auth.onAuthStateChanged(function(user) {
       window.authStateReady = true;
       if (user) {
-        setCachedAuthState(true);
         const activePage = document.querySelector('.page.active');
         if (!activePage || activePage.id === 'page-login' || activePage.id === 'page-auth-loading') {
           if (typeof showPage === 'function') {
@@ -5857,7 +5766,6 @@ function toggleSidebar() {
           }
         }
       } else {
-        setCachedAuthState(false);
         if (typeof showPage === 'function') {
           showPage('login');
         }
@@ -8323,7 +8231,7 @@ window.addEventListener('load', function() {
     'menu'            : 'page-menu',
     'cart'            : 'page-menu',       // cart is a slide-over panel, not a page
     'orders'          : 'page-orders',
-    'profile'         : 'page-profile',    // profile page container
+    'profile'         : 'page-menu',       // profile uses a modal, not a page div
     'support'         : 'page-support',
     'tracking'        : 'page-tracking',
     'dashboard'       : 'page-dashboard',
@@ -8337,7 +8245,7 @@ window.addEventListener('load', function() {
   };
 
   var ALL_PAGE_IDS = [
-    'page-auth-loading','page-login','page-menu','page-profile','page-tracking','page-orders','page-support',
+    'page-auth-loading','page-login','page-menu','page-tracking','page-orders','page-support',
     'page-dashboard','page-manage','page-payments','page-customers',
     'page-delivery','page-admin-support','page-business-hours',
     'page-delivery-settings'
@@ -8413,14 +8321,9 @@ window.addEventListener('load', function() {
     });
 
     var target = resolveEl(page);
-    if (page === 'profile' && typeof window !== 'undefined') {
-      window.profileSelectedSection = 'menu';
-    }
     if (target) {
       target.classList.add('active');
       target.style.display = '';
-      // If profile page shown, render dynamic profile content
-      try { if (page === 'profile' && typeof renderProfilePage === 'function') { renderProfilePage(); } } catch(e) { console.warn('renderProfilePage failed', e); }
     } else {
       console.error('[showPage] No element found for page: "' + page + '"');
     }
@@ -8454,228 +8357,6 @@ window.addEventListener('load', function() {
 <script>
 (function() {
   'use strict';
-
-  // ===== Profile page renderer =====
-  window.profileSelectedSection = 'menu';
-
-  window.profileOrdersFilter = 'active';
-
-  window.showProfileSection = function(section) {
-    if (!section) return;
-    window.profileSelectedSection = section;
-    if (section === 'orders') {
-      window.profileOrdersFilter = 'active';
-    }
-    if (typeof window.renderProfilePage === 'function') {
-      window.renderProfilePage();
-    }
-    const detail = document.getElementById('profile-detail-view');
-    if (detail) {
-      detail.scrollIntoView({behavior:'smooth', block:'start'});
-    }
-  };
-
-  window.setProfileOrdersFilter = function(filter) {
-    if (!filter) return;
-    window.profileOrdersFilter = filter;
-    if (typeof window.renderProfilePage === 'function') {
-      window.renderProfilePage();
-    }
-  };
-
-  window.closeProfileSection = function() {
-    window.profileSelectedSection = 'menu';
-    if (typeof window.renderProfilePage === 'function') {
-      window.renderProfilePage();
-    }
-  };
-
-  window.formatProfileDate = function(value) {
-    if (!value) return '';
-    const date = value && typeof value.toDate === 'function' ? value.toDate() : new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'});
-  };
-
-  window.getProfilePageLoadingHtml = function() {
-    return '<div class="empty-cat-msg"><div class="big">⏳</div>Loading details...</div>';
-  };
-
-  window.getProfileAuthUser = function() {
-    return window.currentUser || (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
-  };
-
-  window.getProfileAuthSource = function() {
-    if (window.currentUser) return 'window.currentUser';
-    if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) return 'firebase.auth().currentUser';
-    return 'none';
-  };
-
-  window.renderProfilePage = function() {
-    try {
-      const menuView = document.getElementById('profile-menu-view');
-      const detailView = document.getElementById('profile-detail-view');
-      if (!menuView || !detailView) return;
-
-      const authUser = window.getProfileAuthUser();
-      console.log('[Profile] Current auth source:', window.getProfileAuthSource());
-      console.log('[Profile] Customer object loaded:', authUser);
-      console.log('[Profile] Profile auth check result:', !!authUser);
-
-      if (!authUser) {
-        if (window.authStateReady === false) {
-          menuView.innerHTML = window.getProfilePageLoadingHtml();
-          menuView.style.display = '';
-          detailView.style.display = 'none';
-          detailView.innerHTML = '';
-          return;
-        }
-        if (typeof showPage === 'function') {
-          showPage('login');
-          return;
-        }
-        menuView.innerHTML = '<div class="empty-cat-msg" style="padding:18px"><div class="big">👋</div>Please sign in to view your profile sections.<br/><br/><button class="cat-save-btn" onclick="showPage(\'login\')">Sign in</button></div>';
-        menuView.style.display = '';
-        detailView.style.display = 'none';
-        detailView.innerHTML = '';
-        return;
-      }
-
-      if (window.profileSelectedSection && window.profileSelectedSection !== 'menu') {
-        menuView.style.display = 'none';
-        detailView.style.display = '';
-        detailView.innerHTML = '<div class="profile-detail-card"><button class="back-btn-light" onclick="closeProfileSection()">← Back to Profile</button><div class="detail-title">' + (window.profileSelectedSection === 'email' ? 'Customer Email' : window.profileSelectedSection === 'orders' ? 'My Orders' : window.profileSelectedSection === 'address' ? 'My Address' : 'Payment History') + '</div><div id="profile-detail-content">' + window.getProfilePageLoadingHtml() + '</div></div>';
-        const detailContent = document.getElementById('profile-detail-content');
-        if (!detailContent) return;
-
-        if (window.profileSelectedSection === 'email') {
-          const email = authUser.email || 'Email not available.';
-          detailContent.innerHTML = '<div class="profile-card"><div class="pc-top"><div><strong class="pc-title">Signed in as</strong><div class="pc-sub">' + escapeHtml(email) + '</div></div></div></div>';
-          return;
-        }
-
-        if (window.profileSelectedSection === 'orders') {
-          detailContent.innerHTML = window.getProfilePageLoadingHtml();
-          const email = authUser.email || '';
-          if (typeof db === 'undefined' || !db) {
-            setTimeout(function() { window.renderProfilePage(); }, 300);
-            return;
-          }
-
-          const filterRow = '<div class="orders-tab-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">'
-            + '<button type="button" class="orders-tab ' + (window.profileOrdersFilter === 'active' ? 'active' : '') + '" onclick="setProfileOrdersFilter(\'active\')">Active Orders</button>'
-            + '<button type="button" class="orders-tab ' + (window.profileOrdersFilter === 'delivered' ? 'active' : '') + '" onclick="setProfileOrdersFilter(\'delivered\')">Delivered</button>'
-            + '<button type="button" class="orders-tab ' + (window.profileOrdersFilter === 'rejected' ? 'active' : '') + '" onclick="setProfileOrdersFilter(\'rejected\')">Rejected</button>'
-            + '<button type="button" class="orders-tab ' + (window.profileOrdersFilter === 'all' ? 'active' : '') + '" onclick="setProfileOrdersFilter(\'all\')">All Orders</button>'
-            + '</div>';
-
-          db.collection('orders').where('customerEmail','==', email).orderBy('createdAt','desc').get().then(function(snap) {
-            const docs = snap.docs.map(function(d) { return {id:d.id, ...d.data()}; });
-            const activeStatuses = ['pending','accepted','preparing','out for delivery','out-for-delivery','active'];
-            const deliveredStatuses = ['delivered','completed'];
-            const rejectedStatuses = ['rejected','cancelled','canceled','failed'];
-
-            const filtered = docs.filter(function(o) {
-              const status = String(o.status || '').toLowerCase();
-              if (window.profileOrdersFilter === 'active') {
-                return activeStatuses.some(function(s) { return status.indexOf(s) !== -1; });
-              }
-              if (window.profileOrdersFilter === 'delivered') {
-                return deliveredStatuses.some(function(s) { return status.indexOf(s) !== -1; });
-              }
-              if (window.profileOrdersFilter === 'rejected') {
-                return rejectedStatuses.some(function(s) { return status.indexOf(s) !== -1; });
-              }
-              return true;
-            });
-
-            if (!filtered.length) {
-              detailContent.innerHTML = filterRow + '<div class="empty-cat-msg"><div class="big">🧾</div>No orders found for this view.</div>';
-              return;
-            }
-
-            detailContent.innerHTML = filterRow + filtered.map(function(o) {
-              const dateText = window.formatProfileDate(o.createdAt) || 'Date not available';
-              const amount = o.total ? '₹' + escapeHtml(o.total) : '—';
-              const status = escapeHtml(o.status || 'Order details');
-              const items = Array.isArray(o.items) ? o.items.map(function(it) {
-                return '<div class="pc-item"><div class="pc-item-name">' + escapeHtml(it.name || it.title || 'Item') + '</div><div class="pc-item-qty">×' + escapeHtml(it.qty || it.quantity || 1) + '</div></div>';
-              }).join('') : '<div class="pc-item">No item details available.</div>';
-              return '<div class="profile-card"><div class="pc-top"><div><strong class="pc-title">' + escapeHtml(o.orderId || o.id || 'Order') + '</strong><div class="pc-sub">' + status + '</div></div><div style="text-align:right;color:#888;font-size:.88rem">' + escapeHtml(dateText) + '</div></div><div class="pc-items">' + items + '</div><div style="margin-top:12px;font-weight:700;color:var(--brown)">Total: ' + amount + '</div></div>';
-            }).join('');
-          }).catch(function(err){
-            console.warn('loadOrders failed', err);
-            detailContent.innerHTML = '<div class="empty-cat-msg"><div class="big">❌</div>Could not load orders.</div>';
-          });
-          return;
-        }
-
-        if (window.profileSelectedSection === 'address') {
-          detailContent.innerHTML = window.getProfilePageLoadingHtml();
-          const col = typeof getUserAddressesCollection === 'function' ? getUserAddressesCollection() : null;
-          if (!col) {
-            detailContent.innerHTML = '<div class="empty-cat-msg"><div class="big">🏠</div>No address saved yet.</div>';
-            return;
-          }
-          col.orderBy('updatedAt','desc').get().then(function(snap) {
-            const docs = snap.docs.map(function(d) { return {id:d.id, ...d.data()}; });
-            if (!docs.length) {
-              detailContent.innerHTML = '<div class="empty-cat-msg"><div class="big">🏠</div>No address saved yet.</div>';
-              return;
-            }
-            const def = docs.find(function(x){ return x.isDefault; }) || docs[0];
-            detailContent.innerHTML = '<div class="profile-card"><div class="pc-top"><div><strong class="pc-title">' + escapeHtml(def.label || 'Saved Address') + '</strong></div></div><div class="pc-sub" style="margin-top:10px">' + escapeHtml(def.line || def.address || def.addressText || 'Address not available.') + '</div>' + (def.phone ? '<div class="pc-sub" style="margin-top:10px">' + escapeHtml(def.phone) + '</div>' : '') + '<div style="margin-top:14px"><button class="cat-save-btn" onclick="openAddressModal()">Manage Addresses</button></div></div>';
-          }).catch(function(err){
-            console.warn('loadAddress failed', err);
-            detailContent.innerHTML = '<div class="empty-cat-msg"><div class="big">❌</div>Could not load address.</div>';
-          });
-          return;
-        }
-
-        if (window.profileSelectedSection === 'payments') {
-          detailContent.innerHTML = window.getProfilePageLoadingHtml();
-          if (typeof db === 'undefined' || !db) {
-            setTimeout(function() { window.renderProfilePage(); }, 300);
-            return;
-          }
-          const uid = authUser.uid || null;
-          const email = authUser.email || '';
-          var query = uid ? db.collection('razorpay_payments').where('customerUid','==', uid).orderBy('paidAt','desc').limit(50) : db.collection('razorpay_payments').where('customerEmail','==', email).orderBy('paidAt','desc').limit(50);
-          query.get().then(function(snap){
-            const docs = snap.docs.map(function(d){ return {id:d.id, ...d.data()}; });
-            const payments = docs.filter(function(p){
-              const combined = ((p.paymentMethod||'') + ' ' + (p.method||'') + ' ' + (p.channel||'') + ' ' + (p.gateway||'')).toLowerCase();
-              return combined.includes('upi') || combined.includes('gpay') || combined.includes('phonepe') || combined.includes('paytm') || !combined;
-            });
-            if (!payments.length) {
-              detailContent.innerHTML = '<div class="empty-cat-msg"><div class="big">💳</div>No UPI payments found.</div>';
-              return;
-            }
-            detailContent.innerHTML = payments.map(function(p){
-              const dateText = window.formatProfileDate(p.paidAt) || 'Date not available';
-              const amount = p.amount ? '₹' + escapeHtml(p.amount) : '₹0';
-              const status = (p.status || '').toLowerCase();
-              const success = status.includes('succ') || status.includes('paid') || p.status === 'successful' || p.paid === true;
-              const statusLabel = success ? '✅ Payment successful' : '❌ Payment failed';
-              const itemsHtml = Array.isArray(p.items) && p.items.length ? p.items.map(function(it){ return '<div class="pc-item"><div class="pc-item-name">' + escapeHtml(it.name || it.title || 'Item') + '</div><div class="pc-item-qty">×' + escapeHtml(it.qty || it.quantity || 1) + '</div></div>'; }).join('') : '<div class="pc-sub">No item details available.</div>';
-              return '<div class="profile-card"><div class="pc-top"><div><strong class="pc-title">' + escapeHtml(p.razorpayPaymentId || p.id || 'Payment') + '</strong><div class="pc-sub">' + escapeHtml(statusLabel) + '</div></div><div style="text-align:right;color:#888;font-size:.88rem">' + escapeHtml(dateText) + '</div></div><div style="margin-top:8px;font-weight:700;color:var(--brown)">' + amount + '</div><div class="pc-items">' + itemsHtml + '</div></div>';
-            }).join('');
-          }).catch(function(err){
-            console.warn('loadPayments failed', err);
-            detailContent.innerHTML = '<div class="empty-cat-msg"><div class="big">❌</div>Could not load payments.</div>';
-          });
-          return;
-        }
-      }
-
-      menuView.style.display = '';
-      detailView.style.display = 'none';
-      detailView.innerHTML = '';
-    } catch(e) {
-      console.warn('renderProfilePage error', e);
-    }
-  };
-
 
   // ── Single canonical openOrderModal ──────────────────────────────────
   window.openOrderModal = function() {

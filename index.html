@@ -1031,8 +1031,7 @@ document.addEventListener('error', function(e) {
     }
     .profile-menu-btn:hover{background:#f9f9f9}
     .profile-menu-btn:active{background:#f0faf4}
-    /* Make inner children non-interactive so taps always reach the button */
-    .profile-menu-btn > *{pointer-events:none}
+    /* Taps on children bubble naturally to the button — do NOT use pointer-events:none */
 
     /* ===== PAYMENT TOGGLE ===== */
     .pay-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;background:var(--cream);border:1.5px solid var(--border);border-radius:12px;margin-bottom:10px;gap:10px}
@@ -2245,7 +2244,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
     <!-- Profile Menu Items -->
     <div style="display:grid;gap:0;background:#fff;border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:var(--shadow)">
       
-      <button type="button" class="profile-menu-btn" data-action="personal-info" id="profile-btn-personal-info">
+      <button type="button" class="profile-menu-btn" data-action="personal-info" id="profile-btn-personal-info" onclick="openPersonalInfoModal()">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">👤</span>
           <div>
@@ -2267,7 +2266,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
         <span style="color:#ccc;font-size:1.2rem">›</span>
       </button>
 
-      <button type="button" class="profile-menu-btn" data-action="addresses" id="profile-btn-addresses">
+      <button type="button" class="profile-menu-btn" data-action="addresses" id="profile-btn-addresses" onclick="openAddressModal()">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">📍</span>
           <div>
@@ -9591,29 +9590,29 @@ async function savePersonalInfo() {
 }
 
 // ===== PROFILE PAGE — WebView-safe event delegation =====
-// Uses both 'click' and 'touchend' so Android WebView APK taps always fire.
-// Delegation is on #page-profile so no re-binding is needed on page switch.
+// touchend-only delegation: acts as a safety net for Android WebView taps
+// that don't reliably fire onclick. Because e.preventDefault() is called,
+// the synthetic click event is suppressed — so onclick never double-fires.
 (function bindProfileMenuDelegation() {
   'use strict';
 
   var _touchMoved = false;
+  // Timestamp dedup: ignore if onclick already ran within 300ms
+  var _lastFired = 0;
 
   function handleProfileAction(action) {
+    var now = Date.now();
+    if (now - _lastFired < 300) return; // debounce double-fire
+    _lastFired = now;
     try {
       if (action === 'personal-info') {
-        if (typeof openPersonalInfoModal === 'function') {
-          openPersonalInfoModal();
-        }
+        if (typeof openPersonalInfoModal === 'function') openPersonalInfoModal();
       } else if (action === 'addresses') {
         if (typeof openAddressModal === 'function') {
           openAddressModal();
         } else {
-          // Fallback: open the overlay directly
-          var overlay = document.getElementById('address-overlay');
-          if (overlay) {
-            overlay.classList.add('open');
-            if (typeof loadAddresses === 'function') loadAddresses();
-          }
+          var ov = document.getElementById('address-overlay');
+          if (ov) { ov.classList.add('open'); if (typeof loadAddresses === 'function') loadAddresses(); }
         }
       }
     } catch (e) {
@@ -9621,45 +9620,74 @@ async function savePersonalInfo() {
     }
   }
 
+  // Also wire onclick via addEventListener so obfuscated-scope functions
+  // are definitely resolved at call-time (not at HTML-parse time)
+  function wireButtonListeners() {
+    var piBtn  = document.getElementById('profile-btn-personal-info');
+    var addrBtn = document.getElementById('profile-btn-addresses');
+
+    if (piBtn && !piBtn._gfyBound) {
+      piBtn._gfyBound = true;
+      piBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var now = Date.now();
+        if (now - _lastFired < 300) return;
+        _lastFired = now;
+        if (typeof openPersonalInfoModal === 'function') openPersonalInfoModal();
+      });
+    }
+    if (addrBtn && !addrBtn._gfyBound) {
+      addrBtn._gfyBound = true;
+      addrBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var now = Date.now();
+        if (now - _lastFired < 300) return;
+        _lastFired = now;
+        if (typeof openAddressModal === 'function') openAddressModal();
+      });
+    }
+  }
+
   function attachDelegation() {
     var profilePage = document.getElementById('page-profile');
     if (!profilePage) return;
 
-    // --- Touch delegation (Android WebView primary path) ---
-    profilePage.addEventListener('touchstart', function(e) {
+    profilePage.addEventListener('touchstart', function() {
       _touchMoved = false;
     }, { passive: true });
 
-    profilePage.addEventListener('touchmove', function(e) {
+    profilePage.addEventListener('touchmove', function() {
       _touchMoved = true;
     }, { passive: true });
 
+    // touchend — Android WebView primary path
     profilePage.addEventListener('touchend', function(e) {
-      if (_touchMoved) return; // ignore scroll gestures
-      var btn = e.target.closest('[data-action]');
+      if (_touchMoved) return;
+      var btn = e.target && e.target.closest ? e.target.closest('[data-action]') : null;
       if (!btn) return;
       var action = btn.getAttribute('data-action');
       if (!action) return;
-      // Prevent the subsequent click event from double-firing
-      e.preventDefault();
+      e.preventDefault(); // suppress synthetic click so onclick doesn't double-fire
       handleProfileAction(action);
     }, { passive: false });
 
-    // --- Click delegation (browser / iOS WebView fallback) ---
-    profilePage.addEventListener('click', function(e) {
-      var btn = e.target.closest('[data-action]');
-      if (!btn) return;
-      var action = btn.getAttribute('data-action');
-      if (action) handleProfileAction(action);
-    });
+    // Wire individual button listeners after DOM is confirmed ready
+    wireButtonListeners();
   }
 
-  // Attach after DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', attachDelegation);
   } else {
     attachDelegation();
   }
+
+  // Also re-wire whenever the profile page becomes visible
+  // (catches cases where showPage() is called before delegation is ready)
+  document.addEventListener('click', function reBind() {
+    wireButtonListeners();
+    document.removeEventListener('click', reBind);
+  }, { once: true });
+
 })();
 </script>
 

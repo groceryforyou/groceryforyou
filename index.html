@@ -887,6 +887,9 @@ document.addEventListener('error', function(e) {
       .support-card:hover{transform:none}
       .mng-card:hover{box-shadow:none}
 
+      /* Profile menu buttons — WebView tap fix */
+      .profile-menu-btn:active{background:#f0faf4!important}
+
       /* Admin sidebar — overlay mode on mobile */
       .admin-sidebar{transform:translateX(-100%);display:flex!important;transition:transform .3s cubic-bezier(.4,0,.2,1)}
       .admin-sidebar.visible{transform:translateX(0)}
@@ -1007,6 +1010,29 @@ document.addEventListener('error', function(e) {
       body.admin-mode .hero{margin-left:0;}
       body.admin-mode .float-order-bar{left:0;}
     }
+
+    /* ===== PROFILE MENU BUTTONS — WebView tap fix ===== */
+    .profile-menu-btn{
+      display:flex;align-items:center;justify-content:space-between;
+      gap:12px;padding:16px 18px;
+      border:none;background:none;
+      cursor:pointer;
+      border-bottom:1px solid var(--border);
+      text-align:left;
+      width:100%;
+      /* Critical for Android WebView: eliminates 300ms tap delay */
+      touch-action:manipulation;
+      -webkit-tap-highlight-color:rgba(0,176,78,0.12);
+      /* Allow CSS transitions */
+      transition:background-color 0.15s;
+      /* Ensure taps register on the button itself */
+      position:relative;
+      z-index:1;
+    }
+    .profile-menu-btn:hover{background:#f9f9f9}
+    .profile-menu-btn:active{background:#f0faf4}
+    /* Make inner children non-interactive so taps always reach the button */
+    .profile-menu-btn > *{pointer-events:none}
 
     /* ===== PAYMENT TOGGLE ===== */
     .pay-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;background:var(--cream);border:1.5px solid var(--border);border-radius:12px;margin-bottom:10px;gap:10px}
@@ -2219,12 +2245,12 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
     <!-- Profile Menu Items -->
     <div style="display:grid;gap:0;background:#fff;border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:var(--shadow)">
       
-      <button type="button" onclick="openPersonalInfoModal()" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
+      <button type="button" class="profile-menu-btn" data-action="personal-info" id="profile-btn-personal-info">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">👤</span>
           <div>
             <div style="font-weight:700;color:var(--brown);font-size:.95rem">Personal Information</div>
-            <div style="font-size:.75rem;color:#999">Name, email & contact</div>
+            <div style="font-size:.75rem;color:#999">Name, email &amp; contact</div>
           </div>
         </div>
         <span style="color:#ccc;font-size:1.2rem">›</span>
@@ -2241,7 +2267,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
         <span style="color:#ccc;font-size:1.2rem">›</span>
       </button>
 
-      <button type="button" onclick="openAddressModal()" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
+      <button type="button" class="profile-menu-btn" data-action="addresses" id="profile-btn-addresses">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">📍</span>
           <div>
@@ -9563,6 +9589,78 @@ async function savePersonalInfo() {
     if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '💾 Save Changes'; }
   }
 }
+
+// ===== PROFILE PAGE — WebView-safe event delegation =====
+// Uses both 'click' and 'touchend' so Android WebView APK taps always fire.
+// Delegation is on #page-profile so no re-binding is needed on page switch.
+(function bindProfileMenuDelegation() {
+  'use strict';
+
+  var _touchMoved = false;
+
+  function handleProfileAction(action) {
+    try {
+      if (action === 'personal-info') {
+        if (typeof openPersonalInfoModal === 'function') {
+          openPersonalInfoModal();
+        }
+      } else if (action === 'addresses') {
+        if (typeof openAddressModal === 'function') {
+          openAddressModal();
+        } else {
+          // Fallback: open the overlay directly
+          var overlay = document.getElementById('address-overlay');
+          if (overlay) {
+            overlay.classList.add('open');
+            if (typeof loadAddresses === 'function') loadAddresses();
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[ProfileMenu] Action error:', action, e);
+    }
+  }
+
+  function attachDelegation() {
+    var profilePage = document.getElementById('page-profile');
+    if (!profilePage) return;
+
+    // --- Touch delegation (Android WebView primary path) ---
+    profilePage.addEventListener('touchstart', function(e) {
+      _touchMoved = false;
+    }, { passive: true });
+
+    profilePage.addEventListener('touchmove', function(e) {
+      _touchMoved = true;
+    }, { passive: true });
+
+    profilePage.addEventListener('touchend', function(e) {
+      if (_touchMoved) return; // ignore scroll gestures
+      var btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      var action = btn.getAttribute('data-action');
+      if (!action) return;
+      // Prevent the subsequent click event from double-firing
+      e.preventDefault();
+      handleProfileAction(action);
+    }, { passive: false });
+
+    // --- Click delegation (browser / iOS WebView fallback) ---
+    profilePage.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      var action = btn.getAttribute('data-action');
+      if (action) handleProfileAction(action);
+    });
+  }
+
+  // Attach after DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachDelegation);
+  } else {
+    attachDelegation();
+  }
+})();
 </script>
 
 </body>

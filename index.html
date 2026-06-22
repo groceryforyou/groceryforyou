@@ -273,6 +273,23 @@ document.addEventListener('error', function(e) {
     .section-title{font-family:"Yeseva One",serif;font-size:1.5rem;color:var(--brown);margin-bottom:18px;display:flex;align-items:center;gap:10px;border-left:4px solid var(--saffron);padding-left:12px}
     .page{display:none;opacity:0;transition:opacity .3s ease-in-out}
     .page.active{display:block;opacity:1}
+    .profile-option-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+    .profile-option-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:18px;text-align:left;display:flex;align-items:flex-start;gap:14px;cursor:pointer;transition:transform .2s,box-shadow .2s;min-height:120px}
+    .profile-option-card:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,0.08)}
+    .profile-option-card .option-icon{font-size:1.6rem;width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#f0faf4,#e8f7d5);display:flex;align-items:center;justify-content:center}
+    .profile-option-card strong{font-size:1rem;color:var(--brown);display:block}
+    .option-subtext{font-size:.84rem;color:#666;margin-top:6px;line-height:1.4}
+    .profile-detail-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:18px;box-shadow:var(--shadow)}
+    .profile-detail-card .detail-title{font-family:"Yeseva One",serif;font-size:1.15rem;color:var(--brown);margin-bottom:10px}
+    .profile-card-list{display:grid;gap:12px;margin-top:12px}
+    .profile-card{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px}
+    .profile-card .pc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+    .profile-card .pc-title{font-weight:800;color:var(--brown)}
+    .profile-card .pc-sub{font-size:.82rem;color:#666;margin-top:6px}
+    .profile-card .pc-items{margin-top:10px;font-size:.88rem;color:#444;display:grid;gap:8px}
+    .profile-card .pc-item{display:flex;justify-content:space-between;gap:8px;align-items:center}
+    .profile-card .pc-item-name{color:#333;flex:1;min-width:0}
+    .profile-card .pc-item-qty{color:#666}
     .page-auth-loading{position:fixed;inset:0;z-index:10050;background:linear-gradient(180deg,#f4fff6,#e8f7ed);display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px;opacity:0;transition:opacity .3s ease-in-out}
     .page-auth-loading.active{opacity:1}
     .auth-loading-card{width:100%;max-width:360px;background:rgba(255,255,255,0.96);border-radius:28px;box-shadow:0 28px 80px rgba(0,0,0,0.08);padding:36px 28px;text-align:center}
@@ -2201,36 +2218,41 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
   <div class="page" id="page-profile">
     <button class="back-btn-light" onclick="showPage('menu')">← Back to Menu</button>
     <div class="section-title">👤 Profile</div>
-    <div style="background:#fff;border:1px solid var(--border);border-radius:18px;padding:18px;margin-top:16px;box-shadow:var(--shadow)">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-        <div style="font-size:2rem">👤</div>
-        <div>
-          <div style="font-size:1.05rem;font-weight:800">Your Profile</div>
-          <div style="color:#666;font-size:.9rem">Manage your account details and order preferences.</div>
-        </div>
-      </div>
-      <div style="display:grid;gap:12px">
-        <div><strong>Name</strong><div id="profile-name" style="margin-top:6px;color:#333">—</div></div>
-        <div><strong>Email</strong><div id="profile-email" style="margin-top:6px;color:#333">—</div></div>
-        <div><strong>Phone</strong><div id="profile-phone" style="margin-top:6px;color:#333">—</div></div>
+
+    <div id="profile-menu-view" style="margin-top:16px">
+      <div class="profile-option-grid">
+        <button class="profile-option-card" type="button" onclick="showProfileSection('email')">
+          <div class="option-icon">✉️</div>
+          <div>
+            <strong>Customer Email</strong>
+            <div class="option-subtext">View signed-in account email</div>
+          </div>
+        </button>
+        <button class="profile-option-card" type="button" onclick="showProfileSection('orders')">
+          <div class="option-icon">🧾</div>
+          <div>
+            <strong>My Orders</strong>
+            <div class="option-subtext">View your order history</div>
+          </div>
+        </button>
+        <button class="profile-option-card" type="button" onclick="showProfileSection('address')">
+          <div class="option-icon">🏠</div>
+          <div>
+            <strong>My Address</strong>
+            <div class="option-subtext">View saved delivery address</div>
+          </div>
+        </button>
+        <button class="profile-option-card" type="button" onclick="showProfileSection('payments')">
+          <div class="option-icon">💳</div>
+          <div>
+            <strong>Payment History</strong>
+            <div class="option-subtext">View your UPI payment history</div>
+          </div>
+        </button>
       </div>
     </div>
-    
-      <!-- PROFILE SECTIONS: Orders, Address, Payments -->
-      <div style="margin-top:16px">
-        <div class="section-title">🧾 My Orders</div>
-        <div id="profile-orders"><div class="empty-cat-msg"><div class="big">⏳</div>Loading orders...</div></div>
-      </div>
 
-      <div style="margin-top:14px">
-        <div class="section-title">🏠 My Address</div>
-        <div id="profile-address"><div class="empty-cat-msg"><div class="big">⏳</div>Loading address...</div></div>
-      </div>
-
-      <div style="margin-top:14px;margin-bottom:24px">
-        <div class="section-title">💳 Payment History (UPI)</div>
-        <div id="profile-payments"><div class="empty-cat-msg"><div class="big">⏳</div>Loading payments...</div></div>
-      </div>
+    <div id="profile-detail-view" style="display:none;margin-top:20px"></div>
   </div>
 
   <!-- TRACKING PAGE -->
@@ -8391,6 +8413,9 @@ window.addEventListener('load', function() {
     });
 
     var target = resolveEl(page);
+    if (page === 'profile' && typeof window !== 'undefined') {
+      window.profileSelectedSection = 'menu';
+    }
     if (target) {
       target.classList.add('active');
       target.style.display = '';
@@ -8431,86 +8456,159 @@ window.addEventListener('load', function() {
   'use strict';
 
   // ===== Profile page renderer =====
+  window.profileSelectedSection = 'menu';
+
+  window.showProfileSection = function(section) {
+    if (!section) return;
+    window.profileSelectedSection = section;
+    if (typeof window.renderProfilePage === 'function') {
+      window.renderProfilePage();
+    }
+    const detail = document.getElementById('profile-detail-view');
+    if (detail) {
+      detail.scrollIntoView({behavior:'smooth', block:'start'});
+    }
+  };
+
+  window.closeProfileSection = function() {
+    window.profileSelectedSection = 'menu';
+    if (typeof window.renderProfilePage === 'function') {
+      window.renderProfilePage();
+    }
+  };
+
+  window.formatProfileDate = function(value) {
+    if (!value) return '';
+    const date = value && typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'});
+  };
+
+  window.getProfilePageLoadingHtml = function() {
+    return '<div class="empty-cat-msg"><div class="big">⏳</div>Loading details...</div>';
+  };
+
+  window.getProfilePageSignInHtml = function(message) {
+    return '<div class="empty-cat-msg" style="padding:18px"><div class="big">👋</div>' + message + '<br/><br/><button class="cat-save-btn" onclick="document.getElementById(\'auth-overlay\')?.classList.add(\'open\')">Sign in</button></div>';
+  };
+
   window.renderProfilePage = function() {
     try {
-      const container = document.getElementById('page-profile');
-      if (!container) return;
-
-      const nameEl = document.getElementById('profile-name');
-      const emailEl = document.getElementById('profile-email');
-      const phoneEl = document.getElementById('profile-phone');
-      const ordersEl = document.getElementById('profile-orders');
-      const addrEl = document.getElementById('profile-address');
-      const paysEl = document.getElementById('profile-payments');
+      const menuView = document.getElementById('profile-menu-view');
+      const detailView = document.getElementById('profile-detail-view');
+      if (!menuView || !detailView) return;
 
       if (!window.currentUser) {
-        if (nameEl) nameEl.textContent = '—';
-        if (emailEl) emailEl.textContent = 'Sign in to view profile.';
-        if (phoneEl) phoneEl.textContent = '—';
-        const signInHtml = '<div class="empty-cat-msg" style="padding:18px"><div class="big">👋</div>Please sign in to view your orders, address and payments.<br/><br/><button class="cat-save-btn" onclick="document.getElementById(\'auth-overlay\')?.classList.add(\'open\')">Sign in</button></div>';
-        if (ordersEl) ordersEl.innerHTML = signInHtml;
-        if (addrEl) addrEl.innerHTML = signInHtml;
-        if (paysEl) paysEl.innerHTML = signInHtml;
+        menuView.innerHTML = window.getProfilePageSignInHtml('Please sign in to view your profile sections.');
+        menuView.style.display = '';
+        detailView.style.display = 'none';
+        detailView.innerHTML = '';
         return;
       }
 
-      // Basic profile fields
-      try { if (nameEl) nameEl.textContent = getPreferredCustomerName() || currentUser.displayName || 'Name not available.'; } catch(e) {}
-      try { if (emailEl) emailEl.textContent = currentUser.email || 'Email not available.'; } catch(e) {}
-      try { if (phoneEl) phoneEl.textContent = getPreferredCustomerPhone() || 'Phone not available.'; } catch(e) {}
+      if (window.profileSelectedSection && window.profileSelectedSection !== 'menu') {
+        menuView.style.display = 'none';
+        detailView.style.display = '';
+        detailView.innerHTML = '<div class="profile-detail-card"><button class="back-btn-light" onclick="closeProfileSection()">← Back to Profile</button><div class="detail-title">' + (window.profileSelectedSection === 'email' ? 'Customer Email' : window.profileSelectedSection === 'orders' ? 'My Orders' : window.profileSelectedSection === 'address' ? 'My Address' : 'Payment History') + '</div><div id="profile-detail-content">' + window.getProfilePageLoadingHtml() + '</div></div>';
+        const detailContent = document.getElementById('profile-detail-content');
+        if (!detailContent) return;
 
-      // Orders: load recent orders for this customer's email (safe filter)
-      if (ordersEl) ordersEl.innerHTML = '<div class="empty-cat-msg"><div class="big">⏳</div>Loading orders...</div>';
-      (function loadOrders(){
-        if (typeof db === 'undefined' || !db) { setTimeout(loadOrders, 300); return; }
-        const email = currentUser.email || '';
-        db.collection('orders').where('customerEmail','==', email).orderBy('createdAt','desc').get().then(snap=>{
-          const docs = snap.docs.map(d=>({id:d.id, ...d.data()}));
-          if (!docs.length) { ordersEl.innerHTML = '<div class="empty-cat-msg"><div class="big">🧾</div>No orders yet.</div>'; return; }
-          ordersEl.innerHTML = docs.map(o=>{
-            const date = o.createdAt && o.createdAt.toDate ? o.createdAt.toDate().toLocaleString() : (o.createdAt?String(o.createdAt):'');
-            const items = Array.isArray(o.items)? o.items.slice(0,5).map(it=>`<div style="display:flex;justify-content:space-between"><div style="min-width:0">${escapeHtml(it.name||'Item')}</div><div>×${it.qty||1}</div></div>`).join('') : '';
-            return `<div class="mcard" style="margin-bottom:10px;padding:12px;border-radius:10px;border:1px solid var(--border);background:#fff"><div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:800">${escapeHtml(o.orderId||o.id||'Order')}</div><div style="color:#888;font-size:.85rem">${escapeHtml(o.paymentMethod||'—')}</div></div><div style="margin-top:8px;color:#666;font-size:.9rem">${escapeHtml(date)} · <strong>${o.total?('₹'+o.total):'—'}</strong></div><div style="margin-top:8px">${items}</div></div>`;
-          }).join('');
-        }).catch(err=>{
-          console.warn('loadOrders failed', err); ordersEl.innerHTML = '<div class="empty-cat-msg"><div class="big">❌</div>Could not load orders.</div>';
-        });
-      })();
+        if (window.profileSelectedSection === 'email') {
+          const email = window.currentUser.email || 'Email not available.';
+          detailContent.innerHTML = '<div class="profile-card"><div class="pc-top"><div><strong class="pc-title">Signed in as</strong><div class="pc-sub">' + escapeHtml(email) + '</div></div></div></div>';
+          return;
+        }
 
-      // Address: fetch user addresses collection (uses existing helper)
-      if (addrEl) addrEl.innerHTML = '<div class="empty-cat-msg"><div class="big">⏳</div>Loading address...</div>';
-      (function loadAddress(){
-        const col = typeof getUserAddressesCollection === 'function' ? getUserAddressesCollection() : null;
-        if (!col) { addrEl.innerHTML = '<div class="empty-cat-msg"><div class="big">🏠</div>No address saved yet.</div>'; return; }
-        col.orderBy('updatedAt','desc').get().then(snap=>{
-          const docs = snap.docs.map(d=>({id:d.id, ...d.data()}));
-          if (!docs.length) { addrEl.innerHTML = '<div class="empty-cat-msg"><div class="big">🏠</div>No address saved yet.</div>'; return; }
-          const def = docs.find(x=>x.isDefault) || docs[0];
-          addrEl.innerHTML = `<div style="padding:12px;border-radius:10px;border:1px solid var(--border);background:#fff"><div style="font-weight:800">${escapeHtml(def.label||'Saved Address')}</div><div style="color:#666;margin-top:6px">${escapeHtml(def.line||def.address||'—')}</div><div style="margin-top:8px;font-size:.9rem;color:#888">${escapeHtml(def.phone||'')}</div><div style="margin-top:8px"><button class="cat-save-btn" onclick="openAddressModal()">Manage Addresses</button></div></div>`;
-        }).catch(err=>{ console.warn('loadAddress failed', err); addrEl.innerHTML = '<div class="empty-cat-msg"><div class="big">❌</div>Could not load address.</div>'; });
-      })();
+        if (window.profileSelectedSection === 'orders') {
+          detailContent.innerHTML = window.getProfilePageLoadingHtml();
+          const email = window.currentUser.email || '';
+          if (typeof db === 'undefined' || !db) {
+            setTimeout(function() { window.renderProfilePage(); }, 300);
+            return;
+          }
+          db.collection('orders').where('customerEmail','==', email).orderBy('createdAt','desc').get().then(function(snap) {
+            const docs = snap.docs.map(function(d) { return {id:d.id, ...d.data()}; });
+            if (!docs.length) {
+              detailContent.innerHTML = '<div class="empty-cat-msg"><div class="big">🧾</div>No orders yet.</div>';
+              return;
+            }
+            detailContent.innerHTML = docs.map(function(o) {
+              const dateText = window.formatProfileDate(o.createdAt) || 'Date not available';
+              const amount = o.total ? '₹' + escapeHtml(o.total) : '—';
+              const items = Array.isArray(o.items) ? o.items.map(function(it) { return '<div class="pc-item"><div class="pc-item-name">' + escapeHtml(it.name || it.title || 'Item') + '</div><div class="pc-item-qty">×' + escapeHtml(it.qty || it.quantity || 1) + '</div></div>'; }).join('') : '<div class="pc-item">No item details available.</div>';
+              return '<div class="profile-card"><div class="pc-top"><div><strong class="pc-title">' + escapeHtml(o.orderId || o.id || 'Order') + '</strong><div class="pc-sub">' + escapeHtml(o.status || o.paymentMethod || 'Order details') + '</div></div><div style="text-align:right;color:#888;font-size:.88rem">' + escapeHtml(dateText) + '</div></div><div class="pc-items">' + items + '</div><div style="margin-top:12px;font-weight:700;color:var(--brown)">Total: ' + amount + '</div></div>';
+            }).join('');
+          }).catch(function(err){
+            console.warn('loadOrders failed', err);
+            detailContent.innerHTML = '<div class="empty-cat-msg"><div class="big">❌</div>Could not load orders.</div>';
+          });
+          return;
+        }
 
-      // Payments: load razorpay_payments for this user (UPI payments source)
-      if (paysEl) paysEl.innerHTML = '<div class="empty-cat-msg"><div class="big">⏳</div>Loading payments...</div>';
-      (function loadPayments(){
-        if (typeof db === 'undefined' || !db) { setTimeout(loadPayments, 300); return; }
-        const uid = currentUser.uid || null; const email = currentUser.email || '';
-        let q = null;
-        if (uid) q = db.collection('razorpay_payments').where('customerUid','==', uid).orderBy('paidAt','desc').limit(50);
-        else q = db.collection('razorpay_payments').where('customerEmail','==', email).orderBy('paidAt','desc').limit(50);
-        q.get().then(snap=>{
-          const docs = snap.docs.map(d=>({id:d.id, ...d.data()}));
-          if (!docs.length) { paysEl.innerHTML = '<div class="empty-cat-msg"><div class="big">💳</div>No UPI payments found.</div>'; return; }
-          paysEl.innerHTML = docs.map(p=>{
-            const when = p.paidAt && p.paidAt.toDate ? p.paidAt.toDate().toLocaleString() : (p.paidAt?String(p.paidAt):'');
-            const status = (p.status||'').toLowerCase();
-            const statusLabel = status.includes('fail')? '❌ Failed' : (status.includes('succ')||status.includes('paid')? '✅ Successful' : (p.status||'Pending'));
-            return `<div class="mcard" style="margin-bottom:10px;padding:12px;border-radius:10px;border:1px solid var(--border);background:#fff"><div style="display:flex;justify-content:space-between"><div style="font-weight:800">${escapeHtml(p.razorpayPaymentId||p.id||'Payment')}</div><div style="color:#888">${escapeHtml(statusLabel)}</div></div><div style="margin-top:8px;color:#666">${escapeHtml(when)} · <strong>₹${p.amount||0}</strong></div></div>`;
-          }).join('');
-        }).catch(err=>{ console.warn('loadPayments failed', err); paysEl.innerHTML = '<div class="empty-cat-msg"><div class="big">❌</div>Could not load payments.</div>'; });
-      })();
+        if (window.profileSelectedSection === 'address') {
+          detailContent.innerHTML = window.getProfilePageLoadingHtml();
+          const col = typeof getUserAddressesCollection === 'function' ? getUserAddressesCollection() : null;
+          if (!col) {
+            detailContent.innerHTML = '<div class="empty-cat-msg"><div class="big">🏠</div>No address saved yet.</div>';
+            return;
+          }
+          col.orderBy('updatedAt','desc').get().then(function(snap) {
+            const docs = snap.docs.map(function(d) { return {id:d.id, ...d.data()}; });
+            if (!docs.length) {
+              detailContent.innerHTML = '<div class="empty-cat-msg"><div class="big">🏠</div>No address saved yet.</div>';
+              return;
+            }
+            const def = docs.find(function(x){ return x.isDefault; }) || docs[0];
+            detailContent.innerHTML = '<div class="profile-card"><div class="pc-top"><div><strong class="pc-title">' + escapeHtml(def.label || 'Saved Address') + '</strong></div></div><div class="pc-sub" style="margin-top:10px">' + escapeHtml(def.line || def.address || def.addressText || 'Address not available.') + '</div>' + (def.phone ? '<div class="pc-sub" style="margin-top:10px">' + escapeHtml(def.phone) + '</div>' : '') + '<div style="margin-top:14px"><button class="cat-save-btn" onclick="openAddressModal()">Manage Addresses</button></div></div>';
+          }).catch(function(err){
+            console.warn('loadAddress failed', err);
+            detailContent.innerHTML = '<div class="empty-cat-msg"><div class="big">❌</div>Could not load address.</div>';
+          });
+          return;
+        }
 
-    } catch(e) { console.warn('renderProfilePage error', e); }
+        if (window.profileSelectedSection === 'payments') {
+          detailContent.innerHTML = window.getProfilePageLoadingHtml();
+          if (typeof db === 'undefined' || !db) {
+            setTimeout(function() { window.renderProfilePage(); }, 300);
+            return;
+          }
+          const uid = currentUser.uid || null;
+          const email = currentUser.email || '';
+          var query = uid ? db.collection('razorpay_payments').where('customerUid','==', uid).orderBy('paidAt','desc').limit(50) : db.collection('razorpay_payments').where('customerEmail','==', email).orderBy('paidAt','desc').limit(50);
+          query.get().then(function(snap){
+            const docs = snap.docs.map(function(d){ return {id:d.id, ...d.data()}; });
+            const payments = docs.filter(function(p){
+              const combined = ((p.paymentMethod||'') + ' ' + (p.method||'') + ' ' + (p.channel||'') + ' ' + (p.gateway||'')).toLowerCase();
+              return combined.includes('upi') || combined.includes('gpay') || combined.includes('phonepe') || combined.includes('paytm') || !combined;
+            });
+            if (!payments.length) {
+              detailContent.innerHTML = '<div class="empty-cat-msg"><div class="big">💳</div>No UPI payments found.</div>';
+              return;
+            }
+            detailContent.innerHTML = payments.map(function(p){
+              const dateText = window.formatProfileDate(p.paidAt) || 'Date not available';
+              const amount = p.amount ? '₹' + escapeHtml(p.amount) : '₹0';
+              const status = (p.status || '').toLowerCase();
+              const success = status.includes('succ') || status.includes('paid') || p.status === 'successful' || p.paid === true;
+              const statusLabel = success ? '✅ Payment successful' : '❌ Payment failed';
+              const itemsHtml = Array.isArray(p.items) && p.items.length ? p.items.map(function(it){ return '<div class="pc-item"><div class="pc-item-name">' + escapeHtml(it.name || it.title || 'Item') + '</div><div class="pc-item-qty">×' + escapeHtml(it.qty || it.quantity || 1) + '</div></div>'; }).join('') : '<div class="pc-sub">No item details available.</div>';
+              return '<div class="profile-card"><div class="pc-top"><div><strong class="pc-title">' + escapeHtml(p.razorpayPaymentId || p.id || 'Payment') + '</strong><div class="pc-sub">' + escapeHtml(statusLabel) + '</div></div><div style="text-align:right;color:#888;font-size:.88rem">' + escapeHtml(dateText) + '</div></div><div style="margin-top:8px;font-weight:700;color:var(--brown)">' + amount + '</div><div class="pc-items">' + itemsHtml + '</div></div>';
+            }).join('');
+          }).catch(function(err){
+            console.warn('loadPayments failed', err);
+            detailContent.innerHTML = '<div class="empty-cat-msg"><div class="big">❌</div>Could not load payments.</div>';
+          });
+          return;
+        }
+      }
+
+      menuView.style.display = '';
+      detailView.style.display = 'none';
+      detailView.innerHTML = '';
+    } catch(e) {
+      console.warn('renderProfilePage error', e);
+    }
   };
 
 

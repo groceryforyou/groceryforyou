@@ -2219,7 +2219,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
     <!-- Profile Menu Items -->
     <div style="display:grid;gap:0;background:#fff;border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:var(--shadow)">
       
-      <button type="button" onclick="openAddressModal()" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
+      <button type="button" onclick="openPersonalInfoModal()" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">👤</span>
           <div>
@@ -2252,16 +2252,6 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
         <span style="color:#ccc;font-size:1.2rem">›</span>
       </button>
 
-      <button type="button" onclick="showPage('payments')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
-        <div style="display:flex;align-items:center;gap:12px;flex:1">
-          <span style="font-size:1.4rem">💳</span>
-          <div>
-            <div style="font-weight:700;color:var(--brown);font-size:.95rem">Payment Methods</div>
-            <div style="font-size:.75rem;color:#999">Manage your payments</div>
-          </div>
-        </div>
-        <span style="color:#ccc;font-size:1.2rem">›</span>
-      </button>
 
       <button type="button" onclick="showToast('⚙️ Settings coming soon')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
@@ -9417,6 +9407,162 @@ window.addEventListener('load', function() {
   window._gfyStopCustomerTrackingUI = stopAll;
 
 })();
+</script>
+
+<!-- ===== PERSONAL INFORMATION MODAL ===== -->
+<div id="personal-info-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10200;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closePersonalInfoModal()">
+  <div style="background:#fff;border-radius:24px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.35);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1);overflow:hidden;max-height:96vh;overflow-y:auto;">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,var(--brown),#1e7a3a);padding:20px 20px 18px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-family:'Yeseva One',serif;color:var(--turmeric);font-size:1.25rem;">👤 Personal Information</div>
+        <div style="color:#c8e6c9;font-size:.82rem;margin-top:3px;">Edit your name &amp; contact</div>
+      </div>
+      <button onclick="closePersonalInfoModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>
+    </div>
+    <!-- Body -->
+    <div style="padding:22px 20px 8px;">
+      <!-- Avatar -->
+      <div style="text-align:center;margin-bottom:20px;">
+        <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#ffc107,#ff9800);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:2rem;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,0.15);">👤</div>
+        <div id="pi-email-avatar" style="font-size:.82rem;color:#aaa;"></div>
+      </div>
+      <!-- Name Field -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:.72rem;font-weight:800;color:var(--brown);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px;">Full Name</label>
+        <input id="pi-name" type="text" placeholder="Your full name" maxlength="60"
+          style="width:100%;border:1.5px solid var(--border);border-radius:11px;padding:11px 14px;font-size:.95rem;font-family:'Lato',sans-serif;background:#fff;outline:none;transition:border-color .2s;"
+          onfocus="this.style.borderColor='var(--saffron)'" onblur="this.style.borderColor='var(--border)'" />
+      </div>
+      <!-- Phone Field -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:.72rem;font-weight:800;color:var(--brown);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px;">Contact Number</label>
+        <input id="pi-phone" type="tel" placeholder="10-digit mobile number" maxlength="15"
+          style="width:100%;border:1.5px solid var(--border);border-radius:11px;padding:11px 14px;font-size:.95rem;font-family:'Lato',sans-serif;background:#fff;outline:none;transition:border-color .2s;"
+          onfocus="this.style.borderColor='var(--saffron)'" onblur="this.style.borderColor='var(--border)'" />
+      </div>
+      <!-- Email Field (read-only) -->
+      <div style="margin-bottom:20px;">
+        <label style="font-size:.72rem;font-weight:800;color:var(--brown);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px;">Email <span style="font-size:.66rem;color:#aaa;text-transform:none;font-weight:400;">(cannot be changed)</span></label>
+        <input id="pi-email" type="email" readonly
+          style="width:100%;border:1.5px solid #e0e0e0;border-radius:11px;padding:11px 14px;font-size:.95rem;font-family:'Lato',sans-serif;background:#f7f7f7;color:#999;outline:none;cursor:default;" />
+      </div>
+      <!-- Status message -->
+      <div id="pi-status" style="display:none;padding:9px 13px;border-radius:10px;font-size:.84rem;font-weight:700;margin-bottom:14px;text-align:center;"></div>
+    </div>
+    <!-- Actions -->
+    <div style="display:flex;gap:10px;padding:0 20px 22px;">
+      <button onclick="closePersonalInfoModal()" style="flex:1;background:var(--cream);color:var(--brown);border:1.5px solid var(--border);border-radius:12px;padding:13px;font-size:.9rem;font-weight:700;cursor:pointer;font-family:'Lato',sans-serif;transition:background .2s;" onmouseover="this.style.background='#e8f5e9'" onmouseout="this.style.background='var(--cream)'">Cancel</button>
+      <button onclick="savePersonalInfo()" id="pi-save-btn" style="flex:2;background:linear-gradient(90deg,var(--brown),var(--saffron));color:#fff;border:none;border-radius:12px;padding:13px;font-family:'Yeseva One',serif;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== PERSONAL INFORMATION MODAL =====
+function openPersonalInfoModal() {
+  var user = window.currentUser || null;
+  if (!user) {
+    if (typeof showToast === 'function') showToast('⚠️ Please sign in first');
+    return;
+  }
+
+  // Populate fields from currentUserProfile + Firebase Auth
+  var nameVal  = (typeof getPreferredCustomerName  === 'function' ? getPreferredCustomerName()  : '') || user.displayName || '';
+  var phoneVal = (typeof getPreferredCustomerPhone === 'function' ? getPreferredCustomerPhone() : '') || user.phoneNumber || '';
+  var emailVal = user.email || '';
+
+  var nameEl  = document.getElementById('pi-name');
+  var phoneEl = document.getElementById('pi-phone');
+  var emailEl = document.getElementById('pi-email');
+  var avatarEmailEl = document.getElementById('pi-email-avatar');
+  var statusEl = document.getElementById('pi-status');
+
+  if (nameEl)  nameEl.value  = nameVal;
+  if (phoneEl) phoneEl.value = phoneVal;
+  if (emailEl) emailEl.value = emailVal;
+  if (avatarEmailEl) avatarEmailEl.textContent = emailVal;
+  if (statusEl) { statusEl.style.display = 'none'; statusEl.textContent = ''; }
+
+  var saveBtnEl = document.getElementById('pi-save-btn');
+  if (saveBtnEl) saveBtnEl.disabled = false;
+
+  var overlay = document.getElementById('personal-info-overlay');
+  if (overlay) overlay.style.display = 'flex';
+}
+
+function closePersonalInfoModal() {
+  var overlay = document.getElementById('personal-info-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+async function savePersonalInfo() {
+  var nameEl   = document.getElementById('pi-name');
+  var phoneEl  = document.getElementById('pi-phone');
+  var statusEl = document.getElementById('pi-status');
+  var saveBtn  = document.getElementById('pi-save-btn');
+
+  var name  = (nameEl  ? nameEl.value.trim()  : '');
+  var phone = (phoneEl ? phoneEl.value.trim() : '');
+
+  // Basic validation
+  if (!name) {
+    if (typeof showToast === 'function') showToast('⚠️ Please enter your name');
+    if (nameEl) nameEl.focus();
+    return;
+  }
+
+  // Disable save button while saving
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Saving...'; }
+
+  try {
+    if (typeof saveCustomerProfileContact === 'function') {
+      await saveCustomerProfileContact(name, phone);
+    } else {
+      // Fallback: write directly to Firestore users collection
+      var user = window.currentUser || null;
+      if (user && user.uid && typeof db !== 'undefined' && db) {
+        var ts = (typeof firebase !== 'undefined' && firebase.firestore)
+          ? firebase.firestore.FieldValue.serverTimestamp()
+          : new Date();
+        var payload = { name: name, updatedAt: ts };
+        if (phone) payload.phone = phone;
+        await db.collection('users').doc(user.uid).set(payload, { merge: true });
+        window.currentUserProfile = Object.assign({}, window.currentUserProfile || {}, { name: name, phone: phone });
+      }
+    }
+
+    // Update profile header on the profile page
+    var profileNameEl = document.getElementById('profile-name');
+    if (profileNameEl) profileNameEl.textContent = name;
+
+    // Show success
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.style.background = '#e8f5e9';
+      statusEl.style.color = 'var(--green)';
+      statusEl.style.border = '1px solid #a5d6a7';
+      statusEl.textContent = '✅ Profile updated successfully!';
+    }
+    if (typeof showToast === 'function') showToast('✅ Profile updated!');
+
+    // Auto-close after 1.2s
+    setTimeout(function() { closePersonalInfoModal(); }, 1200);
+
+  } catch (err) {
+    console.error('[savePersonalInfo]', err);
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.style.background = '#ffebee';
+      statusEl.style.color = '#c62828';
+      statusEl.style.border = '1px solid #ffcdd2';
+      statusEl.textContent = '❌ Could not save. Please try again.';
+    }
+    if (typeof showToast === 'function') showToast('❌ Could not save profile');
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '💾 Save Changes'; }
+  }
+}
 </script>
 
 </body>

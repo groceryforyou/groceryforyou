@@ -8458,15 +8458,28 @@ window.addEventListener('load', function() {
   // ===== Profile page renderer =====
   window.profileSelectedSection = 'menu';
 
+  window.profileOrdersFilter = 'active';
+
   window.showProfileSection = function(section) {
     if (!section) return;
     window.profileSelectedSection = section;
+    if (section === 'orders') {
+      window.profileOrdersFilter = 'active';
+    }
     if (typeof window.renderProfilePage === 'function') {
       window.renderProfilePage();
     }
     const detail = document.getElementById('profile-detail-view');
     if (detail) {
       detail.scrollIntoView({behavior:'smooth', block:'start'});
+    }
+  };
+
+  window.setProfileOrdersFilter = function(filter) {
+    if (!filter) return;
+    window.profileOrdersFilter = filter;
+    if (typeof window.renderProfilePage === 'function') {
+      window.renderProfilePage();
     }
   };
 
@@ -8526,17 +8539,47 @@ window.addEventListener('load', function() {
             setTimeout(function() { window.renderProfilePage(); }, 300);
             return;
           }
+
+          const filterRow = '<div class="orders-tab-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">'
+            + '<button type="button" class="orders-tab ' + (window.profileOrdersFilter === 'active' ? 'active' : '') + '" onclick="setProfileOrdersFilter(\'active\')">Active Orders</button>'
+            + '<button type="button" class="orders-tab ' + (window.profileOrdersFilter === 'delivered' ? 'active' : '') + '" onclick="setProfileOrdersFilter(\'delivered\')">Delivered</button>'
+            + '<button type="button" class="orders-tab ' + (window.profileOrdersFilter === 'rejected' ? 'active' : '') + '" onclick="setProfileOrdersFilter(\'rejected\')">Rejected</button>'
+            + '<button type="button" class="orders-tab ' + (window.profileOrdersFilter === 'all' ? 'active' : '') + '" onclick="setProfileOrdersFilter(\'all\')">All Orders</button>'
+            + '</div>';
+
           db.collection('orders').where('customerEmail','==', email).orderBy('createdAt','desc').get().then(function(snap) {
             const docs = snap.docs.map(function(d) { return {id:d.id, ...d.data()}; });
-            if (!docs.length) {
-              detailContent.innerHTML = '<div class="empty-cat-msg"><div class="big">🧾</div>No orders yet.</div>';
+            const activeStatuses = ['pending','accepted','preparing','out for delivery','out-for-delivery','active'];
+            const deliveredStatuses = ['delivered','completed'];
+            const rejectedStatuses = ['rejected','cancelled','canceled','failed'];
+
+            const filtered = docs.filter(function(o) {
+              const status = String(o.status || '').toLowerCase();
+              if (window.profileOrdersFilter === 'active') {
+                return activeStatuses.some(function(s) { return status.indexOf(s) !== -1; });
+              }
+              if (window.profileOrdersFilter === 'delivered') {
+                return deliveredStatuses.some(function(s) { return status.indexOf(s) !== -1; });
+              }
+              if (window.profileOrdersFilter === 'rejected') {
+                return rejectedStatuses.some(function(s) { return status.indexOf(s) !== -1; });
+              }
+              return true;
+            });
+
+            if (!filtered.length) {
+              detailContent.innerHTML = filterRow + '<div class="empty-cat-msg"><div class="big">🧾</div>No orders found for this view.</div>';
               return;
             }
-            detailContent.innerHTML = docs.map(function(o) {
+
+            detailContent.innerHTML = filterRow + filtered.map(function(o) {
               const dateText = window.formatProfileDate(o.createdAt) || 'Date not available';
               const amount = o.total ? '₹' + escapeHtml(o.total) : '—';
-              const items = Array.isArray(o.items) ? o.items.map(function(it) { return '<div class="pc-item"><div class="pc-item-name">' + escapeHtml(it.name || it.title || 'Item') + '</div><div class="pc-item-qty">×' + escapeHtml(it.qty || it.quantity || 1) + '</div></div>'; }).join('') : '<div class="pc-item">No item details available.</div>';
-              return '<div class="profile-card"><div class="pc-top"><div><strong class="pc-title">' + escapeHtml(o.orderId || o.id || 'Order') + '</strong><div class="pc-sub">' + escapeHtml(o.status || o.paymentMethod || 'Order details') + '</div></div><div style="text-align:right;color:#888;font-size:.88rem">' + escapeHtml(dateText) + '</div></div><div class="pc-items">' + items + '</div><div style="margin-top:12px;font-weight:700;color:var(--brown)">Total: ' + amount + '</div></div>';
+              const status = escapeHtml(o.status || 'Order details');
+              const items = Array.isArray(o.items) ? o.items.map(function(it) {
+                return '<div class="pc-item"><div class="pc-item-name">' + escapeHtml(it.name || it.title || 'Item') + '</div><div class="pc-item-qty">×' + escapeHtml(it.qty || it.quantity || 1) + '</div></div>';
+              }).join('') : '<div class="pc-item">No item details available.</div>';
+              return '<div class="profile-card"><div class="pc-top"><div><strong class="pc-title">' + escapeHtml(o.orderId || o.id || 'Order') + '</strong><div class="pc-sub">' + status + '</div></div><div style="text-align:right;color:#888;font-size:.88rem">' + escapeHtml(dateText) + '</div></div><div class="pc-items">' + items + '</div><div style="margin-top:12px;font-weight:700;color:var(--brown)">Total: ' + amount + '</div></div>';
             }).join('');
           }).catch(function(err){
             console.warn('loadOrders failed', err);

@@ -2244,7 +2244,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
     <!-- Profile Menu Items -->
     <div style="display:grid;gap:0;background:#fff;border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:var(--shadow)">
       
-      <button type="button" class="profile-menu-btn" data-action="personal-info" id="profile-btn-personal-info" onclick="openPersonalInfoModal()">
+      <button type="button" class="profile-menu-btn" data-action="personal-info" id="profile-btn-personal-info" onclick="gfyProfileAction('personal-info')">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">👤</span>
           <div>
@@ -2266,7 +2266,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
         <span style="color:#ccc;font-size:1.2rem">›</span>
       </button>
 
-      <button type="button" class="profile-menu-btn" data-action="addresses" id="profile-btn-addresses" onclick="openAddressModal()">
+      <button type="button" class="profile-menu-btn" data-action="addresses" id="profile-btn-addresses" onclick="gfyProfileAction('addresses')">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">📍</span>
           <div>
@@ -9484,6 +9484,36 @@ window.addEventListener('load', function() {
 </div>
 
 <script>
+// ===== PROFILE MENU — safe trampoline resolved at call-time =====
+// Called by onclick on the two profile buttons. Resolves the real function
+// at the moment of the tap so obfuscated-block loading order doesn't matter.
+window.gfyProfileAction = function(action) {
+  try {
+    if (action === 'personal-info') {
+      if (typeof openPersonalInfoModal === 'function') {
+        openPersonalInfoModal();
+      } else {
+        console.warn('[Profile] openPersonalInfoModal not ready yet');
+      }
+    } else if (action === 'addresses') {
+      if (typeof openAddressModal === 'function') {
+        openAddressModal();
+      } else {
+        // Direct fallback: open the overlay element directly
+        var ov = document.getElementById('address-overlay');
+        if (ov) {
+          ov.classList.add('open');
+          if (typeof loadAddresses === 'function') loadAddresses();
+        } else {
+          console.warn('[Profile] openAddressModal not ready and no address-overlay found');
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Profile] gfyProfileAction error:', action, err);
+  }
+};
+
 // ===== PERSONAL INFORMATION MODAL =====
 function openPersonalInfoModal() {
   var user = window.currentUser || null;
@@ -9680,13 +9710,6 @@ async function savePersonalInfo() {
   } else {
     attachDelegation();
   }
-
-  // Also re-wire whenever the profile page becomes visible
-  // (catches cases where showPage() is called before delegation is ready)
-  document.addEventListener('click', function reBind() {
-    wireButtonListeners();
-    document.removeEventListener('click', reBind);
-  }, { once: true });
 
 })();
 </script>

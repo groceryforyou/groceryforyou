@@ -9533,82 +9533,97 @@ window.savePersonalInfo = async function() {
 };
 </script>
 
-<script id="gfy-profile-addresses-modal-fix">
+<script id="gfy-addresses-shell-modal-fix">
 (function(){
   'use strict';
 
   function byId(id){ return document.getElementById(id); }
 
-  function getProfileHost(){
-    return byId('page-profile') || document.querySelector('.page.active') || document.body;
+  function getShell(){
+    var shell = byId('gfy-address-shell-overlay');
+    if (!shell) {
+      shell = document.createElement('div');
+      shell.id = 'gfy-address-shell-overlay';
+      shell.setAttribute('aria-hidden','true');
+      document.documentElement.appendChild(shell);
+    }
+    return shell;
   }
 
-  function openAddressesOverProfile(e){
+  function applyShellStyle(shell){
+    shell.style.cssText = [
+      'display:flex!important',
+      'visibility:visible!important',
+      'opacity:1!important',
+      'position:fixed!important',
+      'left:0!important',
+      'top:0!important',
+      'right:0!important',
+      'bottom:0!important',
+      'width:100vw!important',
+      'height:100vh!important',
+      'min-height:100vh!important',
+      'background:rgba(0,0,0,.55)!important',
+      'z-index:2147483647!important',
+      'align-items:center!important',
+      'justify-content:center!important',
+      'padding:16px!important',
+      'box-sizing:border-box!important',
+      'pointer-events:auto!important',
+      'overflow:hidden!important',
+      'transform:none!important',
+      'clip-path:none!important',
+      'contain:none!important'
+    ].join(';') + ';';
+  }
+
+  function applyModalStyle(modal){
+    modal.style.cssText = [
+      'display:block!important',
+      'visibility:visible!important',
+      'opacity:1!important',
+      'position:relative!important',
+      'background:#fff!important',
+      'width:92vw!important',
+      'max-width:680px!important',
+      'max-height:85vh!important',
+      'overflow-y:auto!important',
+      'border-radius:28px!important',
+      'box-shadow:0 20px 60px rgba(0,0,0,.35)!important',
+      'z-index:2147483647!important',
+      'transform:none!important',
+      'margin:0!important',
+      'clip-path:none!important',
+      'contain:none!important'
+    ].join(';') + ';';
+  }
+
+  function openAddressesModal(e){
     if (e) { e.preventDefault(); e.stopPropagation(); }
 
-    var overlay = byId('address-overlay');
-    if (!overlay) {
+    var sourceOverlay = byId('address-overlay');
+    if (!sourceOverlay) {
       alert('address-overlay missing');
       return false;
     }
 
-    var host = getProfileHost();
-    if (!host) host = document.body;
-
-    try {
-      if (host.parentNode && host !== document.body) {
-        host.style.setProperty('position', 'relative', 'important');
-        host.style.setProperty('overflow', 'visible', 'important');
-      }
-      if (overlay.parentNode !== host) host.appendChild(overlay);
-    } catch(err) {
-      document.body.appendChild(overlay);
+    var modal = sourceOverlay.querySelector('.auth-modal') || byId('address-modal');
+    if (!modal) {
+      alert('address modal missing');
+      return false;
     }
 
-    overlay.classList.add('open');
-    overlay.removeAttribute('hidden');
-    overlay.setAttribute('aria-hidden', 'false');
+    var shell = getShell();
+    shell.appendChild(modal);
+    shell.className = 'open';
+    shell.setAttribute('aria-hidden','false');
 
-    overlay.style.cssText = [
-      'display:flex!important',
-      'visibility:visible!important',
-      'opacity:1!important',
-      'position:absolute!important',
-      'left:0!important',
-      'right:0!important',
-      'top:0!important',
-      'bottom:0!important',
-      'min-height:100vh!important',
-      'background:rgba(0,0,0,.55)!important',
-      'z-index:999999999!important',
-      'align-items:center!important',
-      'justify-content:center!important',
-      'padding:16px!important',
-      'pointer-events:auto!important',
-      'overflow:hidden!important',
-      'box-sizing:border-box!important'
-    ].join(';') + ';';
+    sourceOverlay.classList.remove('open');
+    sourceOverlay.setAttribute('aria-hidden','true');
+    sourceOverlay.style.setProperty('display','none','important');
 
-    var modal = overlay.querySelector('.auth-modal');
-    if (modal) {
-      modal.removeAttribute('hidden');
-      modal.style.cssText = [
-        'display:block!important',
-        'visibility:visible!important',
-        'opacity:1!important',
-        'position:relative!important',
-        'background:#fff!important',
-        'width:92%!important',
-        'max-width:680px!important',
-        'max-height:85vh!important',
-        'overflow-y:auto!important',
-        'border-radius:28px!important',
-        'box-shadow:0 20px 60px rgba(0,0,0,.35)!important',
-        'z-index:1000000000!important',
-        'transform:none!important',
-        'margin:0!important'
-      ].join(';') + ';';
-    }
+    applyShellStyle(shell);
+    applyModalStyle(modal);
 
     try {
       if (typeof window.subscribeAddresses === 'function') window.subscribeAddresses();
@@ -9617,31 +9632,31 @@ window.savePersonalInfo = async function() {
       console.warn('[GFY Addresses] loading failed:', err);
     }
 
-    console.log('[GFY Addresses] profile overlay opened');
+    console.log('[GFY Addresses] shell modal opened');
     return false;
   }
 
-  function closeAddressesOverProfile(){
-    var overlay = byId('address-overlay');
-    if (overlay) {
-      overlay.classList.remove('open');
-      overlay.setAttribute('aria-hidden','true');
-      overlay.style.setProperty('display','none','important');
-      overlay.style.setProperty('visibility','hidden','important');
-      overlay.style.setProperty('opacity','0','important');
+  function closeAddressesModal(e){
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    var shell = byId('gfy-address-shell-overlay');
+    if (shell) {
+      shell.className = '';
+      shell.setAttribute('aria-hidden','true');
+      shell.style.cssText = 'display:none!important;visibility:hidden!important;opacity:0!important;';
     }
     return false;
   }
 
-  window.openSavedAddressesModal = openAddressesOverProfile;
-  window.openProfileAddressesModal = openAddressesOverProfile;
-  window.closeAddressModal = closeAddressesOverProfile;
+  window.openSavedAddressesModal = openAddressesModal;
+  window.openProfileAddressesModal = openAddressesModal;
+  window.closeAddressModal = closeAddressesModal;
 
   function bindAddressButton(){
     var btn = byId('profile-btn-addresses') || document.querySelector('[data-action="addresses"]');
     if (!btn) return;
     btn.setAttribute('data-action','addresses');
-    btn.onclick = openAddressesOverProfile;
+    btn.setAttribute('onclick','return openSavedAddressesModal(event)');
+    btn.onclick = openAddressesModal;
     btn.style.setProperty('pointer-events','auto','important');
     btn.style.setProperty('cursor','pointer','important');
   }
@@ -9649,14 +9664,14 @@ window.savePersonalInfo = async function() {
   document.addEventListener('click', function(e){
     var btn = e.target && e.target.closest ? e.target.closest('#profile-btn-addresses,[data-action="addresses"]') : null;
     if (!btn) return;
-    openAddressesOverProfile(e);
+    openAddressesModal(e);
   }, true);
 
   ['touchstart','touchend','pointerup'].forEach(function(evt){
     document.addEventListener(evt, function(e){
       var btn = e.target && e.target.closest ? e.target.closest('#profile-btn-addresses,[data-action="addresses"]') : null;
       if (!btn) return;
-      openAddressesOverProfile(e);
+      openAddressesModal(e);
     }, {capture:true, passive:false});
   });
 
@@ -9667,38 +9682,44 @@ window.savePersonalInfo = async function() {
 })();
 </script>
 
-<style id="gfy-address-overlay-force-css">
-#page-profile { position: relative !important; overflow: visible !important; }
-#page-profile #address-overlay.open {
+<style id="gfy-address-shell-overlay-css">
+#gfy-address-shell-overlay.open {
   display: flex !important;
   visibility: visible !important;
   opacity: 1 !important;
-  position: absolute !important;
+  position: fixed !important;
   inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
   min-height: 100vh !important;
   background: rgba(0,0,0,.55) !important;
-  z-index: 999999999 !important;
+  z-index: 2147483647 !important;
   align-items: center !important;
   justify-content: center !important;
   padding: 16px !important;
+  box-sizing: border-box !important;
   pointer-events: auto !important;
   overflow: hidden !important;
-  box-sizing: border-box !important;
+  transform: none !important;
+  clip-path: none !important;
+  contain: none !important;
 }
-#page-profile #address-overlay.open .auth-modal {
+#gfy-address-shell-overlay.open .auth-modal {
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
   background: #fff !important;
   max-width: 680px !important;
-  width: 92% !important;
+  width: 92vw !important;
   max-height: 85vh !important;
   overflow-y: auto !important;
   border-radius: 28px !important;
   box-shadow: 0 20px 60px rgba(0,0,0,.35) !important;
-  z-index: 1000000000 !important;
+  z-index: 2147483647 !important;
   position: relative !important;
   transform: none !important;
+  clip-path: none !important;
+  contain: none !important;
 }
 </style>
 

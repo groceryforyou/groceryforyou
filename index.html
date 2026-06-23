@@ -3185,7 +3185,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <!-- ADDRESSES MODAL -->
 <div class="auth-overlay" id="address-overlay">
-  <div class="auth-modal" style="max-width:680px">
+  <div class="auth-modal" id="address-modal" style="max-width:680px">
     <div class="auth-modal-header"><h2>🏠 Your Addresses</h2><p>Max 5 · Within 5km service area</p></div>
     <div class="auth-modal-body">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
@@ -9607,7 +9607,7 @@ window.savePersonalInfo = async function() {
       return false;
     }
 
-    var modal = sourceOverlay.querySelector('.auth-modal') || byId('address-modal');
+    var modal = byId('address-modal') || sourceOverlay.querySelector('.auth-modal');
     if (!modal) {
       alert('address modal missing');
       return false;

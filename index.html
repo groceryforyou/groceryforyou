@@ -9531,20 +9531,24 @@ window.savePersonalInfo = async function() {
     }
 };
   
-  window.openSavedAddressesModal = function() {
+<script>
+  
+window.openSavedAddressesModal = function() {
     const overlay = document.getElementById('address-overlay');
-
     if (!overlay) {
         alert('address-overlay missing');
         return;
     }
 
     overlay.classList.add('open');
-    overlay.style.cssText =
-        'display:flex !important;position:fixed !important;inset:0 !important;background:rgba(0,0,0,.55) !important;z-index:99999 !important;align-items:center !important;justify-content:center !important;padding:16px !important;';
+    overlay.style.setProperty('display', 'flex', 'important');
+};
 
-    if (typeof loadAddresses === 'function') {
-        loadAddresses();
+window.closeAddressModal = function() {
+    const overlay = document.getElementById('address-overlay');
+    if (overlay) {
+        overlay.classList.remove('open');
+        overlay.style.setProperty('display', 'none', 'important');
     }
 };
 </script>

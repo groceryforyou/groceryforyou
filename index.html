@@ -9555,6 +9555,16 @@ window.savePersonalInfo = async function() {
       return false;
     }
 
+    // Move overlay to <body> so WebView cannot hide it inside a transformed/stacked parent.
+    // This is safe because the element keeps the same id and all existing address code still works.
+    try {
+      if (overlay.parentNode !== document.body) {
+        document.body.appendChild(overlay);
+      }
+    } catch (moveErr) {
+      console.warn('[GFY Addresses] could not move overlay to body:', moveErr);
+    }
+
     overlay.classList.add('open');
     overlay.removeAttribute('hidden');
     overlay.setAttribute('aria-hidden', 'false');
@@ -9582,8 +9592,13 @@ window.savePersonalInfo = async function() {
       modal.style.setProperty('opacity', '1', 'important');
       modal.style.setProperty('position', 'relative', 'important');
       modal.style.setProperty('z-index', '2147483647', 'important');
-      modal.style.setProperty('max-height', '94vh', 'important');
+      modal.style.setProperty('background', '#fff', 'important');
+      modal.style.setProperty('width', '92vw', 'important');
+      modal.style.setProperty('max-width', '680px', 'important');
+      modal.style.setProperty('max-height', '85vh', 'important');
       modal.style.setProperty('overflow-y', 'auto', 'important');
+      modal.style.setProperty('border-radius', '28px', 'important');
+      modal.style.setProperty('transform', 'none', 'important');
     }
 
     try { document.documentElement.classList.add('modal-open'); document.body.classList.add('modal-open'); } catch(e) {}
@@ -9597,7 +9612,7 @@ window.savePersonalInfo = async function() {
       }
     }, 0);
 
-    console.log('[GFY Addresses] opened');
+    console.log('[GFY Addresses] opened and moved to body');
     return false;
   }
 

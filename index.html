@@ -9533,130 +9533,93 @@ window.savePersonalInfo = async function() {
 };
 </script>
 
-<script id="gfy-addresses-shell-modal-fix">
+<script id="gfy-addresses-modal-final-fix">
 (function(){
   'use strict';
 
   function byId(id){ return document.getElementById(id); }
 
-  function getShell(){
-    var shell = byId('gfy-address-shell-overlay');
-    if (!shell) {
-      shell = document.createElement('div');
-      shell.id = 'gfy-address-shell-overlay';
-      shell.setAttribute('aria-hidden','true');
-      document.documentElement.appendChild(shell);
-    }
-    return shell;
+  function closeFinalAddressModal(e){
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    var popup = byId('gfy-address-final-overlay');
+    if (popup) popup.remove();
+    return false;
   }
 
-  function applyShellStyle(shell){
-    shell.style.cssText = [
-      'display:flex!important',
-      'visibility:visible!important',
-      'opacity:1!important',
-      'position:fixed!important',
-      'left:0!important',
-      'top:0!important',
-      'right:0!important',
-      'bottom:0!important',
-      'width:100vw!important',
-      'height:100vh!important',
-      'min-height:100vh!important',
-      'background:rgba(0,0,0,.55)!important',
-      'z-index:2147483647!important',
-      'align-items:center!important',
-      'justify-content:center!important',
-      'padding:16px!important',
-      'box-sizing:border-box!important',
-      'pointer-events:auto!important',
-      'overflow:hidden!important',
-      'transform:none!important',
-      'clip-path:none!important',
-      'contain:none!important'
-    ].join(';') + ';';
-  }
-
-  function applyModalStyle(modal){
-    modal.style.cssText = [
-      'display:block!important',
-      'visibility:visible!important',
-      'opacity:1!important',
-      'position:relative!important',
-      'background:#fff!important',
-      'width:92vw!important',
-      'max-width:680px!important',
-      'max-height:85vh!important',
-      'overflow-y:auto!important',
-      'border-radius:28px!important',
-      'box-shadow:0 20px 60px rgba(0,0,0,.35)!important',
-      'z-index:2147483647!important',
-      'transform:none!important',
-      'margin:0!important',
-      'clip-path:none!important',
-      'contain:none!important'
-    ].join(';') + ';';
-  }
-
-  function openAddressesModal(e){
+  function openFinalAddressModal(e){
     if (e) { e.preventDefault(); e.stopPropagation(); }
 
-    var sourceOverlay = byId('address-overlay');
-    if (!sourceOverlay) {
-      alert('address-overlay missing');
-      return false;
+    var old = byId('gfy-address-final-overlay');
+    if (old) old.remove();
+
+    var popup = document.createElement('div');
+    popup.id = 'gfy-address-final-overlay';
+    popup.setAttribute('aria-hidden', 'false');
+    popup.style.cssText = 'position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;background:rgba(0,0,0,.58)!important;z-index:2147483647!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:16px!important;box-sizing:border-box!important;pointer-events:auto!important;visibility:visible!important;opacity:1!important;';
+
+    popup.innerHTML = `
+      <div id="gfy-address-final-modal" style="background:#fff!important;width:92vw!important;max-width:680px!important;max-height:85vh!important;overflow:hidden!important;border-radius:28px!important;box-shadow:0 24px 70px rgba(0,0,0,.38)!important;display:block!important;visibility:visible!important;opacity:1!important;position:relative!important;">
+        <div style="background:linear-gradient(135deg,#0b6b2e,#118c3d)!important;padding:28px 22px!important;text-align:center!important;">
+          <h2 style="margin:0!important;color:#ffcc00!important;font-size:2rem!important;font-weight:900!important;line-height:1.15!important;">🏠 Your Addresses</h2>
+          <p style="margin:8px 0 0!important;color:#e8f5e9!important;font-size:1rem!important;">Max 5 • Within 5km service area</p>
+        </div>
+        <div style="padding:28px 26px!important;background:#fff!important;max-height:calc(85vh - 118px)!important;overflow-y:auto!important;">
+          <div style="display:flex!important;justify-content:space-between!important;align-items:center!important;gap:12px!important;margin-bottom:28px!important;flex-wrap:wrap!important;">
+            <button type="button" id="gfy-address-final-back" style="border:2px solid #c8e6c9!important;background:#f8fff8!important;color:#1a5c2a!important;border-radius:18px!important;padding:12px 28px!important;font-weight:900!important;font-size:1rem!important;">← Back</button>
+            <button type="button" id="gfy-address-final-add" style="background:#00a84a!important;color:white!important;border:none!important;border-radius:16px!important;padding:14px 24px!important;font-weight:900!important;font-size:1rem!important;">➕ Add Address</button>
+          </div>
+          <div id="gfy-address-final-list" style="min-height:220px!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;color:#aaa!important;font-size:1.05rem!important;">
+            <div><div style="font-size:3rem!important;margin-bottom:12px!important;">🏠</div><div>No saved addresses yet.</div></div>
+          </div>
+        </div>
+      </div>`;
+
+    document.body.appendChild(popup);
+
+    var back = byId('gfy-address-final-back');
+    if (back) back.onclick = closeFinalAddressModal;
+
+    var add = byId('gfy-address-final-add');
+    if (add) {
+      add.onclick = function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        closeFinalAddressModal();
+        if (typeof window.openAddressEditor === 'function') {
+          window.openAddressEditor();
+        } else {
+          alert('Address editor missing');
+        }
+        return false;
+      };
     }
 
-    var modal = byId('address-modal') || sourceOverlay.querySelector('.auth-modal');
-    if (!modal) {
-      alert('address modal missing');
-      return false;
-    }
-
-    var shell = getShell();
-    shell.appendChild(modal);
-    shell.className = 'open';
-    shell.setAttribute('aria-hidden','false');
-
-    sourceOverlay.classList.remove('open');
-    sourceOverlay.setAttribute('aria-hidden','true');
-    sourceOverlay.style.setProperty('display','none','important');
-
-    applyShellStyle(shell);
-    applyModalStyle(modal);
+    popup.addEventListener('click', function(ev){
+      if (ev.target === popup) closeFinalAddressModal(ev);
+    });
 
     try {
+      if (typeof window.loadAddresses === 'function') window.loadAddresses();
       if (typeof window.subscribeAddresses === 'function') window.subscribeAddresses();
-      else if (typeof window.loadAddresses === 'function') window.loadAddresses();
     } catch(err) {
-      console.warn('[GFY Addresses] loading failed:', err);
+      console.warn('[GFY Addresses] load skipped:', err);
     }
 
-    console.log('[GFY Addresses] shell modal opened');
+    console.log('[GFY Addresses] final visible modal opened');
     return false;
   }
 
-  function closeAddressesModal(e){
-    if (e) { e.preventDefault(); e.stopPropagation(); }
-    var shell = byId('gfy-address-shell-overlay');
-    if (shell) {
-      shell.className = '';
-      shell.setAttribute('aria-hidden','true');
-      shell.style.cssText = 'display:none!important;visibility:hidden!important;opacity:0!important;';
-    }
-    return false;
-  }
-
-  window.openSavedAddressesModal = openAddressesModal;
-  window.openProfileAddressesModal = openAddressesModal;
-  window.closeAddressModal = closeAddressesModal;
+  window.openSavedAddressesModal = openFinalAddressModal;
+  window.openProfileAddressesModal = openFinalAddressModal;
+  window.openAddressModal = openFinalAddressModal;
+  window.closeAddressModal = closeFinalAddressModal;
 
   function bindAddressButton(){
     var btn = byId('profile-btn-addresses') || document.querySelector('[data-action="addresses"]');
     if (!btn) return;
     btn.setAttribute('data-action','addresses');
     btn.setAttribute('onclick','return openSavedAddressesModal(event)');
-    btn.onclick = openAddressesModal;
+    btn.onclick = openFinalAddressModal;
     btn.style.setProperty('pointer-events','auto','important');
     btn.style.setProperty('cursor','pointer','important');
   }
@@ -9664,21 +9627,24 @@ window.savePersonalInfo = async function() {
   document.addEventListener('click', function(e){
     var btn = e.target && e.target.closest ? e.target.closest('#profile-btn-addresses,[data-action="addresses"]') : null;
     if (!btn) return;
-    openAddressesModal(e);
+    openFinalAddressModal(e);
   }, true);
 
-  ['touchstart','touchend','pointerup'].forEach(function(evt){
+  ['touchend','pointerup'].forEach(function(evt){
     document.addEventListener(evt, function(e){
       var btn = e.target && e.target.closest ? e.target.closest('#profile-btn-addresses,[data-action="addresses"]') : null;
       if (!btn) return;
-      openAddressesModal(e);
-    }, {capture:true, passive:false});
+      openFinalAddressModal(e);
+    }, true);
   });
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindAddressButton);
-  else bindAddressButton();
-  setTimeout(bindAddressButton, 500);
-  setTimeout(bindAddressButton, 1500);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindAddressButton);
+  } else {
+    bindAddressButton();
+  }
+  setTimeout(bindAddressButton, 800);
+  setTimeout(bindAddressButton, 2000);
 })();
 </script>
 

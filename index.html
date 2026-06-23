@@ -9689,5 +9689,117 @@ window.savePersonalInfo = async function() {
 }
 </style>
 
+
+<script id="gfy-addresses-profile-overlay-final-override">
+(function () {
+  'use strict';
+
+  function el(id) { return document.getElementById(id); }
+
+  function closeProfileAddressOverlay(e) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    var old = el('gfy-profile-address-overlay');
+    if (old) old.remove();
+    return false;
+  }
+
+  function openProfileAddressOverlay(e) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    var page = el('page-profile') || document.querySelector('.page.active') || document.body;
+    page.style.setProperty('position', 'relative', 'important');
+
+    var old = el('gfy-profile-address-overlay');
+    if (old) old.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'gfy-profile-address-overlay';
+    overlay.style.cssText =
+      'position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;' +
+      'min-height:100%!important;background:rgba(0,0,0,.55)!important;z-index:2147483647!important;' +
+      'display:flex!important;align-items:center!important;justify-content:center!important;' +
+      'padding:16px!important;box-sizing:border-box!important;visibility:visible!important;opacity:1!important;' +
+      'pointer-events:auto!important;';
+
+    var card = document.createElement('div');
+    card.id = 'gfy-profile-address-card';
+    card.style.cssText =
+      'background:#fff!important;width:92%!important;max-width:660px!important;max-height:82vh!important;' +
+      'overflow:hidden!important;border-radius:28px!important;box-shadow:0 24px 70px rgba(0,0,0,.35)!important;' +
+      'display:block!important;visibility:visible!important;opacity:1!important;position:relative!important;' +
+      'z-index:2147483647!important;';
+
+    card.innerHTML =
+      '<div style="background:linear-gradient(135deg,#0b6b2e,#118c3d)!important;padding:28px 22px!important;text-align:center!important;">' +
+        '<h2 style="margin:0!important;color:#ffcc00!important;font-size:2rem!important;font-weight:900!important;line-height:1.15!important;">🏠 Your Addresses</h2>' +
+        '<p style="margin:8px 0 0!important;color:#e8f5e9!important;font-size:1rem!important;">Max 5 • Within 5km service area</p>' +
+      '</div>' +
+      '<div style="padding:28px 26px!important;background:#fff!important;max-height:calc(82vh - 118px)!important;overflow-y:auto!important;">' +
+        '<div style="display:flex!important;justify-content:space-between!important;align-items:center!important;gap:12px!important;margin-bottom:34px!important;flex-wrap:wrap!important;">' +
+          '<button type="button" id="gfy-profile-address-back" style="border:2px solid #c8e6c9!important;background:#f8fff8!important;color:#1a5c2a!important;border-radius:18px!important;padding:12px 28px!important;font-weight:900!important;font-size:1rem!important;">← Back</button>' +
+          '<button type="button" id="gfy-profile-address-add" style="background:#00a84a!important;color:white!important;border:none!important;border-radius:16px!important;padding:14px 24px!important;font-weight:900!important;font-size:1rem!important;">➕ Add Address</button>' +
+        '</div>' +
+        '<div id="gfy-profile-address-list" style="min-height:220px!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;color:#aaa!important;font-size:1.05rem!important;">' +
+          '<div><div style="font-size:3rem!important;margin-bottom:12px!important;">🏠</div><div>No saved addresses yet.</div></div>' +
+        '</div>' +
+      '</div>';
+
+    overlay.appendChild(card);
+    page.appendChild(overlay);
+
+    var back = el('gfy-profile-address-back');
+    if (back) back.onclick = closeProfileAddressOverlay;
+
+    var add = el('gfy-profile-address-add');
+    if (add) {
+      add.onclick = function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        closeProfileAddressOverlay();
+        if (typeof window.openAddressEditor === 'function') {
+          window.openAddressEditor();
+        } else {
+          alert('Address editor missing');
+        }
+        return false;
+      };
+    }
+
+    overlay.addEventListener('click', function (ev) {
+      if (ev.target === overlay) closeProfileAddressOverlay(ev);
+    });
+
+    console.log('[GFY Addresses] profile overlay card opened');
+    return false;
+  }
+
+  window.openSavedAddressesModal = openProfileAddressOverlay;
+  window.openAddressModal = openProfileAddressOverlay;
+  window.openProfileAddressesModal = openProfileAddressOverlay;
+  window.closeAddressModal = closeProfileAddressOverlay;
+
+  function bindAddressButton() {
+    var btn = el('profile-btn-addresses') || document.querySelector('[data-action="addresses"]');
+    if (!btn) return;
+    btn.setAttribute('data-action', 'addresses');
+    btn.onclick = openProfileAddressOverlay;
+    btn.setAttribute('onclick', 'return openSavedAddressesModal(event)');
+    btn.style.setProperty('pointer-events', 'auto', 'important');
+    btn.style.setProperty('cursor', 'pointer', 'important');
+  }
+
+  bindAddressButton();
+  document.addEventListener('DOMContentLoaded', bindAddressButton);
+  setTimeout(bindAddressButton, 500);
+  setTimeout(bindAddressButton, 1500);
+})();
+</script>
+
 </body>
 </html>

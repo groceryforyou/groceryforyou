@@ -887,9 +887,6 @@ document.addEventListener('error', function(e) {
       .support-card:hover{transform:none}
       .mng-card:hover{box-shadow:none}
 
-      /* Profile menu buttons — WebView tap fix */
-      .profile-menu-btn:active{background:#f0faf4!important}
-
       /* Admin sidebar — overlay mode on mobile */
       .admin-sidebar{transform:translateX(-100%);display:flex!important;transition:transform .3s cubic-bezier(.4,0,.2,1)}
       .admin-sidebar.visible{transform:translateX(0)}
@@ -1010,28 +1007,6 @@ document.addEventListener('error', function(e) {
       body.admin-mode .hero{margin-left:0;}
       body.admin-mode .float-order-bar{left:0;}
     }
-
-    /* ===== PROFILE MENU BUTTONS — WebView tap fix ===== */
-    .profile-menu-btn{
-      display:flex;align-items:center;justify-content:space-between;
-      gap:12px;padding:16px 18px;
-      border:none;background:none;
-      cursor:pointer;
-      border-bottom:1px solid var(--border);
-      text-align:left;
-      width:100%;
-      /* Critical for Android WebView: eliminates 300ms tap delay */
-      touch-action:manipulation;
-      -webkit-tap-highlight-color:rgba(0,176,78,0.12);
-      /* Allow CSS transitions */
-      transition:background-color 0.15s;
-      /* Ensure taps register on the button itself */
-      position:relative;
-      z-index:1;
-    }
-    .profile-menu-btn:hover{background:#f9f9f9}
-    .profile-menu-btn:active{background:#f0faf4}
-    /* Taps on children bubble naturally to the button — do NOT use pointer-events:none */
 
     /* ===== PAYMENT TOGGLE ===== */
     .pay-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;background:var(--cream);border:1.5px solid var(--border);border-radius:12px;margin-bottom:10px;gap:10px}
@@ -2244,12 +2219,12 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
     <!-- Profile Menu Items -->
     <div style="display:grid;gap:0;background:#fff;border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:var(--shadow)">
       
-      <button type="button" class="profile-menu-btn" data-action="personal-info" id="profile-btn-personal-info" onclick="gfyProfileAction('personal-info')">
+      <button type="button" onclick="openAddressModal()" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">👤</span>
           <div>
             <div style="font-weight:700;color:var(--brown);font-size:.95rem">Personal Information</div>
-            <div style="font-size:.75rem;color:#999">Name, email &amp; contact</div>
+            <div style="font-size:.75rem;color:#999">Name, email & contact</div>
           </div>
         </div>
         <span style="color:#ccc;font-size:1.2rem">›</span>
@@ -2266,7 +2241,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
         <span style="color:#ccc;font-size:1.2rem">›</span>
       </button>
 
-      <button type="button" class="profile-menu-btn" data-action="addresses" id="profile-btn-addresses" onclick="gfyProfileAction('addresses')">
+      <button type="button" onclick="openAddressModal()" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">📍</span>
           <div>
@@ -2277,6 +2252,16 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
         <span style="color:#ccc;font-size:1.2rem">›</span>
       </button>
 
+      <button type="button" onclick="showPage('payments')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
+        <div style="display:flex;align-items:center;gap:12px;flex:1">
+          <span style="font-size:1.4rem">💳</span>
+          <div>
+            <div style="font-weight:700;color:var(--brown);font-size:.95rem">Payment Methods</div>
+            <div style="font-size:.75rem;color:#999">Manage your payments</div>
+          </div>
+        </div>
+        <span style="color:#ccc;font-size:1.2rem">›</span>
+      </button>
 
       <button type="button" onclick="showToast('⚙️ Settings coming soon')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
@@ -9434,316 +9419,5 @@ window.addEventListener('load', function() {
 })();
 </script>
 
-<!-- ===== PERSONAL INFORMATION MODAL ===== -->
-<div id="personal-info-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10200;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closePersonalInfoModal()">
-  <div style="background:#fff;border-radius:24px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.35);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1);overflow:hidden;max-height:96vh;overflow-y:auto;">
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg,var(--brown),#1e7a3a);padding:20px 20px 18px;display:flex;justify-content:space-between;align-items:center;">
-      <div>
-        <div style="font-family:'Yeseva One',serif;color:var(--turmeric);font-size:1.25rem;">👤 Personal Information</div>
-        <div style="color:#c8e6c9;font-size:.82rem;margin-top:3px;">Edit your name &amp; contact</div>
-      </div>
-      <button onclick="closePersonalInfoModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>
-    </div>
-    <!-- Body -->
-    <div style="padding:22px 20px 8px;">
-      <!-- Avatar -->
-      <div style="text-align:center;margin-bottom:20px;">
-        <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#ffc107,#ff9800);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:2rem;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,0.15);">👤</div>
-        <div id="pi-email-avatar" style="font-size:.82rem;color:#aaa;"></div>
-      </div>
-      <!-- Name Field -->
-      <div style="margin-bottom:14px;">
-        <label style="font-size:.72rem;font-weight:800;color:var(--brown);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px;">Full Name</label>
-        <input id="pi-name" type="text" placeholder="Your full name" maxlength="60"
-          style="width:100%;border:1.5px solid var(--border);border-radius:11px;padding:11px 14px;font-size:.95rem;font-family:'Lato',sans-serif;background:#fff;outline:none;transition:border-color .2s;"
-          onfocus="this.style.borderColor='var(--saffron)'" onblur="this.style.borderColor='var(--border)'" />
-      </div>
-      <!-- Phone Field -->
-      <div style="margin-bottom:14px;">
-        <label style="font-size:.72rem;font-weight:800;color:var(--brown);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px;">Contact Number</label>
-        <input id="pi-phone" type="tel" placeholder="10-digit mobile number" maxlength="15"
-          style="width:100%;border:1.5px solid var(--border);border-radius:11px;padding:11px 14px;font-size:.95rem;font-family:'Lato',sans-serif;background:#fff;outline:none;transition:border-color .2s;"
-          onfocus="this.style.borderColor='var(--saffron)'" onblur="this.style.borderColor='var(--border)'" />
-      </div>
-      <!-- Email Field (read-only) -->
-      <div style="margin-bottom:20px;">
-        <label style="font-size:.72rem;font-weight:800;color:var(--brown);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px;">Email <span style="font-size:.66rem;color:#aaa;text-transform:none;font-weight:400;">(cannot be changed)</span></label>
-        <input id="pi-email" type="email" readonly
-          style="width:100%;border:1.5px solid #e0e0e0;border-radius:11px;padding:11px 14px;font-size:.95rem;font-family:'Lato',sans-serif;background:#f7f7f7;color:#999;outline:none;cursor:default;" />
-      </div>
-      <!-- Status message -->
-      <div id="pi-status" style="display:none;padding:9px 13px;border-radius:10px;font-size:.84rem;font-weight:700;margin-bottom:14px;text-align:center;"></div>
-    </div>
-    <!-- Actions -->
-    <div style="display:flex;gap:10px;padding:0 20px 22px;">
-      <button onclick="closePersonalInfoModal()" style="flex:1;background:var(--cream);color:var(--brown);border:1.5px solid var(--border);border-radius:12px;padding:13px;font-size:.9rem;font-weight:700;cursor:pointer;font-family:'Lato',sans-serif;transition:background .2s;" onmouseover="this.style.background='#e8f5e9'" onmouseout="this.style.background='var(--cream)'">Cancel</button>
-      <button onclick="savePersonalInfo()" id="pi-save-btn" style="flex:2;background:linear-gradient(90deg,var(--brown),var(--saffron));color:#fff;border:none;border-radius:12px;padding:13px;font-family:'Yeseva One',serif;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">💾 Save Changes</button>
-    </div>
-  </div>
-</div>
-
-<script>
-// ===== PROFILE MENU — safe trampoline resolved at call-time =====
-// Called by onclick on the two profile buttons. Resolves the real function
-// at the moment of the tap so obfuscated-block loading order doesn't matter.
-window.gfyProfileAction = function(action) {
-  try {
-    if (action === 'personal-info') {
-      if (typeof openPersonalInfoModal === 'function') {
-        openPersonalInfoModal();
-      } else {
-        console.warn('[Profile] openPersonalInfoModal not ready yet');
-      }
-    } else if (action === 'addresses') {
-      if (typeof openAddressModal === 'function') {
-        openAddressModal();
-      } else {
-        // Direct fallback: open the overlay element directly
-        var ov = document.getElementById('address-overlay');
-        if (ov) {
-          ov.classList.add('open');
-          if (typeof loadAddresses === 'function') loadAddresses();
-        } else {
-          console.warn('[Profile] openAddressModal not ready and no address-overlay found');
-        }
-      }
-    }
-  } catch (err) {
-    console.error('[Profile] gfyProfileAction error:', action, err);
-  }
-};
-
-// ===== PERSONAL INFORMATION MODAL =====
-function openPersonalInfoModal() {
-  var user = window.currentUser || null;
-  if (!user) {
-    if (typeof showToast === 'function') showToast('⚠️ Please sign in first');
-    return;
-  }
-
-  // Populate fields from currentUserProfile + Firebase Auth
-  var nameVal  = (typeof getPreferredCustomerName  === 'function' ? getPreferredCustomerName()  : '') || user.displayName || '';
-  var phoneVal = (typeof getPreferredCustomerPhone === 'function' ? getPreferredCustomerPhone() : '') || user.phoneNumber || '';
-  var emailVal = user.email || '';
-
-  var nameEl  = document.getElementById('pi-name');
-  var phoneEl = document.getElementById('pi-phone');
-  var emailEl = document.getElementById('pi-email');
-  var avatarEmailEl = document.getElementById('pi-email-avatar');
-  var statusEl = document.getElementById('pi-status');
-
-  if (nameEl)  nameEl.value  = nameVal;
-  if (phoneEl) phoneEl.value = phoneVal;
-  if (emailEl) emailEl.value = emailVal;
-  if (avatarEmailEl) avatarEmailEl.textContent = emailVal;
-  if (statusEl) { statusEl.style.display = 'none'; statusEl.textContent = ''; }
-
-  var saveBtnEl = document.getElementById('pi-save-btn');
-  if (saveBtnEl) saveBtnEl.disabled = false;
-
-  var overlay = document.getElementById('personal-info-overlay');
-  if (overlay) overlay.style.display = 'flex';
-}
-
-function closePersonalInfoModal() {
-  var overlay = document.getElementById('personal-info-overlay');
-  if (overlay) overlay.style.display = 'none';
-}
-
-async function savePersonalInfo() {
-  var nameEl   = document.getElementById('pi-name');
-  var phoneEl  = document.getElementById('pi-phone');
-  var statusEl = document.getElementById('pi-status');
-  var saveBtn  = document.getElementById('pi-save-btn');
-
-  var name  = (nameEl  ? nameEl.value.trim()  : '');
-  var phone = (phoneEl ? phoneEl.value.trim() : '');
-
-  // Basic validation
-  if (!name) {
-    if (typeof showToast === 'function') showToast('⚠️ Please enter your name');
-    if (nameEl) nameEl.focus();
-    return;
-  }
-
-  // Disable save button while saving
-  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Saving...'; }
-
-  try {
-    if (typeof saveCustomerProfileContact === 'function') {
-      await saveCustomerProfileContact(name, phone);
-    } else {
-      // Fallback: write directly to Firestore users collection
-      var user = window.currentUser || null;
-      if (user && user.uid && typeof db !== 'undefined' && db) {
-        var ts = (typeof firebase !== 'undefined' && firebase.firestore)
-          ? firebase.firestore.FieldValue.serverTimestamp()
-          : new Date();
-        var payload = { name: name, updatedAt: ts };
-        if (phone) payload.phone = phone;
-        await db.collection('users').doc(user.uid).set(payload, { merge: true });
-        window.currentUserProfile = Object.assign({}, window.currentUserProfile || {}, { name: name, phone: phone });
-      }
-    }
-
-    // Update profile header on the profile page
-    var profileNameEl = document.getElementById('profile-name');
-    if (profileNameEl) profileNameEl.textContent = name;
-
-    // Show success
-    if (statusEl) {
-      statusEl.style.display = 'block';
-      statusEl.style.background = '#e8f5e9';
-      statusEl.style.color = 'var(--green)';
-      statusEl.style.border = '1px solid #a5d6a7';
-      statusEl.textContent = '✅ Profile updated successfully!';
-    }
-    if (typeof showToast === 'function') showToast('✅ Profile updated!');
-
-    // Auto-close after 1.2s
-    setTimeout(function() { closePersonalInfoModal(); }, 1200);
-
-  } catch (err) {
-    console.error('[savePersonalInfo]', err);
-    if (statusEl) {
-      statusEl.style.display = 'block';
-      statusEl.style.background = '#ffebee';
-      statusEl.style.color = '#c62828';
-      statusEl.style.border = '1px solid #ffcdd2';
-      statusEl.textContent = '❌ Could not save. Please try again.';
-    }
-    if (typeof showToast === 'function') showToast('❌ Could not save profile');
-  } finally {
-    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '💾 Save Changes'; }
-  }
-}
-
-// ===== PROFILE PAGE — WebView-safe event delegation =====
-// touchend-only delegation: acts as a safety net for Android WebView taps
-// that don't reliably fire onclick. Because e.preventDefault() is called,
-// the synthetic click event is suppressed — so onclick never double-fires.
-(function bindProfileMenuDelegation() {
-  'use strict';
-
-  var _touchMoved = false;
-  // Timestamp dedup: ignore if onclick already ran within 300ms
-  var _lastFired = 0;
-
-  function handleProfileAction(action) {
-    var now = Date.now();
-    if (now - _lastFired < 300) return; // debounce double-fire
-    _lastFired = now;
-    try {
-      if (action === 'personal-info') {
-        if (typeof openPersonalInfoModal === 'function') openPersonalInfoModal();
-      } else if (action === 'addresses') {
-        if (typeof openAddressModal === 'function') {
-          openAddressModal();
-        } else {
-          var ov = document.getElementById('address-overlay');
-          if (ov) { ov.classList.add('open'); if (typeof loadAddresses === 'function') loadAddresses(); }
-        }
-      }
-    } catch (e) {
-      console.warn('[ProfileMenu] Action error:', action, e);
-    }
-  }
-
-  // Also wire onclick via addEventListener so obfuscated-scope functions
-  // are definitely resolved at call-time (not at HTML-parse time)
-  function wireButtonListeners() {
-    var piBtn  = document.getElementById('profile-btn-personal-info');
-    var addrBtn = document.getElementById('profile-btn-addresses');
-
-    if (piBtn && !piBtn._gfyBound) {
-      piBtn._gfyBound = true;
-      piBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        var now = Date.now();
-        if (now - _lastFired < 300) return;
-        _lastFired = now;
-        if (typeof openPersonalInfoModal === 'function') openPersonalInfoModal();
-      });
-    }
-    if (addrBtn && !addrBtn._gfyBound) {
-      addrBtn._gfyBound = true;
-      addrBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        var now = Date.now();
-        if (now - _lastFired < 300) return;
-        _lastFired = now;
-        if (typeof openAddressModal === 'function') openAddressModal();
-      });
-    }
-  }
-
-  function attachDelegation() {
-    var profilePage = document.getElementById('page-profile');
-    if (!profilePage) return;
-
-    profilePage.addEventListener('touchstart', function() {
-      _touchMoved = false;
-    }, { passive: true });
-
-    profilePage.addEventListener('touchmove', function() {
-      _touchMoved = true;
-    }, { passive: true });
-
-    // touchend — Android WebView primary path
-    profilePage.addEventListener('touchend', function(e) {
-      if (_touchMoved) return;
-      var btn = e.target && e.target.closest ? e.target.closest('[data-action]') : null;
-      if (!btn) return;
-      var action = btn.getAttribute('data-action');
-      if (!action) return;
-      e.preventDefault(); // suppress synthetic click so onclick doesn't double-fire
-      handleProfileAction(action);
-    }, { passive: false });
-
-    // Wire individual button listeners after DOM is confirmed ready
-    wireButtonListeners();
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', attachDelegation);
-  } else {
-    attachDelegation();
-  }
-
-})();
-</script>
-  
-<script>
-document.addEventListener('click', function(e) {
-  const btn = e.target.closest('.profile-menu-btn');
-  if (!btn) return;
-
-  const action = btn.getAttribute('data-action');
-
-  if (action === 'personal-info') {
-    e.preventDefault();
-    e.stopPropagation();
-    if (typeof openPersonalInfoModal === 'function') {
-      openPersonalInfoModal();
-    }
-  }
-
-  if (action === 'addresses') {
-    e.preventDefault();
-    e.stopPropagation();
-    if (typeof openAddressModal === 'function') {
-      openAddressModal();
-    } else {
-      const overlay = document.getElementById('address-overlay');
-      if (overlay) {
-        overlay.classList.add('open');
-        if (typeof loadAddresses === 'function') loadAddresses();
-      }
-    }
-  }
-}, true);
-</script>
-  
 </body>
 </html>

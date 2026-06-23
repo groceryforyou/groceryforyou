@@ -2241,14 +2241,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
         <span style="color:#ccc;font-size:1.2rem">›</span>
       </button>
 
-  <button
-    type="button"
-    id="profile-btn-addresses"
-    data-action="addresses"
-    onclick="openSavedAddressesModal(event)"
-    style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s"
-    onmouseover="this.style.background='#f9f9f9'"
-    onmouseout="this.style.background='none'">
+  <button type="button" id="profile-btn-addresses" data-action="addresses" onclick="return window.openSavedAddressesModal && window.openSavedAddressesModal();" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
     
     <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">📍</span>
@@ -9607,5 +9600,78 @@ document.addEventListener('click', function(e) {
 
 </script>
   
+
+<script id="gfy-address-apk-final-fix">
+(function(){
+  function forceShowAddressOverlay(){
+    var overlay = document.getElementById('address-overlay');
+    if (!overlay) {
+      alert('address-overlay missing');
+      return false;
+    }
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden','false');
+    overlay.style.setProperty('display','flex','important');
+    overlay.style.setProperty('position','fixed','important');
+    overlay.style.setProperty('top','0','important');
+    overlay.style.setProperty('right','0','important');
+    overlay.style.setProperty('bottom','0','important');
+    overlay.style.setProperty('left','0','important');
+    overlay.style.setProperty('width','100vw','important');
+    overlay.style.setProperty('height','100vh','important');
+    overlay.style.setProperty('background','rgba(0,0,0,0.6)','important');
+    overlay.style.setProperty('z-index','2147483647','important');
+    overlay.style.setProperty('align-items','center','important');
+    overlay.style.setProperty('justify-content','center','important');
+    overlay.style.setProperty('padding','14px','important');
+    overlay.style.setProperty('pointer-events','auto','important');
+    var modal = overlay.querySelector('.auth-modal');
+    if (modal) {
+      modal.style.setProperty('display','block','important');
+      modal.style.setProperty('visibility','visible','important');
+      modal.style.setProperty('opacity','1','important');
+      modal.style.setProperty('z-index','2147483647','important');
+    }
+    try { document.documentElement.classList.add('modal-open'); document.body.classList.add('modal-open'); } catch(e) {}
+    if (typeof window.subscribeAddresses === 'function') {
+      try { window.subscribeAddresses(); } catch(e) { console.warn('subscribeAddresses failed', e); }
+    }
+    if (typeof window.loadAddresses === 'function') {
+      try { window.loadAddresses(); } catch(e) { console.warn('loadAddresses failed', e); }
+    }
+    return false;
+  }
+
+  window.openSavedAddressesModal = forceShowAddressOverlay;
+  window.openProfileAddressesModal = forceShowAddressOverlay;
+
+  window.closeAddressModal = function(){
+    var overlay = document.getElementById('address-overlay');
+    if (overlay) {
+      overlay.classList.remove('open');
+      overlay.style.setProperty('display','none','important');
+      overlay.setAttribute('aria-hidden','true');
+    }
+    try { document.documentElement.classList.remove('modal-open'); document.body.classList.remove('modal-open'); } catch(e) {}
+    if (window._addressesUnsub) { try { window._addressesUnsub(); } catch(e) {} window._addressesUnsub = null; }
+    return false;
+  };
+
+  function catchAddressTap(e){
+    var target = e.target;
+    if (!target || !target.closest) return;
+    var btn = target.closest('#profile-btn-addresses, [data-action="addresses"]');
+    if (!btn) return;
+    if (e.cancelable) e.preventDefault();
+    e.stopPropagation();
+    forceShowAddressOverlay();
+  }
+
+  document.addEventListener('click', catchAddressTap, true);
+  document.addEventListener('touchend', catchAddressTap, true);
+  document.addEventListener('pointerup', catchAddressTap, true);
+})();
+</script>
+
 </body>
 </html>

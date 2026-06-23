@@ -9418,9 +9418,11 @@ window.addEventListener('load', function() {
 
 })();
 
-  function openPersonalInfoModal() {
+window.openPersonalInfoModal = function() {
     const overlay = document.getElementById('personal-info-overlay');
     const modal = document.getElementById('personal-info-modal');
+
+    console.log('Opening Personal Information');
 
     if (overlay) {
         overlay.classList.add('open');
@@ -9431,8 +9433,26 @@ window.addEventListener('load', function() {
         modal.classList.add('open');
         modal.style.display = 'block';
     }
-}
+};
 </script>
+
+<!-- ADD HERE -->
+
+<div id="personal-info-overlay"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;align-items:center;justify-content:center;">
+
+    <div id="personal-info-modal"
+         style="background:#fff;padding:20px;border-radius:20px;max-width:500px;width:90%;">
+
+        <h2>Personal Information</h2>
+
+        <input id="profile-name-input" placeholder="Name">
+        <input id="profile-email-input" placeholder="Email">
+        <input id="profile-phone-input" placeholder="Phone">
+
+        <button onclick="closePersonalInfoModal()">Close</button>
+    </div>
+</div>
 
 </body>
 </html>

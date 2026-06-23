@@ -9537,45 +9537,56 @@ window.savePersonalInfo = async function() {
 (function(){
   'use strict';
 
-  function $(id){ return document.getElementById(id); }
+  function byId(id){ return document.getElementById(id); }
 
-  function forceAddressModalVisible(){
-    var overlay = $('address-overlay');
+  function getProfileHost(){
+    return byId('page-profile') || document.querySelector('.page.active') || document.body;
+  }
+
+  function openAddressesOverProfile(e){
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+
+    var overlay = byId('address-overlay');
     if (!overlay) {
       alert('address-overlay missing');
       return false;
     }
 
-    // Remove old inline address panel if an older patch created it.
-    var inlinePanel = $('gfy-inline-address-panel');
-    if (inlinePanel) inlinePanel.style.display = 'none';
+    var host = getProfileHost();
+    if (!host) host = document.body;
 
-    // Keep the modal inside body so fixed positioning is not trapped by profile containers/WebView transforms.
     try {
-      if (overlay.parentNode !== document.body) document.body.appendChild(overlay);
-    } catch(e) {}
+      if (host.parentNode && host !== document.body) {
+        host.style.setProperty('position', 'relative', 'important');
+        host.style.setProperty('overflow', 'visible', 'important');
+      }
+      if (overlay.parentNode !== host) host.appendChild(overlay);
+    } catch(err) {
+      document.body.appendChild(overlay);
+    }
 
     overlay.classList.add('open');
     overlay.removeAttribute('hidden');
     overlay.setAttribute('aria-hidden', 'false');
+
     overlay.style.cssText = [
       'display:flex!important',
       'visibility:visible!important',
       'opacity:1!important',
-      'position:fixed!important',
+      'position:absolute!important',
       'left:0!important',
-      'top:0!important',
       'right:0!important',
+      'top:0!important',
       'bottom:0!important',
-      'width:100vw!important',
-      'height:100vh!important',
-      'background:rgba(0,0,0,.65)!important',
-      'z-index:2147483647!important',
+      'min-height:100vh!important',
+      'background:rgba(0,0,0,.55)!important',
+      'z-index:999999999!important',
       'align-items:center!important',
       'justify-content:center!important',
       'padding:16px!important',
       'pointer-events:auto!important',
-      'overflow:hidden!important'
+      'overflow:hidden!important',
+      'box-sizing:border-box!important'
     ].join(';') + ';';
 
     var modal = overlay.querySelector('.auth-modal');
@@ -9587,13 +9598,13 @@ window.savePersonalInfo = async function() {
         'opacity:1!important',
         'position:relative!important',
         'background:#fff!important',
-        'width:92vw!important',
+        'width:92%!important',
         'max-width:680px!important',
         'max-height:85vh!important',
         'overflow-y:auto!important',
         'border-radius:28px!important',
         'box-shadow:0 20px 60px rgba(0,0,0,.35)!important',
-        'z-index:2147483647!important',
+        'z-index:1000000000!important',
         'transform:none!important',
         'margin:0!important'
       ].join(';') + ';';
@@ -9603,19 +9614,15 @@ window.savePersonalInfo = async function() {
       if (typeof window.subscribeAddresses === 'function') window.subscribeAddresses();
       else if (typeof window.loadAddresses === 'function') window.loadAddresses();
     } catch(err) {
-      console.warn('[GFY Addresses] address loading failed:', err);
+      console.warn('[GFY Addresses] loading failed:', err);
     }
 
-    console.log('[GFY Addresses] modal opened');
+    console.log('[GFY Addresses] profile overlay opened');
     return false;
   }
 
-  window.openSavedAddressesModal = forceAddressModalVisible;
-  window.openProfileAddressesModal = forceAddressModalVisible;
-
-  var originalCloseAddressModal = window.closeAddressModal;
-  window.closeAddressModal = function(){
-    var overlay = $('address-overlay');
+  function closeAddressesOverProfile(){
+    var overlay = byId('address-overlay');
     if (overlay) {
       overlay.classList.remove('open');
       overlay.setAttribute('aria-hidden','true');
@@ -9623,37 +9630,18 @@ window.savePersonalInfo = async function() {
       overlay.style.setProperty('visibility','hidden','important');
       overlay.style.setProperty('opacity','0','important');
     }
-    try {
-      if (typeof originalCloseAddressModal === 'function') originalCloseAddressModal();
-    } catch(e) {}
     return false;
-  };
-
-  var originalOpenAddressEditor = window.openAddressEditor;
-  if (typeof originalOpenAddressEditor === 'function') {
-    window.openAddressEditor = async function(id) {
-      var result = await originalOpenAddressEditor.apply(this, arguments);
-      setTimeout(function(){
-        var editor = $('address-editor-overlay');
-        if (!editor) return;
-        try { if (editor.parentNode !== document.body) document.body.appendChild(editor); } catch(e) {}
-        editor.classList.add('open');
-        editor.style.cssText = 'display:flex!important;visibility:visible!important;opacity:1!important;position:fixed!important;inset:0!important;background:rgba(0,0,0,.65)!important;z-index:2147483647!important;align-items:center!important;justify-content:center!important;padding:16px!important;pointer-events:auto!important;';
-        var modal = editor.querySelector('.auth-modal');
-        if (modal) modal.style.cssText = 'display:block!important;visibility:visible!important;opacity:1!important;background:#fff!important;width:92vw!important;max-width:680px!important;max-height:85vh!important;overflow-y:auto!important;border-radius:28px!important;position:relative!important;';
-      }, 80);
-      return result;
-    };
   }
 
+  window.openSavedAddressesModal = openAddressesOverProfile;
+  window.openProfileAddressesModal = openAddressesOverProfile;
+  window.closeAddressModal = closeAddressesOverProfile;
+
   function bindAddressButton(){
-    var btn = $('profile-btn-addresses') || document.querySelector('[data-action="addresses"]');
+    var btn = byId('profile-btn-addresses') || document.querySelector('[data-action="addresses"]');
     if (!btn) return;
     btn.setAttribute('data-action','addresses');
-    btn.onclick = function(e){
-      if (e) { e.preventDefault(); e.stopPropagation(); }
-      return forceAddressModalVisible();
-    };
+    btn.onclick = openAddressesOverProfile;
     btn.style.setProperty('pointer-events','auto','important');
     btn.style.setProperty('cursor','pointer','important');
   }
@@ -9661,10 +9649,16 @@ window.savePersonalInfo = async function() {
   document.addEventListener('click', function(e){
     var btn = e.target && e.target.closest ? e.target.closest('#profile-btn-addresses,[data-action="addresses"]') : null;
     if (!btn) return;
-    e.preventDefault();
-    e.stopPropagation();
-    forceAddressModalVisible();
+    openAddressesOverProfile(e);
   }, true);
+
+  ['touchstart','touchend','pointerup'].forEach(function(evt){
+    document.addEventListener(evt, function(e){
+      var btn = e.target && e.target.closest ? e.target.closest('#profile-btn-addresses,[data-action="addresses"]') : null;
+      if (!btn) return;
+      openAddressesOverProfile(e);
+    }, {capture:true, passive:false});
+  });
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindAddressButton);
   else bindAddressButton();
@@ -9673,36 +9667,36 @@ window.savePersonalInfo = async function() {
 })();
 </script>
 
-
 <style id="gfy-address-overlay-force-css">
-#address-overlay.open {
+#page-profile { position: relative !important; overflow: visible !important; }
+#page-profile #address-overlay.open {
   display: flex !important;
   visibility: visible !important;
   opacity: 1 !important;
-  position: fixed !important;
+  position: absolute !important;
   inset: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  background: rgba(0,0,0,.65) !important;
-  z-index: 2147483647 !important;
+  min-height: 100vh !important;
+  background: rgba(0,0,0,.55) !important;
+  z-index: 999999999 !important;
   align-items: center !important;
   justify-content: center !important;
   padding: 16px !important;
   pointer-events: auto !important;
   overflow: hidden !important;
+  box-sizing: border-box !important;
 }
-#address-overlay.open .auth-modal {
+#page-profile #address-overlay.open .auth-modal {
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
   background: #fff !important;
   max-width: 680px !important;
-  width: 92vw !important;
+  width: 92% !important;
   max-height: 85vh !important;
   overflow-y: auto !important;
   border-radius: 28px !important;
   box-shadow: 0 20px 60px rgba(0,0,0,.35) !important;
-  z-index: 2147483647 !important;
+  z-index: 1000000000 !important;
   position: relative !important;
   transform: none !important;
 }

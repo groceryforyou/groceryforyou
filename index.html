@@ -9537,136 +9537,151 @@ window.savePersonalInfo = async function() {
 (function(){
   'use strict';
 
-  function findAddressButton(target) {
-    var el = target;
-    while (el && el !== document) {
-      if (el.id === 'profile-btn-addresses') return el;
-      if (el.getAttribute && el.getAttribute('data-action') === 'addresses') return el;
-      el = el.parentNode;
-    }
-    return null;
-  }
+  function $(id){ return document.getElementById(id); }
 
-  function showAddressOverlay() {
-    var overlay = document.getElementById('address-overlay');
-    if (!overlay) {
-      console.error('[GFY Addresses] address-overlay missing');
-      alert('Address page missing');
-      return false;
-    }
-
-    // Move overlay to <body> so WebView cannot hide it inside a transformed/stacked parent.
-    // This is safe because the element keeps the same id and all existing address code still works.
-    try {
-      if (overlay.parentNode !== document.body) {
-        document.body.appendChild(overlay);
-      }
-    } catch (moveErr) {
-      console.warn('[GFY Addresses] could not move overlay to body:', moveErr);
-    }
-
+  function forceOverlayVisible(id) {
+    var overlay = $(id);
+    if (!overlay) return null;
+    try { if (overlay.parentNode !== document.body) document.body.appendChild(overlay); } catch(e) {}
     overlay.classList.add('open');
     overlay.removeAttribute('hidden');
     overlay.setAttribute('aria-hidden', 'false');
-    overlay.style.setProperty('display', 'flex', 'important');
-    overlay.style.setProperty('visibility', 'visible', 'important');
-    overlay.style.setProperty('opacity', '1', 'important');
-    overlay.style.setProperty('position', 'fixed', 'important');
-    overlay.style.setProperty('top', '0', 'important');
-    overlay.style.setProperty('right', '0', 'important');
-    overlay.style.setProperty('bottom', '0', 'important');
-    overlay.style.setProperty('left', '0', 'important');
-    overlay.style.setProperty('width', '100vw', 'important');
-    overlay.style.setProperty('height', '100vh', 'important');
-    overlay.style.setProperty('background', 'rgba(0,0,0,0.60)', 'important');
-    overlay.style.setProperty('z-index', '2147483647', 'important');
-    overlay.style.setProperty('align-items', 'center', 'important');
-    overlay.style.setProperty('justify-content', 'center', 'important');
-    overlay.style.setProperty('padding', '14px', 'important');
-    overlay.style.setProperty('pointer-events', 'auto', 'important');
-
-    var modal = overlay.querySelector('.auth-modal');
+    overlay.style.cssText = 'display:flex!important;visibility:visible!important;opacity:1!important;position:fixed!important;left:0!important;top:0!important;right:0!important;bottom:0!important;width:100vw!important;height:100vh!important;background:rgba(0,0,0,.65)!important;z-index:999999!important;align-items:center!important;justify-content:center!important;padding:14px!important;pointer-events:auto!important;';
+    var modal = overlay.querySelector('.auth-modal,.order-modal,.orders-modal,.cat-modal');
     if (modal) {
-      modal.style.setProperty('display', 'block', 'important');
-      modal.style.setProperty('visibility', 'visible', 'important');
-      modal.style.setProperty('opacity', '1', 'important');
-      modal.style.setProperty('position', 'relative', 'important');
-      modal.style.setProperty('z-index', '2147483647', 'important');
-      modal.style.setProperty('background', '#fff', 'important');
-      modal.style.setProperty('width', '92vw', 'important');
-      modal.style.setProperty('max-width', '680px', 'important');
-      modal.style.setProperty('max-height', '85vh', 'important');
-      modal.style.setProperty('overflow-y', 'auto', 'important');
-      modal.style.setProperty('border-radius', '28px', 'important');
-      modal.style.setProperty('transform', 'none', 'important');
+      modal.style.setProperty('display','block','important');
+      modal.style.setProperty('visibility','visible','important');
+      modal.style.setProperty('opacity','1','important');
+      modal.style.setProperty('position','relative','important');
+      modal.style.setProperty('z-index','1000000','important');
+      modal.style.setProperty('background','#fff','important');
+      modal.style.setProperty('width','92vw','important');
+      modal.style.setProperty('max-width','680px','important');
+      modal.style.setProperty('max-height','85vh','important');
+      modal.style.setProperty('overflow-y','auto','important');
+      modal.style.setProperty('border-radius','28px','important');
+      modal.style.setProperty('transform','none','important');
     }
-
-    try { document.documentElement.classList.add('modal-open'); document.body.classList.add('modal-open'); } catch(e) {}
-
-    setTimeout(function(){
-      try {
-        if (typeof window.subscribeAddresses === 'function') window.subscribeAddresses();
-        else if (typeof window.loadAddresses === 'function') window.loadAddresses();
-      } catch (err) {
-        console.warn('[GFY Addresses] address loading failed:', err);
-      }
-    }, 0);
-
-    console.log('[GFY Addresses] opened and moved to body');
-    return false;
+    return overlay;
   }
 
-  window.__gfyOpenProfileAddresses = function(e) {
+  function ensureInlinePanel() {
+    var existing = $('gfy-inline-address-panel');
+    if (existing) return existing;
+    var page = $('page-profile') || document.body;
+    var panel = document.createElement('div');
+    panel.id = 'gfy-inline-address-panel';
+    panel.style.cssText = 'display:none;background:#fff;border-radius:28px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.20);margin:18px 0 20px;border:1px solid var(--border);position:relative;z-index:20;';
+    panel.innerHTML = ''+
+      '<div style="background:linear-gradient(135deg,#0b6b2e,#118c3d);padding:28px 22px;text-align:center;">'+
+        '<h2 style="margin:0;color:#ffcc00;font-size:2rem;font-weight:900;">🏠 Your Addresses</h2>'+
+        '<p style="margin-top:8px;color:#e8f5e9;font-size:1rem;">Max 5 • Within 5km service area</p>'+
+      '</div>'+
+      '<div style="padding:28px 26px;">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:22px;flex-wrap:wrap;">'+
+          '<button type="button" onclick="closeAddressModal()" style="border:2px solid #c8e6c9;background:#f8fff8;color:#1a5c2a;border-radius:18px;padding:12px 22px;font-weight:900;font-size:1rem;">← Back</button>'+
+          '<button type="button" onclick="openAddressEditor()" style="background:#00b04e;color:white;border:none;border-radius:16px;padding:13px 22px;font-weight:900;font-size:1rem;">➕ Add Address</button>'+
+        '</div>'+
+        '<div id="gfy-inline-address-list" style="display:grid;gap:10px;min-height:220px;align-items:center;"><div class="empty-cat-msg"><div class="big">🏠</div>No saved addresses yet.</div></div>'+
+      '</div>';
+
+    var profileHeader = page.children && page.children.length > 1 ? page.children[1] : null;
+    if (profileHeader && profileHeader.parentNode === page) {
+      page.insertBefore(panel, profileHeader.nextSibling);
+    } else {
+      page.appendChild(panel);
+    }
+    return panel;
+  }
+
+  function syncInlineAddressList() {
+    var source = $('address-list');
+    var target = $('gfy-inline-address-list');
+    if (!target) return;
+    target.innerHTML = source && source.innerHTML ? source.innerHTML : '<div class="empty-cat-msg"><div class="big">🏠</div>No saved addresses yet.</div>';
+  }
+
+  function showInlineAddresses() {
+    var panel = ensureInlinePanel();
+    panel.style.display = 'block';
+    syncInlineAddressList();
+    try { panel.scrollIntoView({behavior:'smooth', block:'start'}); } catch(e) { window.scrollTo(0, panel.offsetTop || 0); }
+  }
+
+  function showAddressPage(e) {
     if (e && e.preventDefault) e.preventDefault();
     if (e && e.stopPropagation) e.stopPropagation();
-    return showAddressOverlay();
-  };
 
-  window.openSavedAddressesModal = window.__gfyOpenProfileAddresses;
-  window.openProfileAddressesModal = window.__gfyOpenProfileAddresses;
+    showInlineAddresses();
 
-  window.closeAddressModal = function() {
-    var overlay = document.getElementById('address-overlay');
+    // Keep original address data flow working in the background.
+    try {
+      if (typeof window.subscribeAddresses === 'function') window.subscribeAddresses();
+      else if (typeof window.loadAddresses === 'function') window.loadAddresses();
+    } catch(err) {
+      console.warn('[GFY Addresses] address loading failed:', err);
+    }
+    setTimeout(syncInlineAddressList, 250);
+    setTimeout(syncInlineAddressList, 1000);
+
+    console.log('[GFY Addresses] inline page opened');
+    return false;
+  }
+
+  window.__gfyOpenProfileAddresses = showAddressPage;
+  window.openSavedAddressesModal = showAddressPage;
+  window.openProfileAddressesModal = showAddressPage;
+
+  var originalCloseAddressModal = window.closeAddressModal;
+  window.closeAddressModal = function(){
+    var panel = $('gfy-inline-address-panel');
+    if (panel) panel.style.display = 'none';
+    var overlay = $('address-overlay');
     if (overlay) {
       overlay.classList.remove('open');
-      overlay.setAttribute('aria-hidden', 'true');
-      overlay.style.setProperty('display', 'none', 'important');
+      overlay.setAttribute('aria-hidden','true');
+      overlay.style.setProperty('display','none','important');
     }
-    try { document.documentElement.classList.remove('modal-open'); document.body.classList.remove('modal-open'); } catch(e) {}
-    if (window._addressesUnsub) { try { window._addressesUnsub(); } catch(e) {} window._addressesUnsub = null; }
+    try { if (typeof originalCloseAddressModal === 'function') originalCloseAddressModal(); } catch(e) {}
     return false;
   };
 
-  function onAddressTap(e) {
-    var btn = findAddressButton(e.target);
+  var originalRenderAddressList = window.renderAddressList;
+  if (typeof originalRenderAddressList === 'function') {
+    window.renderAddressList = function(list) {
+      var result = originalRenderAddressList.apply(this, arguments);
+      syncInlineAddressList();
+      return result;
+    };
+  }
+
+  var originalOpenAddressEditor = window.openAddressEditor;
+  if (typeof originalOpenAddressEditor === 'function') {
+    window.openAddressEditor = async function(id) {
+      var result = await originalOpenAddressEditor.apply(this, arguments);
+      setTimeout(function(){ forceOverlayVisible('address-editor-overlay'); }, 50);
+      setTimeout(function(){ forceOverlayVisible('address-editor-overlay'); }, 250);
+      return result;
+    };
+  }
+
+  function bindAddressButton() {
+    var btn = $('profile-btn-addresses') || document.querySelector('[data-action="addresses"]');
     if (!btn) return;
-    if (e.preventDefault) e.preventDefault();
-    if (e.stopPropagation) e.stopPropagation();
-    showAddressOverlay();
+    btn.setAttribute('data-action','addresses');
+    btn.onclick = showAddressPage;
+    btn.ontouchstart = null;
+    btn.style.setProperty('pointer-events','auto','important');
   }
 
-  ['click','touchstart','touchend','pointerdown','pointerup'].forEach(function(type){
-    document.addEventListener(type, onAddressTap, true);
-  });
+  document.addEventListener('click', function(e){
+    var btn = e.target && e.target.closest ? e.target.closest('#profile-btn-addresses,[data-action="addresses"]') : null;
+    if (btn) showAddressPage(e);
+  }, true);
 
-  function ensureButtonBinding() {
-    var btn = document.getElementById('profile-btn-addresses') || document.querySelector('[data-action="addresses"]');
-    if (!btn) return;
-    btn.setAttribute('data-action', 'addresses');
-    btn.style.setProperty('pointer-events', 'auto', 'important');
-    btn.style.setProperty('position', 'relative', 'important');
-    btn.style.setProperty('z-index', '2', 'important');
-    btn.onclick = window.__gfyOpenProfileAddresses;
-    btn.ontouchstart = window.__gfyOpenProfileAddresses;
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', ensureButtonBinding);
-  } else {
-    ensureButtonBinding();
-  }
-  setTimeout(ensureButtonBinding, 500);
-  setTimeout(ensureButtonBinding, 1500);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindAddressButton);
+  else bindAddressButton();
+  setTimeout(bindAddressButton, 1000);
 })();
 </script>
 

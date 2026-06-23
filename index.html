@@ -9434,8 +9434,24 @@ window.openPersonalInfoModal = function() {
         modal.style.display = 'block';
     }
 };
-</script>
 
+  window.closePersonalInfoModal = function() {
+    const overlay = document.getElementById('personal-info-overlay');
+    const modal = document.getElementById('personal-info-modal');
+
+    if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+    }
+
+    if (overlay) {
+        overlay.classList.remove('open');
+        overlay.style.display = 'none';
+    }
+};
+  
+</script>
+  
 <!-- ADD HERE -->
 
 <div id="personal-info-overlay"

@@ -2241,7 +2241,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
         <span style="color:#ccc;font-size:1.2rem">›</span>
       </button>
 
-      <button type="button" id="profile-btn-addresses" data-action="addresses" onclick="openAddressModal()" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
+      <button type="button" onclick="openAddressModal()" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">📍</span>
           <div>
@@ -9528,44 +9528,6 @@ window.savePersonalInfo = async function() {
         showToast('Failed to save profile', 'error');
     }
 };
-
-<script>
-    
-window.openAddressModal = function() {
-    var overlay = document.getElementById('address-overlay');
-
-    if (!overlay) {
-        alert('Address modal missing');
-        return;
-    }
-
-    overlay.classList.add('open');
-    overlay.style.display = 'flex';
-
-    if (typeof loadAddresses === 'function') {
-        loadAddresses();
-    }
-};
-
-window.closeAddressModal = function() {
-    var overlay = document.getElementById('address-overlay');
-
-    if (overlay) {
-        overlay.classList.remove('open');
-        overlay.style.display = 'none';
-    }
-};
-
-document.addEventListener('click', function(e) {
-    var btn = e.target.closest('[data-action="addresses"], #profile-btn-addresses');
-    if (!btn) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    window.openAddressModal();
-}, true);
-
 </script>
   
 </body>

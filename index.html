@@ -2241,7 +2241,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
         <span style="color:#ccc;font-size:1.2rem">›</span>
       </button>
 
-  <button type="button" id="profile-btn-addresses" data-action="addresses" onclick="return window.openSavedAddressesModal && window.openSavedAddressesModal();" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
+  <button type="button" id="profile-btn-addresses" data-action="addresses" onclick="return window.__gfyOpenProfileAddresses && window.__gfyOpenProfileAddresses(event);" ontouchstart="return window.__gfyOpenProfileAddresses && window.__gfyOpenProfileAddresses(event);" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s;width:100%;position:relative;z-index:2;pointer-events:auto" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
     
     <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">📍</span>
@@ -3196,30 +3196,7 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
   </div>
 </div>
-  
-<script>
-  
-function openSavedAddressesModal() {
-    var overlay = document.getElementById('address-overlay');
-    if (!overlay) {
-        alert('address-overlay missing');
-        return;
-    }
 
-    overlay.classList.add('open');
-    overlay.style.display = 'flex';
-}
-
-function closeAddressModal() {
-    var overlay = document.getElementById('address-overlay');
-    if (overlay) {
-        overlay.classList.remove('open');
-        overlay.style.display = 'none';
-    }
-}
-  
-</script>
-  
 <!-- ADDRESS EDITOR MODAL -->
 <div class="auth-overlay" id="address-editor-overlay">
   <div class="auth-modal" style="max-width:680px">
@@ -9554,122 +9531,127 @@ window.savePersonalInfo = async function() {
         showToast('Failed to save profile', 'error');
     }
 };
-  
+</script>
 
-window.openSavedAddressesModal = function(event) {
-    if (event && typeof event.preventDefault === 'function') event.preventDefault();
-    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+<script id="gfy-profile-addresses-apk-fix">
+(function(){
+  'use strict';
 
-    const overlay = document.getElementById('address-overlay');
+  function findAddressButton(target) {
+    var el = target;
+    while (el && el !== document) {
+      if (el.id === 'profile-btn-addresses') return el;
+      if (el.getAttribute && el.getAttribute('data-action') === 'addresses') return el;
+      el = el.parentNode;
+    }
+    return null;
+  }
+
+  function showAddressOverlay() {
+    var overlay = document.getElementById('address-overlay');
     if (!overlay) {
-        alert('address-overlay missing');
-        return false;
+      console.error('[GFY Addresses] address-overlay missing');
+      alert('Address page missing');
+      return false;
     }
 
     overlay.classList.add('open');
+    overlay.removeAttribute('hidden');
+    overlay.setAttribute('aria-hidden', 'false');
     overlay.style.setProperty('display', 'flex', 'important');
+    overlay.style.setProperty('visibility', 'visible', 'important');
+    overlay.style.setProperty('opacity', '1', 'important');
     overlay.style.setProperty('position', 'fixed', 'important');
-    overlay.style.setProperty('inset', '0', 'important');
-    overlay.style.setProperty('z-index', '99999', 'important');
+    overlay.style.setProperty('top', '0', 'important');
+    overlay.style.setProperty('right', '0', 'important');
+    overlay.style.setProperty('bottom', '0', 'important');
+    overlay.style.setProperty('left', '0', 'important');
+    overlay.style.setProperty('width', '100vw', 'important');
+    overlay.style.setProperty('height', '100vh', 'important');
+    overlay.style.setProperty('background', 'rgba(0,0,0,0.60)', 'important');
+    overlay.style.setProperty('z-index', '2147483647', 'important');
     overlay.style.setProperty('align-items', 'center', 'important');
     overlay.style.setProperty('justify-content', 'center', 'important');
     overlay.style.setProperty('padding', '14px', 'important');
+    overlay.style.setProperty('pointer-events', 'auto', 'important');
 
-    if (typeof subscribeAddresses === 'function') {
-        try { subscribeAddresses(); } catch (err) { console.warn('subscribeAddresses failed:', err); }
-    } else if (typeof loadAddresses === 'function') {
-        try { loadAddresses(); } catch (err) { console.warn('loadAddresses failed:', err); }
-    }
-
-    return false;
-};
-
-window.closeAddressModal = function() {
-    const overlay = document.getElementById('address-overlay');
-    if (overlay) {
-        overlay.classList.remove('open');
-        overlay.style.setProperty('display', 'none', 'important');
-    }
-};
-
-document.addEventListener('click', function(e) {
-    const btn = e.target.closest('#profile-btn-addresses, [data-action="addresses"]');
-    if (!btn) return;
-    window.openSavedAddressesModal(e);
-}, true);
-
-</script>
-  
-
-<script id="gfy-address-apk-final-fix">
-(function(){
-  function forceShowAddressOverlay(){
-    var overlay = document.getElementById('address-overlay');
-    if (!overlay) {
-      alert('address-overlay missing');
-      return false;
-    }
-    overlay.classList.add('open');
-    overlay.setAttribute('aria-hidden','false');
-    overlay.style.setProperty('display','flex','important');
-    overlay.style.setProperty('position','fixed','important');
-    overlay.style.setProperty('top','0','important');
-    overlay.style.setProperty('right','0','important');
-    overlay.style.setProperty('bottom','0','important');
-    overlay.style.setProperty('left','0','important');
-    overlay.style.setProperty('width','100vw','important');
-    overlay.style.setProperty('height','100vh','important');
-    overlay.style.setProperty('background','rgba(0,0,0,0.6)','important');
-    overlay.style.setProperty('z-index','2147483647','important');
-    overlay.style.setProperty('align-items','center','important');
-    overlay.style.setProperty('justify-content','center','important');
-    overlay.style.setProperty('padding','14px','important');
-    overlay.style.setProperty('pointer-events','auto','important');
     var modal = overlay.querySelector('.auth-modal');
     if (modal) {
-      modal.style.setProperty('display','block','important');
-      modal.style.setProperty('visibility','visible','important');
-      modal.style.setProperty('opacity','1','important');
-      modal.style.setProperty('z-index','2147483647','important');
+      modal.style.setProperty('display', 'block', 'important');
+      modal.style.setProperty('visibility', 'visible', 'important');
+      modal.style.setProperty('opacity', '1', 'important');
+      modal.style.setProperty('position', 'relative', 'important');
+      modal.style.setProperty('z-index', '2147483647', 'important');
+      modal.style.setProperty('max-height', '94vh', 'important');
+      modal.style.setProperty('overflow-y', 'auto', 'important');
     }
+
     try { document.documentElement.classList.add('modal-open'); document.body.classList.add('modal-open'); } catch(e) {}
-    if (typeof window.subscribeAddresses === 'function') {
-      try { window.subscribeAddresses(); } catch(e) { console.warn('subscribeAddresses failed', e); }
-    }
-    if (typeof window.loadAddresses === 'function') {
-      try { window.loadAddresses(); } catch(e) { console.warn('loadAddresses failed', e); }
-    }
+
+    setTimeout(function(){
+      try {
+        if (typeof window.subscribeAddresses === 'function') window.subscribeAddresses();
+        else if (typeof window.loadAddresses === 'function') window.loadAddresses();
+      } catch (err) {
+        console.warn('[GFY Addresses] address loading failed:', err);
+      }
+    }, 0);
+
+    console.log('[GFY Addresses] opened');
     return false;
   }
 
-  window.openSavedAddressesModal = forceShowAddressOverlay;
-  window.openProfileAddressesModal = forceShowAddressOverlay;
+  window.__gfyOpenProfileAddresses = function(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (e && e.stopPropagation) e.stopPropagation();
+    return showAddressOverlay();
+  };
 
-  window.closeAddressModal = function(){
+  window.openSavedAddressesModal = window.__gfyOpenProfileAddresses;
+  window.openProfileAddressesModal = window.__gfyOpenProfileAddresses;
+
+  window.closeAddressModal = function() {
     var overlay = document.getElementById('address-overlay');
     if (overlay) {
       overlay.classList.remove('open');
-      overlay.style.setProperty('display','none','important');
-      overlay.setAttribute('aria-hidden','true');
+      overlay.setAttribute('aria-hidden', 'true');
+      overlay.style.setProperty('display', 'none', 'important');
     }
     try { document.documentElement.classList.remove('modal-open'); document.body.classList.remove('modal-open'); } catch(e) {}
     if (window._addressesUnsub) { try { window._addressesUnsub(); } catch(e) {} window._addressesUnsub = null; }
     return false;
   };
 
-  function catchAddressTap(e){
-    var target = e.target;
-    if (!target || !target.closest) return;
-    var btn = target.closest('#profile-btn-addresses, [data-action="addresses"]');
+  function onAddressTap(e) {
+    var btn = findAddressButton(e.target);
     if (!btn) return;
-    if (e.cancelable) e.preventDefault();
-    e.stopPropagation();
-    forceShowAddressOverlay();
+    if (e.preventDefault) e.preventDefault();
+    if (e.stopPropagation) e.stopPropagation();
+    showAddressOverlay();
   }
 
-  document.addEventListener('click', catchAddressTap, true);
-  document.addEventListener('touchend', catchAddressTap, true);
-  document.addEventListener('pointerup', catchAddressTap, true);
+  ['click','touchstart','touchend','pointerdown','pointerup'].forEach(function(type){
+    document.addEventListener(type, onAddressTap, true);
+  });
+
+  function ensureButtonBinding() {
+    var btn = document.getElementById('profile-btn-addresses') || document.querySelector('[data-action="addresses"]');
+    if (!btn) return;
+    btn.setAttribute('data-action', 'addresses');
+    btn.style.setProperty('pointer-events', 'auto', 'important');
+    btn.style.setProperty('position', 'relative', 'important');
+    btn.style.setProperty('z-index', '2', 'important');
+    btn.onclick = window.__gfyOpenProfileAddresses;
+    btn.ontouchstart = window.__gfyOpenProfileAddresses;
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ensureButtonBinding);
+  } else {
+    ensureButtonBinding();
+  }
+  setTimeout(ensureButtonBinding, 500);
+  setTimeout(ensureButtonBinding, 1500);
 })();
 </script>
 

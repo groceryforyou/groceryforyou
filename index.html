@@ -761,6 +761,23 @@ document.addEventListener('error', function(e) {
     #manage-items-list::-webkit-scrollbar{width:5px}
     #manage-items-list::-webkit-scrollbar-thumb{background:var(--saffron);border-radius:6px}
 
+    /* Ensure Address modal overlay and modal show when opened */
+    #address-overlay.open {
+      display: flex !important;
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 10000 !important;
+      align-items: center !important;
+      justify-content: center !important;
+      background: rgba(0,0,0,.55) !important;
+    }
+
+    #address-modal.open {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+
     /* Withdraw modal */
     .place-order-btn{width:100%;margin-top:14px;background:linear-gradient(90deg,var(--brown),var(--saffron));color:#fff;border:none;border-radius:12px;padding:14px;font-size:1rem;font-weight:700;cursor:pointer;font-family:"Yeseva One",serif;letter-spacing:.8px;transition:opacity .2s;touch-action:manipulation}
     .place-order-btn:hover{opacity:.9}
@@ -2266,7 +2283,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
         <span style="color:#ccc;font-size:1.2rem">›</span>
       </button>
 
-      <button type="button" class="profile-menu-btn" data-action="addresses" id="profile-btn-addresses" onclick="gfyProfileAction('addresses')">
+      <button type="button" class="profile-menu-btn" data-action="addresses" id="profile-btn-addresses" onclick="openAddressModal()">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">📍</span>
           <div>
@@ -6809,8 +6826,44 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       }));
       console.log('[DeliveryFee] localStorage persisted delivery fee state');
     } catch (err) {
-      console.warn('[DeliveryFee] localStorage save failed:', err);
-    }
+      </script>
+
+      <!-- Address modal open/close API (single canonical functions) -->
+      <script>
+      window.openAddressModal = function() {
+        const overlay = document.getElementById('address-overlay');
+        const modal = document.getElementById('address-modal');
+
+        if (!overlay || !modal) {
+          console.error('Address modal missing');
+          return;
+        }
+
+        overlay.classList.add('open');
+        modal.classList.add('open');
+        overlay.style.display = 'flex';
+        modal.style.display = 'block';
+
+        if (typeof loadAddresses === 'function') loadAddresses();
+      };
+
+      window.closeAddressModal = function() {
+        const overlay = document.getElementById('address-overlay');
+        const modal = document.getElementById('address-modal');
+
+        if (modal) {
+          modal.classList.remove('open');
+          modal.style.display = 'none';
+        }
+
+        if (overlay) {
+          overlay.classList.remove('open');
+          overlay.style.display = 'none';
+        }
+      };
+      </script>
+
+      </body>
 
     let successCount = 0;
     let errors = [];
@@ -9512,14 +9565,7 @@ window.gfyProfileAction = function(action) {
       if (typeof openAddressModal === 'function') {
         openAddressModal();
       } else {
-        // Direct fallback: open the overlay element directly
-        var ov = document.getElementById('address-overlay');
-        if (ov) {
-          ov.classList.add('open');
-          if (typeof loadAddresses === 'function') loadAddresses();
-        } else {
-          console.warn('[Profile] openAddressModal not ready and no address-overlay found');
-        }
+        console.warn('[Profile] openAddressModal not ready yet');
       }
     }
   } catch (err) {
@@ -9654,8 +9700,7 @@ async function savePersonalInfo() {
         if (typeof openAddressModal === 'function') {
           openAddressModal();
         } else {
-          var ov = document.getElementById('address-overlay');
-          if (ov) { ov.classList.add('open'); if (typeof loadAddresses === 'function') loadAddresses(); }
+          console.warn('[ProfileMenu] openAddressModal not ready');
         }
       }
     } catch (e) {

@@ -2243,8 +2243,9 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
 
   <button
     type="button"
+    id="profile-btn-addresses"
     data-action="addresses"
-    onclick="openSavedAddressesModal()"
+    onclick="openSavedAddressesModal(event)"
     style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s"
     onmouseover="this.style.background='#f9f9f9'"
     onmouseout="this.style.background='none'">
@@ -3203,6 +3204,28 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
 </div>
   
+<script>
+  
+function openSavedAddressesModal() {
+    var overlay = document.getElementById('address-overlay');
+    if (!overlay) {
+        alert('address-overlay missing');
+        return;
+    }
+
+    overlay.classList.add('open');
+    overlay.style.display = 'flex';
+}
+
+function closeAddressModal() {
+    var overlay = document.getElementById('address-overlay');
+    if (overlay) {
+        overlay.classList.remove('open');
+        overlay.style.display = 'none';
+    }
+}
+  
+</script>
   
 <!-- ADDRESS EDITOR MODAL -->
 <div class="auth-overlay" id="address-editor-overlay">
@@ -9509,6 +9532,7 @@ window.openPersonalInfoModal = async function() {
 </div>
   
 <script>
+  
 window.savePersonalInfo = async function() {
     try {
         const user = firebase.auth().currentUser;
@@ -9517,9 +9541,9 @@ window.savePersonalInfo = async function() {
             return;
         }
 
-        const name = document.getElementById('profile-name-input')?.value.trim() || '';
-        const email = document.getElementById('profile-email-input')?.value.trim() || '';
-        const phone = document.getElementById('profile-phone-input')?.value.trim() || '';
+        const name = document.getElementById('profile-name-input').value.trim();
+        const email = document.getElementById('profile-email-input').value.trim();
+        const phone = document.getElementById('profile-phone-input').value.trim();
 
         await firebase.firestore().collection('users').doc(user.uid).set({
             name: name,
@@ -9531,72 +9555,57 @@ window.savePersonalInfo = async function() {
 
         showToast('Profile saved successfully');
         closePersonalInfoModal();
+
     } catch (error) {
         console.error('Save personal info failed:', error);
         showToast('Failed to save profile', 'error');
     }
 };
+  
 
-(function() {
-    function showAddressesOverlay() {
-        const overlay = document.getElementById('address-overlay');
-        if (!overlay) {
-            alert('address-overlay missing');
-            return false;
-        }
+window.openSavedAddressesModal = function(event) {
+    if (event && typeof event.preventDefault === 'function') event.preventDefault();
+    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
 
-        overlay.classList.add('open');
-        overlay.style.setProperty('display', 'flex', 'important');
-
-        if (typeof subscribeAddresses === 'function' && firebase?.auth?.().currentUser) {
-            try { subscribeAddresses(); } catch (err) { console.warn('subscribeAddresses failed:', err); }
-        }
+    const overlay = document.getElementById('address-overlay');
+    if (!overlay) {
+        alert('address-overlay missing');
         return false;
     }
 
-    const originalOpenAddressModal = window.openAddressModal;
+    overlay.classList.add('open');
+    overlay.style.setProperty('display', 'flex', 'important');
+    overlay.style.setProperty('position', 'fixed', 'important');
+    overlay.style.setProperty('inset', '0', 'important');
+    overlay.style.setProperty('z-index', '99999', 'important');
+    overlay.style.setProperty('align-items', 'center', 'important');
+    overlay.style.setProperty('justify-content', 'center', 'important');
+    overlay.style.setProperty('padding', '14px', 'important');
 
-    window.openSavedAddressesModal = function() {
-        return showAddressesOverlay();
-    };
+    if (typeof subscribeAddresses === 'function') {
+        try { subscribeAddresses(); } catch (err) { console.warn('subscribeAddresses failed:', err); }
+    } else if (typeof loadAddresses === 'function') {
+        try { loadAddresses(); } catch (err) { console.warn('loadAddresses failed:', err); }
+    }
 
-    window.openAddressModal = async function() {
-        try {
-            if (typeof originalOpenAddressModal === 'function' && firebase?.auth?.().currentUser) {
-                return await originalOpenAddressModal.apply(this, arguments);
-            }
-        } catch (err) {
-            console.warn('Original openAddressModal failed, opening overlay directly:', err);
-        }
-        return showAddressesOverlay();
-    };
+    return false;
+};
 
-    const originalCloseAddressModal = window.closeAddressModal;
-    window.closeAddressModal = function() {
-        const overlay = document.getElementById('address-overlay');
-        if (overlay) {
-            overlay.classList.remove('open');
-            overlay.style.setProperty('display', 'none', 'important');
-        }
-        if (typeof originalCloseAddressModal === 'function') {
-            try { originalCloseAddressModal.apply(this, arguments); } catch (_e) {}
-        }
-    };
+window.closeAddressModal = function() {
+    const overlay = document.getElementById('address-overlay');
+    if (overlay) {
+        overlay.classList.remove('open');
+        overlay.style.setProperty('display', 'none', 'important');
+    }
+};
 
-    document.addEventListener('click', function(e) {
-        const btn = e.target.closest('button');
-        if (!btn) return;
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('#profile-btn-addresses, [data-action="addresses"]');
+    if (!btn) return;
+    window.openSavedAddressesModal(e);
+}, true);
 
-        const action = btn.getAttribute('data-action') || '';
-        const text = (btn.innerText || btn.textContent || '').trim();
-
-        if (action === 'addresses' || text.includes('Addresses') || text.includes('Manage delivery addresses')) {
-            e.preventDefault();
-            e.stopPropagation();
-            showAddressesOverlay();
-        }
-    }, true);
-})();
 </script>
+  
 </body>
 </html>

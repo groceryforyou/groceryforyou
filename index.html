@@ -3195,7 +3195,30 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
   </div>
 </div>
+  
+<script>
+  
+function openSavedAddressesModal() {
+    var overlay = document.getElementById('address-overlay');
+    if (!overlay) {
+        alert('address-overlay missing');
+        return;
+    }
 
+    overlay.classList.add('open');
+    overlay.style.display = 'flex';
+}
+
+function closeAddressModal() {
+    var overlay = document.getElementById('address-overlay');
+    if (overlay) {
+        overlay.classList.remove('open');
+        overlay.style.display = 'none';
+    }
+}
+  
+</script>
+  
 <!-- ADDRESS EDITOR MODAL -->
 <div class="auth-overlay" id="address-editor-overlay">
   <div class="auth-modal" style="max-width:680px">

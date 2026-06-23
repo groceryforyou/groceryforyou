@@ -9713,6 +9713,37 @@ async function savePersonalInfo() {
 
 })();
 </script>
+  
+<script>
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('.profile-menu-btn');
+  if (!btn) return;
 
+  const action = btn.getAttribute('data-action');
+
+  if (action === 'personal-info') {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof openPersonalInfoModal === 'function') {
+      openPersonalInfoModal();
+    }
+  }
+
+  if (action === 'addresses') {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof openAddressModal === 'function') {
+      openAddressModal();
+    } else {
+      const overlay = document.getElementById('address-overlay');
+      if (overlay) {
+        overlay.classList.add('open');
+        if (typeof loadAddresses === 'function') loadAddresses();
+      }
+    }
+  }
+}, true);
+</script>
+  
 </body>
 </html>

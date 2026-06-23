@@ -9655,5 +9655,39 @@ window.savePersonalInfo = async function() {
 })();
 </script>
 
+
+<style id="gfy-address-overlay-force-css">
+#address-overlay.open {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: fixed !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(0,0,0,.65) !important;
+  z-index: 2147483647 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  pointer-events: auto !important;
+}
+
+#address-overlay.open .auth-modal {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: #fff !important;
+  max-width: 680px !important;
+  width: 92vw !important;
+  max-height: 85vh !important;
+  overflow-y: auto !important;
+  border-radius: 28px !important;
+  z-index: 2147483647 !important;
+  position: relative !important;
+}
+</style>
+
 </body>
 </html>

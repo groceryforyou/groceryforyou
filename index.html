@@ -9418,11 +9418,9 @@ window.addEventListener('load', function() {
 
 })();
 
-window.openPersonalInfoModal = function() {
+window.openPersonalInfoModal = async function() {
     const overlay = document.getElementById('personal-info-overlay');
     const modal = document.getElementById('personal-info-modal');
-
-    console.log('Opening Personal Information');
 
     if (overlay) {
         overlay.classList.add('open');
@@ -9432,6 +9430,20 @@ window.openPersonalInfoModal = function() {
     if (modal) {
         modal.classList.add('open');
         modal.style.display = 'block';
+    }
+
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    document.getElementById('profile-name-input').value = user.displayName || '';
+    document.getElementById('profile-email-input').value = user.email || '';
+
+    const doc = await firebase.firestore().collection('users').doc(user.uid).get();
+    if (doc.exists) {
+        const data = doc.data();
+        document.getElementById('profile-name-input').value = data.name || user.displayName || '';
+        document.getElementById('profile-email-input').value = data.email || user.email || '';
+        document.getElementById('profile-phone-input').value = data.phone || data.contact || '';
     }
 };
 
@@ -9496,6 +9508,38 @@ window.openPersonalInfoModal = function() {
     </div>
   </div>
 </div>
+  
+<script>
+  
+window.savePersonalInfo = async function() {
+    try {
+        const user = firebase.auth().currentUser;
+        if (!user) {
+            showToast('Please sign in first', 'error');
+            return;
+        }
 
+        const name = document.getElementById('profile-name-input').value.trim();
+        const email = document.getElementById('profile-email-input').value.trim();
+        const phone = document.getElementById('profile-phone-input').value.trim();
+
+        await firebase.firestore().collection('users').doc(user.uid).set({
+            name: name,
+            email: email,
+            phone: phone,
+            contact: phone,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        showToast('Profile saved successfully');
+        closePersonalInfoModal();
+
+    } catch (error) {
+        console.error('Save personal info failed:', error);
+        showToast('Failed to save profile', 'error');
+    }
+};
+</script>
+  
 </body>
 </html>

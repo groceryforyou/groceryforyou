@@ -3203,29 +3203,7 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
 </div>
   
-<script>
-  
-function openSavedAddressesModal() {
-    var overlay = document.getElementById('address-overlay');
-    if (!overlay) {
-        alert('address-overlay missing');
-        return;
-    }
 
-    overlay.classList.add('open');
-    overlay.style.display = 'flex';
-}
-
-function closeAddressModal() {
-    var overlay = document.getElementById('address-overlay');
-    if (overlay) {
-        overlay.classList.remove('open');
-        overlay.style.display = 'none';
-    }
-}
-  
-</script>
-  
 <!-- ADDRESS EDITOR MODAL -->
 <div class="auth-overlay" id="address-editor-overlay">
   <div class="auth-modal" style="max-width:680px">
@@ -9530,19 +9508,27 @@ window.openPersonalInfoModal = async function() {
   </div>
 </div>
   
+
 <script>
-  
+/* GFY profile/address modal fixes: single final definition */
 window.savePersonalInfo = async function() {
     try {
-        const user = firebase.auth().currentUser;
+        const auth = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth() : null;
+        const user = auth ? auth.currentUser : null;
+
         if (!user) {
-            showToast('Please sign in first', 'error');
+            if (typeof showToast === 'function') showToast('Please sign in first', 'error');
+            else alert('Please sign in first');
             return;
         }
 
-        const name = document.getElementById('profile-name-input').value.trim();
-        const email = document.getElementById('profile-email-input').value.trim();
-        const phone = document.getElementById('profile-phone-input').value.trim();
+        const nameEl = document.getElementById('profile-name-input');
+        const emailEl = document.getElementById('profile-email-input');
+        const phoneEl = document.getElementById('profile-phone-input');
+
+        const name = nameEl ? nameEl.value.trim() : '';
+        const email = emailEl ? emailEl.value.trim() : '';
+        const phone = phoneEl ? phoneEl.value.trim() : '';
 
         await firebase.firestore().collection('users').doc(user.uid).set({
             name: name,
@@ -9552,27 +9538,41 @@ window.savePersonalInfo = async function() {
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 
-        showToast('Profile saved successfully');
-        closePersonalInfoModal();
+        if (typeof showToast === 'function') showToast('Profile saved successfully');
+        window.closePersonalInfoModal && window.closePersonalInfoModal();
 
     } catch (error) {
         console.error('Save personal info failed:', error);
-        showToast('Failed to save profile', 'error');
+        if (typeof showToast === 'function') showToast('Failed to save profile', 'error');
+        else alert('Failed to save profile');
     }
 };
-  
-<script>
-  
-window.openSavedAddressesModal = function() {
+
+function gfyOpenAddressesModal() {
+    if (typeof closeUserMenu === 'function') {
+        try { closeUserMenu(); } catch (_e) {}
+    }
+
     const overlay = document.getElementById('address-overlay');
     if (!overlay) {
         alert('address-overlay missing');
-        return;
+        return false;
     }
 
     overlay.classList.add('open');
     overlay.style.setProperty('display', 'flex', 'important');
-};
+
+    if (typeof subscribeAddresses === 'function') {
+        try { subscribeAddresses(); } catch (err) { console.warn('subscribeAddresses failed:', err); }
+    } else if (typeof loadAddresses === 'function') {
+        try { loadAddresses(); } catch (err) { console.warn('loadAddresses failed:', err); }
+    }
+
+    return false;
+}
+
+window.openSavedAddressesModal = gfyOpenAddressesModal;
+window.openAddressModal = gfyOpenAddressesModal;
 
 window.closeAddressModal = function() {
     const overlay = document.getElementById('address-overlay');
@@ -9580,33 +9580,26 @@ window.closeAddressModal = function() {
         overlay.classList.remove('open');
         overlay.style.setProperty('display', 'none', 'important');
     }
+
+    if (typeof _addressesUnsub === 'function') {
+        try { _addressesUnsub(); } catch (_e) {}
+        try { _addressesUnsub = null; } catch (_e) {}
+    }
 };
 
-<script>
-  
 document.addEventListener('click', function(e) {
     const btn = e.target.closest('button');
-
     if (!btn) return;
 
-    const text = btn.innerText || "";
-    const action = btn.getAttribute("data-action") || "";
+    const action = btn.getAttribute('data-action') || '';
+    const text = (btn.innerText || btn.textContent || '').trim();
 
-    if (action === "addresses" || text.includes("Addresses") || text.includes("Manage delivery addresses")) {
+    if (action === 'addresses' || text.includes('Addresses') || text.includes('Manage delivery addresses')) {
         e.preventDefault();
         e.stopPropagation();
-
-        const overlay = document.getElementById('address-overlay');
-        if (!overlay) {
-            alert('address-overlay missing');
-            return;
-        }
-
-        overlay.classList.add('open');
-        overlay.style.display = 'flex';
+        gfyOpenAddressesModal();
     }
 }, true);
-  
 </script>
   
 </body>

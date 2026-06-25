@@ -2241,7 +2241,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
         <span style="color:#ccc;font-size:1.2rem">›</span>
       </button>
 
-      <button type="button" onclick="openSavedAddressesModal()" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
+      <button type="button" onclick="gfyOpenAddressesFromProfile(event)" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:none;background:none;cursor:pointer;border-bottom:1px solid var(--border);text-align:left;transition:background-color 0.2s" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">
         <div style="display:flex;align-items:center;gap:12px;flex:1">
           <span style="font-size:1.4rem">📍</span>
           <div>
@@ -9542,33 +9542,99 @@ window.savePersonalInfo = async function() {
     }
 };
   
-  window.openSavedAddressesModal = async function() {
-    // Reuse the original Addresses modal logic. Do not force inline CSS here:
-    // closeAddressModal() depends on the existing .open class to close cleanly.
-    if (typeof closeUserMenu === 'function') {
-        closeUserMenu();
+  /* FIX: Profile -> Addresses navigation bridge.
+   Reuses the original #address-overlay / address functions. No duplicate page is created. */
+window.gfyOpenAddressesFromProfile = function(event) {
+    if (event && typeof event.preventDefault === 'function') event.preventDefault();
+    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+
+    try {
+        if (typeof closeUserMenu === 'function') closeUserMenu();
+        if (typeof closePersonalInfoModal === 'function') closePersonalInfoModal();
+        const userPopup = document.getElementById('user-menu-popup');
+        if (userPopup) userPopup.classList.remove('open');
+    } catch (e) {
+        console.warn('[Addresses] close competing popup failed:', e);
     }
 
-    if (typeof openAddressModal === 'function') {
-        await openAddressModal();
-        return;
+    const user = (window.firebase && firebase.auth && firebase.auth().currentUser) || window.currentUser || null;
+    if (!user) {
+        if (typeof showToast === 'function') showToast('⚠️ Please sign in first', 'error');
+        if (typeof openAuthModal === 'function') openAuthModal();
+        return false;
     }
 
     const overlay = document.getElementById('address-overlay');
     if (!overlay) {
-        showToast ? showToast('Address page not found', 'error') : alert('address-overlay missing');
-        return;
+        console.error('[Addresses] #address-overlay missing');
+        if (typeof showToast === 'function') showToast('Address page missing', 'error');
+        return false;
     }
 
+    // Force the existing address modal above all profile/custom overlays.
     overlay.classList.add('open');
+    overlay.style.setProperty('display', 'flex', 'important');
+    overlay.style.setProperty('position', 'fixed', 'important');
+    overlay.style.setProperty('inset', '0', 'important');
+    overlay.style.setProperty('z-index', '2147483647', 'important');
+    overlay.style.setProperty('align-items', 'center', 'important');
+    overlay.style.setProperty('justify-content', 'center', 'important');
+    overlay.style.setProperty('background', 'rgba(0,0,0,.60)', 'important');
+    overlay.style.setProperty('padding', '14px', 'important');
+    overlay.style.setProperty('pointer-events', 'auto', 'important');
+    document.documentElement.classList.add('modal-open');
+    document.body.classList.add('modal-open');
 
-    if (typeof subscribeAddresses === 'function') {
-        subscribeAddresses();
-    } else if (typeof loadAddresses === 'function') {
-        loadAddresses();
+    const list = document.getElementById('address-list');
+    if (list && !list.innerHTML.trim()) {
+        list.innerHTML = '<div class="empty-cat-msg"><div class="big">🏠</div>Loading addresses...</div>';
     }
+
+    try {
+        if (typeof subscribeAddresses === 'function') {
+            subscribeAddresses();
+        } else if (typeof loadAddresses === 'function') {
+            loadAddresses();
+        }
+    } catch (e) {
+        console.error('[Addresses] load failed:', e);
+        if (list) list.innerHTML = '<div class="empty-cat-msg"><div class="big">⚠️</div>Could not load addresses.</div>';
+    }
+
+    return false;
 };
-</script>
+
+// Keep old calls working if any duplicate/old button still calls this name.
+window.openSavedAddressesModal = window.gfyOpenAddressesFromProfile;
+
+// Strong fallback: if an Addresses button exists but inline onclick is stale, capture it.
+document.addEventListener('click', function(e) {
+    const btn = e.target && e.target.closest && e.target.closest('button');
+    if (!btn) return;
+    const txt = (btn.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const inline = btn.getAttribute('onclick') || '';
+    if (txt.includes('addresses') || inline.includes('openSavedAddressesModal')) {
+        window.gfyOpenAddressesFromProfile(e);
+    }
+}, true);
+
+// Make close remove forced inline state too.
+(function(){
+    const originalClose = window.closeAddressModal;
+    window.closeAddressModal = function(){
+        const overlay = document.getElementById('address-overlay');
+        if (typeof originalClose === 'function') {
+            try { originalClose(); } catch(e) { console.warn('[Addresses] original close failed:', e); }
+        }
+        if (overlay) {
+            overlay.classList.remove('open');
+            overlay.style.display = 'none';
+            overlay.style.zIndex = '';
+        }
+        document.documentElement.classList.remove('modal-open');
+        document.body.classList.remove('modal-open');
+    };
+})();</script>
   
 </body>
 </html>

@@ -9605,7 +9605,9 @@ window.gfyOpenAddressesFromProfile = function(event) {
 };
 
 // Keep old calls working if any duplicate/old button still calls this name.
-window.openSavedAddressesModal = window.gfyOpenAddressesFromProfile;
+window.openSavedAddressesModal = function(event) {
+  return window.gfyOpenAddressesFromProfile(event);
+};
 
 // Strong fallback: if an Addresses button exists but inline onclick is stale, capture it.
 document.addEventListener('click', function(e) {

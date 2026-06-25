@@ -9646,34 +9646,40 @@ document.addEventListener('click', function(e) {
 
 
 /* FIX: Add Address editor must appear above the already-open Addresses modal.
-   This wraps the existing editor functions and only adjusts the existing #address-editor-overlay. */
+   Reuses the existing openAddressEditor/closeAddressEditor; does not create a duplicate editor. */
 (function(){
     const originalOpenAddressEditor = window.openAddressEditor;
-    window.openAddressEditor = function(){
-        if (typeof originalOpenAddressEditor === 'function') {
-            try { originalOpenAddressEditor.apply(this, arguments); }
-            catch (e) { console.error('[Addresses] original openAddressEditor failed:', e); }
+    const originalCloseAddressEditor = window.closeAddressEditor;
+
+    function forceAddressEditorVisible() {
+        const addressOverlay = document.getElementById('address-overlay');
+        const editorOverlay = document.getElementById('address-editor-overlay');
+
+        if (addressOverlay) {
+            addressOverlay.style.setProperty('z-index', '2147483646', 'important');
+            addressOverlay.style.setProperty('pointer-events', 'none', 'important');
         }
 
-        const overlay = document.getElementById('address-editor-overlay');
-        if (!overlay) {
+        if (!editorOverlay) {
             console.error('[Addresses] #address-editor-overlay missing');
             if (typeof showToast === 'function') showToast('Address editor missing', 'error');
             return false;
         }
 
-        overlay.classList.add('open');
-        overlay.style.setProperty('display', 'flex', 'important');
-        overlay.style.setProperty('position', 'fixed', 'important');
-        overlay.style.setProperty('inset', '0', 'important');
-        overlay.style.setProperty('z-index', '2147483647', 'important');
-        overlay.style.setProperty('align-items', 'center', 'important');
-        overlay.style.setProperty('justify-content', 'center', 'important');
-        overlay.style.setProperty('background', 'rgba(0,0,0,.60)', 'important');
-        overlay.style.setProperty('padding', '14px', 'important');
-        overlay.style.setProperty('pointer-events', 'auto', 'important');
+        editorOverlay.classList.add('open');
+        editorOverlay.style.setProperty('display', 'flex', 'important');
+        editorOverlay.style.setProperty('position', 'fixed', 'important');
+        editorOverlay.style.setProperty('inset', '0', 'important');
+        editorOverlay.style.setProperty('z-index', '2147483647', 'important');
+        editorOverlay.style.setProperty('align-items', 'center', 'important');
+        editorOverlay.style.setProperty('justify-content', 'center', 'important');
+        editorOverlay.style.setProperty('background', 'rgba(0,0,0,.68)', 'important');
+        editorOverlay.style.setProperty('padding', '14px', 'important');
+        editorOverlay.style.setProperty('pointer-events', 'auto', 'important');
+        editorOverlay.style.setProperty('visibility', 'visible', 'important');
+        editorOverlay.style.setProperty('opacity', '1', 'important');
 
-        const modal = overlay.querySelector('.auth-modal');
+        const modal = editorOverlay.querySelector('.auth-modal');
         if (modal) {
             modal.style.setProperty('display', 'block', 'important');
             modal.style.setProperty('position', 'relative', 'important');
@@ -9683,17 +9689,23 @@ document.addEventListener('click', function(e) {
             modal.style.setProperty('min-height', '420px', 'important');
             modal.style.setProperty('max-height', '88vh', 'important');
             modal.style.setProperty('overflow-y', 'auto', 'important');
+            modal.style.setProperty('overflow-x', 'hidden', 'important');
             modal.style.setProperty('background', '#fff', 'important');
             modal.style.setProperty('border-radius', '20px', 'important');
             modal.style.setProperty('z-index', '2147483647', 'important');
+            modal.style.setProperty('visibility', 'visible', 'important');
+            modal.style.setProperty('opacity', '1', 'important');
+            modal.style.setProperty('transform', 'none', 'important');
         }
 
-        const body = overlay.querySelector('.auth-modal-body');
+        const body = editorOverlay.querySelector('.auth-modal-body');
         if (body) {
             body.style.setProperty('display', 'block', 'important');
             body.style.setProperty('height', 'auto', 'important');
             body.style.setProperty('min-height', '280px', 'important');
             body.style.setProperty('overflow', 'visible', 'important');
+            body.style.setProperty('visibility', 'visible', 'important');
+            body.style.setProperty('opacity', '1', 'important');
         }
 
         document.documentElement.classList.add('modal-open');
@@ -9705,25 +9717,50 @@ document.addEventListener('click', function(e) {
                     window.addrMap.invalidateSize();
                 }
             } catch (e) {}
-        }, 250);
+        }, 300);
 
         return false;
+    }
+
+    window.openAddressEditor = function(){
+        if (typeof originalOpenAddressEditor === 'function') {
+            try {
+                const result = originalOpenAddressEditor.apply(this, arguments);
+                if (result && typeof result.then === 'function') {
+                    result.then(forceAddressEditorVisible).catch(function(e){
+                        console.error('[Addresses] original openAddressEditor failed:', e);
+                        forceAddressEditorVisible();
+                    });
+                }
+            } catch (e) {
+                console.error('[Addresses] original openAddressEditor failed:', e);
+            }
+        }
+        return forceAddressEditorVisible();
     };
 
-    const originalCloseAddressEditor = window.closeAddressEditor;
     window.closeAddressEditor = function(){
-        const overlay = document.getElementById('address-editor-overlay');
+        const editorOverlay = document.getElementById('address-editor-overlay');
+        const addressOverlay = document.getElementById('address-overlay');
+
         if (typeof originalCloseAddressEditor === 'function') {
             try { originalCloseAddressEditor.apply(this, arguments); }
             catch (e) { console.warn('[Addresses] original closeAddressEditor failed:', e); }
         }
-        if (overlay) {
-            overlay.classList.remove('open');
-            overlay.style.display = 'none';
-            overlay.style.zIndex = '';
+
+        if (editorOverlay) {
+            editorOverlay.classList.remove('open');
+            editorOverlay.style.setProperty('display', 'none', 'important');
+            editorOverlay.style.zIndex = '';
         }
-        const addressOverlay = document.getElementById('address-overlay');
-        if (!addressOverlay || !addressOverlay.classList.contains('open')) {
+
+        if (addressOverlay && addressOverlay.classList.contains('open')) {
+            addressOverlay.style.setProperty('display', 'flex', 'important');
+            addressOverlay.style.setProperty('z-index', '2147483647', 'important');
+            addressOverlay.style.setProperty('pointer-events', 'auto', 'important');
+            document.documentElement.classList.add('modal-open');
+            document.body.classList.add('modal-open');
+        } else {
             document.documentElement.classList.remove('modal-open');
             document.body.classList.remove('modal-open');
         }

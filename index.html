@@ -9582,6 +9582,22 @@ window.gfyOpenAddressesFromProfile = function(event) {
     overlay.style.setProperty('background', 'rgba(0,0,0,.60)', 'important');
     overlay.style.setProperty('padding', '14px', 'important');
     overlay.style.setProperty('pointer-events', 'auto', 'important');
+
+    const modal = overlay.querySelector('.auth-modal');
+    if (modal) {
+        modal.style.setProperty('display', 'block', 'important');
+        modal.style.setProperty('position', 'relative', 'important');
+        modal.style.setProperty('width', '92vw', 'important');
+        modal.style.setProperty('max-width', '680px', 'important');
+        modal.style.setProperty('height', 'auto', 'important');
+        modal.style.setProperty('min-height', '320px', 'important');
+        modal.style.setProperty('max-height', '88vh', 'important');
+        modal.style.setProperty('overflow-y', 'auto', 'important');
+        modal.style.setProperty('background', '#fff', 'important');
+        modal.style.setProperty('border-radius', '20px', 'important');
+        modal.style.setProperty('z-index', '2147483647', 'important');
+    }
+
     document.documentElement.classList.add('modal-open');
     document.body.classList.add('modal-open');
 

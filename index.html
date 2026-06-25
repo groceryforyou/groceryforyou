@@ -6140,22 +6140,63 @@ function setupCustomerWatch(db,uid){
       .orderBy('createdAt','desc')
       .limit(5)
       .onSnapshot(snap=>{
-        // FIRST INITIALIZATION: Store all current statuses silently
+        // FIRST INITIALIZATION:
+        // - Old orders with no saved previous status are marked silently.
+        // - If this device already tracked an active order and its status changed while the app was closed,
+        //   keep the normal customer popup flow. This preserves Track Order popups without repeating old ones.
         if(!_customerWatcherInitialized){
           snap.forEach(doc=>{
-            const s=(doc.data().status||'').toLowerCase();
-            if(s){
-              setLastProcessedStatus(doc.id,s);
+            const o=doc.data();
+            const orderId=doc.id;
+            const s=(o.status||'').toLowerCase();
+            if(!s) return;
+            const lastStatus=getLastProcessedStatus(orderId);
+            const info=MSGS[s];
+            if(lastStatus && lastStatus!==s && info){
+              setLastProcessedStatus(orderId,s);
+              if(s==='completed'||s==='delivered'){
+                const deliveredKey='deliveredPopupShown_'+orderId;
+                if(!localStorage.getItem(deliveredKey)){
+                  localStorage.setItem(deliveredKey,'1');
+                  showCustomerAlertModal(
+                    info.title,
+                    '<small>Order ID: '+orderId+'</small><br/>'+info.body,
+                    info.type,
+                    function(){
+                      const ratingKey='ratingPopupShown_'+orderId;
+                      if(!localStorage.getItem(ratingKey)){
+                        localStorage.setItem(ratingKey,'1');
+                        setTimeout(()=>openRatingModal(orderId),600);
+                      }
+                    },
+                    null,
+                    2000
+                  );
+                  gfyNotif('Grocery For You 🛒', info.title);
+                }
+              }else{
+                showCustomerAlertModal(
+                  info.title,
+                  '<small>Order ID: '+orderId+'</small><br/>'+info.body,
+                  info.type,
+                  null,
+                  null,
+                  2000
+                );
+                gfyNotif('Grocery For You 🛒', info.title);
+              }
+              return;
             }
+            setLastProcessedStatus(orderId,s);
             if(s==='completed'||s==='delivered'){
-              const deliveredKey='deliveredPopupShown_'+doc.id;
-              localStorage.setItem(deliveredKey,'1');
-              const ratingKey='ratingPopupShown_'+doc.id;
-              localStorage.setItem(ratingKey,'1');
+              const deliveredKey='deliveredPopupShown_'+orderId;
+              if(!lastStatus) localStorage.setItem(deliveredKey,'1');
+              const ratingKey='ratingPopupShown_'+orderId;
+              if(!lastStatus) localStorage.setItem(ratingKey,'1');
             }
           });
           _customerWatcherInitialized=true;
-          console.log('[CustomerWatch] Initialized - old orders marked as seen');
+          console.log('[CustomerWatch] Initialized - old orders marked as seen, active changes can still show popups');
           return;
         }
         

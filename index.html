@@ -757,6 +757,9 @@ document.addEventListener('error', function(e) {
 
     /* Addresses */
     #address-list{max-height:50vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--saffron) #f0e0c8}
+    #address-overlay.open{display:flex!important;position:fixed!important;inset:0!important;z-index:2147483647!important;align-items:center!important;justify-content:center!important;background:rgba(0,0,0,.60)!important;padding:14px!important;pointer-events:auto!important}
+    #address-overlay .auth-modal{display:block!important;position:relative!important;width:92vw!important;max-width:680px!important;height:auto!important;min-height:320px!important;max-height:88vh!important;overflow-y:auto!important;background:#fff!important;border-radius:20px!important;z-index:2147483647!important}
+    #address-overlay .auth-modal-body{display:block!important;height:auto!important;min-height:180px!important;overflow:visible!important}
     #manage-items-list{max-height:60vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--saffron) #f0e0c8;padding-right:2px}
     #manage-items-list::-webkit-scrollbar{width:5px}
     #manage-items-list::-webkit-scrollbar-thumb{background:var(--saffron);border-radius:6px}
@@ -3184,7 +3187,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <!-- ADDRESSES MODAL -->
 <div class="auth-overlay" id="address-overlay">
-  <div class="auth-modal" style="max-width:680px">
+  <div class="auth-modal address-modal" style="max-width:680px">
     <div class="auth-modal-header"><h2>🏠 Your Addresses</h2><p>Max 5 · Within 5km service area</p></div>
     <div class="auth-modal-body">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
@@ -9596,6 +9599,13 @@ window.gfyOpenAddressesFromProfile = function(event) {
         modal.style.setProperty('background', '#fff', 'important');
         modal.style.setProperty('border-radius', '20px', 'important');
         modal.style.setProperty('z-index', '2147483647', 'important');
+        const modalBody = modal.querySelector('.auth-modal-body');
+        if (modalBody) {
+            modalBody.style.setProperty('display', 'block', 'important');
+            modalBody.style.setProperty('height', 'auto', 'important');
+            modalBody.style.setProperty('min-height', '180px', 'important');
+            modalBody.style.setProperty('overflow', 'visible', 'important');
+        }
     }
 
     document.documentElement.classList.add('modal-open');

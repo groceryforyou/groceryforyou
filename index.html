@@ -3465,6 +3465,52 @@ function isTrackOrderFinal(order){
   const status = getTrackingStatus(order);
   return status === 'delivered' || status === 'completed' || status === 'cancelled' || status === 'rejected';
 }
+function showTrackOrderStatusPopup(order, previousStatus){
+  try {
+    if(!order) return;
+    const status = getTrackingStatus(order);
+    const prev = String(previousStatus || '').toLowerCase();
+    if(!status || status === prev) return;
+    const orderId = order._docId || order.docId || order.id || order.orderId;
+    if(!orderId) return;
+    const messages = {
+      accepted: { title:'🎉 Order Accepted!', body:'Your Grocery is being prepared now! ~30 mins to delivery.', type:'success', toast:'Order accepted' },
+      preparing: { title:'🍳 Preparing Your Order', body:'Your items are being packed fresh for you!', type:'success', toast:'Order preparing' },
+      ready: { title:'📦 Order Ready', body:'Order packed! Delivery partner picking up soon.', type:'info', toast:'Order ready' },
+      out_for_delivery: { title:'🚴 Out for Delivery!', body:'Your order is on the way!', type:'info', toast:'Out for delivery' },
+      completed: { title:'✅ Order Delivered!', body:'Enjoy your groceries! Rate your experience.', type:'success', toast:'Order delivered' },
+      delivered: { title:'✅ Order Delivered!', body:'Enjoy your groceries! Rate your experience.', type:'success', toast:'Order delivered' },
+      rejected: { title:'❌ Order Rejected', body:'Sorry, we could not accept your order. Please try again.', type:'error', toast:'Order rejected' },
+      cancelled: { title:'🚫 Order Cancelled', body:'Your order was cancelled. Please place a new order.', type:'cancelled', toast:'Order cancelled' }
+    };
+    const info = messages[status];
+    if(!info) return;
+    const statusKey = 'trackStatusPopupShown_' + orderId + '_' + status;
+    if(localStorage.getItem(statusKey)) return;
+    localStorage.setItem(statusKey, '1');
+    localStorage.setItem('gfy_notified_order_' + orderId + '_' + status, '1');
+    const body = '<small>Order ID: ' + String(order.orderId || orderId).replace(/</g,'&lt;') + '</small><br/>' + info.body;
+    const showModal = (typeof showCustomerAlertModal === 'function');
+    const showRatingOnce = function(){
+      if(status !== 'completed' && status !== 'delivered') return;
+      const ratingKey = 'ratingPopupShown_' + orderId;
+      if(localStorage.getItem(ratingKey)) return;
+      localStorage.setItem(ratingKey, '1');
+      setTimeout(function(){ if(typeof openRatingModal === 'function') openRatingModal(orderId); }, 600);
+    };
+    if(status === 'completed' || status === 'delivered'){
+      localStorage.setItem('deliveredPopupShown_' + orderId, '1');
+      if(showModal){
+        showCustomerAlertModal(info.title, body, info.type, showRatingOnce, null, 2000);
+      } else {
+        showRatingOnce();
+      }
+    } else if(showModal){
+      showCustomerAlertModal(info.title, body, info.type, null, null, 2000);
+    }
+    if(typeof gfyNotif === 'function') gfyNotif('Grocery For You 🛒', info.title);
+  } catch(e) { console.error('[Track Status Popup]', e); }
+}
 function clearDeliveredTrackingOrder(order){
   try {
     const savedRaw = localStorage.getItem(getCurrentOrderStorageKey()) || localStorage.getItem('currentOrder');
@@ -3496,12 +3542,17 @@ function renderTrackingPage(){
     renderEmptyTrackingState(container);
     return;
   }
+  let lastRenderedStatus = getTrackingStatus(savedOrder);
   renderTrackingUI(container, savedOrder);
   if(db && savedOrder.orderId){
     if(_trackingUnsub) _trackingUnsub();
     _trackingUnsub = db.collection('orders').where('orderId','==',savedOrder.orderId).onSnapshot(snapshot => {
       if(snapshot.empty) return;
-      const freshOrder = { ...savedOrder, ...snapshot.docs[0].data() };
+      const doc = snapshot.docs[0];
+      const freshOrder = { ...savedOrder, ...doc.data(), _docId: doc.id };
+      const freshStatus = getTrackingStatus(freshOrder);
+      showTrackOrderStatusPopup(freshOrder, lastRenderedStatus);
+      lastRenderedStatus = freshStatus;
       if(isTrackOrderFinal(freshOrder)){
         clearDeliveredTrackingOrder(freshOrder);
         renderEmptyTrackingState(container);

@@ -9329,6 +9329,12 @@ window.addEventListener('load', function() {
   }
 
   function updateOrCreateCard(orderId, data){
+    // Guard: never show delivered / completed / cancelled orders in active tracking UI
+    const st = (data.status || '').toLowerCase();
+    if(st === 'delivered' || st === 'completed' || st === 'cancelled' || st === 'rejected' || st === 'auto-cancelled'){
+      removeCard(orderId); // remove if it somehow exists
+      return null;
+    }
     const list = ensureContainer();
     let existing = list.querySelector(`[data-order-id="${orderId}"]`);
     if(existing){
@@ -9342,17 +9348,30 @@ window.addEventListener('load', function() {
         body.innerHTML = items || '<span style="color:#888">No line items</span>';
       }
       const whenEl = existing.querySelector('div[style*="font-size:.78rem"]'); if(whenEl) whenEl.textContent = when;
+      syncEmptyState();
       return existing;
     }
     const card = buildCard(orderId, data);
     ensureContainer().appendChild(card);
+    syncEmptyState();
     return card;
+  }
+
+  // Show tracking-content (empty-state) when no active order cards remain;
+  // hide it when at least one card exists so the two views don't overlap.
+  function syncEmptyState(){
+    const list    = document.getElementById('gfy-tracking-list');
+    const empty   = document.getElementById('tracking-content');
+    if(!empty) return;
+    const hasCards = list && list.children.length > 0;
+    empty.style.display = hasCards ? 'none' : '';
   }
 
   function removeCard(orderId){
     const list = document.getElementById('gfy-tracking-list'); if(!list) return;
     const el = list.querySelector(`[data-order-id="${orderId}"]`);
     if(el){ el.remove(); }
+    syncEmptyState();
   }
 
   function startForUser(db, uid){
@@ -9403,7 +9422,7 @@ window.addEventListener('load', function() {
     }catch(e){ console.error('[CustTrack] startForUser failed', e); }
   }
 
-  function stopAll(){ if(_queryUnsub){ try{_queryUnsub(); }catch(e){} _queryUnsub=null; } _perOrderUnsubs.forEach(u=>{ try{u(); }catch(e){} }); _perOrderUnsubs.clear(); const list = document.getElementById('gfy-tracking-list'); if(list) list.innerHTML=''; }
+  function stopAll(){ if(_queryUnsub){ try{_queryUnsub(); }catch(e){} _queryUnsub=null; } _perOrderUnsubs.forEach(u=>{ try{u(); }catch(e){} }); _perOrderUnsubs.clear(); const list = document.getElementById('gfy-tracking-list'); if(list) list.innerHTML=''; syncEmptyState(); }
 
   // Hook auth state to start/stop tracker
   (function hookAuth(){

@@ -9330,6 +9330,9 @@ window.addEventListener('load', function() {
 
   function updateOrCreateCard(orderId, data){
     const list = ensureContainer();
+    // Hide the existing empty-state while active orders are present
+    const tc = document.getElementById('tracking-content');
+    if(tc){ const e = tc.querySelector('.empty-cat-msg'); if(e) e.style.display='none'; }
     let existing = list.querySelector(`[data-order-id="${orderId}"]`);
     if(existing){
       // Update status and items quickly
@@ -9349,10 +9352,23 @@ window.addEventListener('load', function() {
     return card;
   }
 
+  // Show/hide the existing empty-state element inside #tracking-content
+  function _syncEmptyState(){
+    const list = document.getElementById('gfy-tracking-list');
+    const tc = document.getElementById('tracking-content');
+    if(!tc) return;
+    const emptyEl = tc.querySelector('.empty-cat-msg');
+    if(!emptyEl) return;
+    const hasCards = list && list.querySelectorAll('.gfy-tracking-card').length > 0;
+    emptyEl.style.display = hasCards ? 'none' : '';
+  }
+
   function removeCard(orderId){
     const list = document.getElementById('gfy-tracking-list'); if(!list) return;
     const el = list.querySelector(`[data-order-id="${orderId}"]`);
     if(el){ el.remove(); }
+    // Show empty-state if no active order cards remain
+    _syncEmptyState();
   }
 
   function startForUser(db, uid){
@@ -9403,7 +9419,7 @@ window.addEventListener('load', function() {
     }catch(e){ console.error('[CustTrack] startForUser failed', e); }
   }
 
-  function stopAll(){ if(_queryUnsub){ try{_queryUnsub(); }catch(e){} _queryUnsub=null; } _perOrderUnsubs.forEach(u=>{ try{u(); }catch(e){} }); _perOrderUnsubs.clear(); const list = document.getElementById('gfy-tracking-list'); if(list) list.innerHTML=''; }
+  function stopAll(){ if(_queryUnsub){ try{_queryUnsub(); }catch(e){} _queryUnsub=null; } _perOrderUnsubs.forEach(u=>{ try{u(); }catch(e){} }); _perOrderUnsubs.clear(); const list = document.getElementById('gfy-tracking-list'); if(list) list.innerHTML=''; const tc=document.getElementById('tracking-content'); if(tc){const e=tc.querySelector('.empty-cat-msg');if(e)e.style.display='';} }
 
   // Hook auth state to start/stop tracker
   (function hookAuth(){

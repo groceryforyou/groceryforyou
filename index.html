@@ -9542,19 +9542,29 @@ window.savePersonalInfo = async function() {
     }
 };
   
-  window.openSavedAddressesModal = function() {
-    const overlay = document.getElementById('address-overlay');
+  window.openSavedAddressesModal = async function() {
+    // Reuse the original Addresses modal logic. Do not force inline CSS here:
+    // closeAddressModal() depends on the existing .open class to close cleanly.
+    if (typeof closeUserMenu === 'function') {
+        closeUserMenu();
+    }
 
+    if (typeof openAddressModal === 'function') {
+        await openAddressModal();
+        return;
+    }
+
+    const overlay = document.getElementById('address-overlay');
     if (!overlay) {
-        alert('address-overlay missing');
+        showToast ? showToast('Address page not found', 'error') : alert('address-overlay missing');
         return;
     }
 
     overlay.classList.add('open');
-    overlay.style.cssText =
-        'display:flex !important;position:fixed !important;inset:0 !important;background:rgba(0,0,0,.55) !important;z-index:99999 !important;align-items:center !important;justify-content:center !important;padding:16px !important;';
 
-    if (typeof loadAddresses === 'function') {
+    if (typeof subscribeAddresses === 'function') {
+        subscribeAddresses();
+    } else if (typeof loadAddresses === 'function') {
         loadAddresses();
     }
 };

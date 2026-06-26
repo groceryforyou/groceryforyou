@@ -1762,6 +1762,12 @@ body.support-create-ticket-mode #support-form-section{
 
 
 
+
+/* GFY: category reorder touch support */
+#manage-cats-list{display:grid!important;gap:8px!important;}
+.gfy-manage-cat-row{user-select:none!important;-webkit-user-select:none!important;touch-action:none!important;}
+.gfy-cat-move-btn{background:#fff;border:1.5px solid var(--border);color:var(--brown);width:28px;height:28px;border-radius:8px;cursor:pointer;font-weight:900;display:flex;align-items:center;justify-content:center;}
+.gfy-cat-move-btn:active{background:var(--saffron);color:#fff;}
 /* GFY: admin category drag reorder */
 .gfy-manage-cat-row.gfy-cat-dragging{
   opacity:.55!important;
@@ -7937,10 +7943,32 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   function enableCategoryDragOrdering(listContainer) {
     if (!listContainer || listContainer.dataset.dragOrderingReady === 'true') return;
     listContainer.dataset.dragOrderingReady = 'true';
-    let draggedRow = null;
 
+    function rowFromEventTarget(target) {
+      return target && target.closest ? target.closest('[data-cat-id]') : null;
+    }
+
+    function placeDraggedRow(draggedRow, target, clientX, clientY) {
+      if (!draggedRow || !target || target === draggedRow || target.parentNode !== listContainer) return;
+      const rect = target.getBoundingClientRect();
+      const isHorizontal = Math.abs(clientX - rect.left) > Math.abs(clientY - rect.top) && rect.width > rect.height;
+      const beforeTarget = isHorizontal
+        ? clientX < rect.left + rect.width / 2
+        : clientY < rect.top + rect.height / 2;
+      listContainer.insertBefore(draggedRow, beforeTarget ? target : target.nextSibling);
+    }
+
+    async function saveCurrentOrder() {
+      Array.from(listContainer.querySelectorAll('[data-cat-id]')).forEach(function(row, index) {
+        row.dataset.gfyOrderIndex = String(index);
+      });
+      await persistCategoryOrderFromList(listContainer);
+    }
+
+    // Desktop HTML5 drag/drop support.
+    let draggedRow = null;
     listContainer.addEventListener('dragstart', function(e) {
-      const row = e.target.closest('[data-cat-id]');
+      const row = rowFromEventTarget(e.target);
       if (!row) return;
       draggedRow = row;
       row.classList.add('gfy-cat-dragging');
@@ -7953,18 +7981,84 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     listContainer.addEventListener('dragover', function(e) {
       if (!draggedRow) return;
       e.preventDefault();
-      const target = e.target.closest('[data-cat-id]');
-      if (!target || target === draggedRow) return;
-      const rect = target.getBoundingClientRect();
-      const beforeTarget = e.clientY < rect.top + rect.height / 2;
-      listContainer.insertBefore(draggedRow, beforeTarget ? target : target.nextSibling);
+      const target = rowFromEventTarget(e.target);
+      placeDraggedRow(draggedRow, target, e.clientX, e.clientY);
+    });
+
+    listContainer.addEventListener('drop', function(e) {
+      if (draggedRow) e.preventDefault();
     });
 
     listContainer.addEventListener('dragend', async function() {
       if (!draggedRow) return;
       draggedRow.classList.remove('gfy-cat-dragging');
       draggedRow = null;
-      await persistCategoryOrderFromList(listContainer);
+      await saveCurrentOrder();
+    });
+
+    // Pointer/touch support for Chrome mobile, Android WebView, and phones where HTML5 drag is disabled.
+    let pointerRow = null;
+    let pointerId = null;
+    let started = false;
+    let startX = 0;
+    let startY = 0;
+
+    listContainer.addEventListener('pointerdown', function(e) {
+      const handle = e.target.closest && e.target.closest('.gfy-cat-drag-handle, .gfy-manage-cat-row');
+      if (!handle) return;
+      const row = rowFromEventTarget(handle);
+      if (!row) return;
+      pointerRow = row;
+      pointerId = e.pointerId;
+      started = false;
+      startX = e.clientX;
+      startY = e.clientY;
+      try { row.setPointerCapture(pointerId); } catch (_) {}
+    });
+
+    listContainer.addEventListener('pointermove', function(e) {
+      if (!pointerRow || e.pointerId !== pointerId) return;
+      const moved = Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY);
+      if (!started && moved < 8) return;
+      started = true;
+      e.preventDefault();
+      pointerRow.classList.add('gfy-cat-dragging');
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const target = rowFromEventTarget(el);
+      placeDraggedRow(pointerRow, target, e.clientX, e.clientY);
+    }, { passive: false });
+
+    async function finishPointerDrag(e) {
+      if (!pointerRow || (e && e.pointerId !== pointerId)) return;
+      const row = pointerRow;
+      const shouldSave = started;
+      row.classList.remove('gfy-cat-dragging');
+      try { row.releasePointerCapture(pointerId); } catch (_) {}
+      pointerRow = null;
+      pointerId = null;
+      started = false;
+      if (shouldSave) await saveCurrentOrder();
+    }
+
+    listContainer.addEventListener('pointerup', finishPointerDrag);
+    listContainer.addEventListener('pointercancel', finishPointerDrag);
+
+    // Fallback move buttons: guaranteed category moving without relying on drag support.
+    listContainer.addEventListener('click', async function(e) {
+      const btn = e.target.closest && e.target.closest('[data-gfy-cat-move]');
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const row = rowFromEventTarget(btn);
+      if (!row) return;
+      const dir = btn.getAttribute('data-gfy-cat-move');
+      if (dir === 'up' && row.previousElementSibling) {
+        listContainer.insertBefore(row, row.previousElementSibling);
+        await saveCurrentOrder();
+      } else if (dir === 'down' && row.nextElementSibling) {
+        listContainer.insertBefore(row.nextElementSibling, row);
+        await saveCurrentOrder();
+      }
     });
   }
 
@@ -7987,6 +8081,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
           </span>
         </div>
         <div style="display:flex; gap:6px; flex-shrink:0;">
+          <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="up" title="Move up">↑</button>
+          <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="down" title="Move down">↓</button>
           <button onclick="openEditCatModal('${gfyEscapeAttr(cat.id)}')" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Edit Category">✏️</button>
           <button onclick="deleteCategory('${gfyEscapeAttr(cat.id)}')" style="background:#ffebee; border:1.5px solid #ffcdd2; color:#c62828; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Delete Category">🗑️</button>
         </div>

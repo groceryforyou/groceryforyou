@@ -6078,18 +6078,13 @@ function setupCustomerWatch(db,uid){
           showStatusPopup(orderId,s);
         }
 
-        // FIRST INITIALIZATION / PAGE OPEN:
-        // Never replay status popups when Track Order/app is opened.
-        // Just sync the latest statuses as already seen. Popups must appear
-        // only for Firestore changes received after this watcher is active.
+        // FIRST INITIALIZATION:
+        // Do not replay old unknown orders, but do show missed status changes
+        // for orders this device already tracked before refresh/app reopen.
         if(!_customerWatcherInitialized){
-          snap.forEach(doc=>{
-            const o=doc.data()||{};
-            const s=normalizeOrderStatus(o.status);
-            if(s) setLastProcessedStatus(doc.id,s);
-          });
+          snap.forEach(doc=>processOrderSnapshotDoc(doc,false));
           _customerWatcherInitialized=true;
-          console.log('[CustomerWatch] Initialized silently - no status popup replay on page open');
+          console.log('[CustomerWatch] Initialized - old unknown orders marked as seen, known changes processed');
           return;
         }
         

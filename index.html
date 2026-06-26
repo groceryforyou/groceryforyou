@@ -4276,13 +4276,18 @@ function toggleSidebar() {
       }
 
       if (!orderDoc) {
-        showToast('⚠️ Order ID not found. Please check and try again.');
-        throw new Error('Not a valid order ID');
+        // Do not block support ticket creation only because the customer-side
+        // lookup cannot see an order document. Some valid order IDs are visible
+        // in Order History/admin lists but are not readable through this exact
+        // customer query because of Firestore rules, legacy field names, or
+        // delivered-order filtering. The ticket must still be submitted with
+        // the typed order ID so admin can review it.
+        console.warn('[TicketSubmit] Order lookup did not find a readable order; continuing with typed Order ID:', orderId);
       }
     } catch (err) {
-      if (err.message === 'Not a valid order ID') throw err;
-      // Firestore query itself failed (rules / network) — still allow submit
-      console.warn('[TicketSubmit] Order lookup failed (Firestore rules?):', err.code || err.message);
+      // Firestore query itself failed (rules / network) — still allow submit.
+      // Blocking here caused valid IDs like GFY-298778 to be rejected.
+      console.warn('[TicketSubmit] Order lookup failed; continuing with typed Order ID:', err.code || err.message);
     }
 
     // Only verify ownership when we got the order doc

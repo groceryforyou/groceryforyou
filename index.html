@@ -4196,6 +4196,9 @@ Payment: ${order.paymentMethod || 'N/A'}`;
         return;
       }
       adminOrderListenerAttached = true;
+      console.log('Realtime admin notification listener skipped; primary admin watcher is active.');
+      adminOrderListenerAttached = true;
+      return;
       adminOrderListenerUnsub = firestore.collection('orders').orderBy('createdAt','desc').limit(20)
       .onSnapshot((snapshot)=>{
         snapshot.docChanges().forEach((change)=>{
@@ -5522,7 +5525,7 @@ function toggleSidebar() {
     _supportTicketWatcherUnsub = db
       .collection('support')
       .orderBy('createdAt', 'desc')
-      .limit(100)
+      .limit(20)
       .onSnapshot(
         (snapshot) => {
           const now = Date.now();
@@ -5757,6 +5760,7 @@ function toggleSidebar() {
     try {
       _unsub = db.collection('support')
         .where('status', '==', 'open')
+        .limit(25)
         .onSnapshot(function(snap) {
           _openCount = snap ? snap.size : 0;
           console.log('[SupportBadge] Open:', _openCount, '| Seen:', _seenCount);
@@ -8540,10 +8544,122 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       return;
     }
 
-    // Start category realtime sync
+    /* GFY FIRESTORE READ OPTIMIZATION:
+       Customers do not need permanent listeners for full menu/category collections.
+       Use a short session cache + one server read. Admin keeps realtime sync for editing. */
+    function gfyApplyCatsSnapshot(snapshot){
+      const loadedCats = [];
+      if (snapshot && !snapshot.empty) {
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          loadedCats.push({
+            id: doc.id,
+            name: data.name || '',
+            emoji: data.emoji || '📂',
+            subLabel: data.subLabel || data.subtitle || data.description || '',
+            sortOrder: Number.isFinite(Number(data.sortOrder ?? data.order ?? data.orderIndex)) ? Number(data.sortOrder ?? data.order ?? data.orderIndex) : null,
+            deleted: data.deleted === true
+          });
+        });
+      }
+      const mergedCats = defaultCategories.map(dc => {
+        const matched = loadedCats.find(lc => lc.id === dc.id);
+        return matched ? { ...dc, ...matched, sortOrder: matched.sortOrder ?? dc.sortOrder } : dc;
+      }).filter(cat => {
+        const matched = loadedCats.find(lc => lc.id === cat.id);
+        return !(matched && matched.deleted === true);
+      });
+      loadedCats.forEach(lc => {
+        if (lc.deleted !== true && !mergedCats.some(mc => mc.id === lc.id)) {
+          const fallbackOrder = (mergedCats.length + 1) * 10;
+          mergedCats.push({ ...lc, sortOrder: lc.sortOrder ?? fallbackOrder });
+        }
+      });
+      mergedCats.sort((a,b)=>{
+        const ao = Number.isFinite(Number(a.sortOrder)) ? Number(a.sortOrder) : 999999;
+        const bo = Number.isFinite(Number(b.sortOrder)) ? Number(b.sortOrder) : 999999;
+        if (ao !== bo) return ao - bo;
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      });
+      if (Array.isArray(window.categories)) { window.categories.length = 0; mergedCats.forEach(c => window.categories.push(c)); }
+      if (typeof categories !== 'undefined' && Array.isArray(categories)) { categories.length = 0; mergedCats.forEach(c => categories.push(c)); }
+      return mergedCats;
+    }
+    function gfyApplyItemsSnapshot(snapshot){
+      const firestoreItems = [];
+      if (snapshot) snapshot.forEach(doc => {
+        const data = doc.data();
+        const category = data.category || 'grocery';
+        firestoreItems.push({
+          id: doc.id, name: data.name || '', price: Number(data.price) || 0, category: category, catId: category,
+          inStock: data.inStock !== false, emoji: data.emoji || '🍎',
+          description: data.type || data.description || '', type: data.type || data.description || '',
+          rating: typeof data.rating === 'number' ? data.rating : 5.0,
+          ratingCount: typeof data.ratingCount === 'number' ? data.ratingCount : 5,
+          image: data.image || '', discount: Number(data.discount) || 0
+        });
+      });
+      ['items','menuItems','allItems','products','menuData'].forEach(k=>{
+        if (Array.isArray(window[k])) { window[k].length = 0; firestoreItems.forEach(item => window[k].push(item)); }
+      });
+      if (window.cart) Object.keys(window.cart).forEach(itemId => {
+        const matched = firestoreItems.find(i => i.id === itemId);
+        if (matched) {
+          if (!matched.inStock) delete window.cart[itemId];
+          else { window.cart[itemId].name = matched.name; window.cart[itemId].price = matched.price; }
+        }
+      });
+      window._firestoreMenuSynced = true;
+      setMenuLoadingState(false);
+      if (typeof window.refreshInventoryUI === 'function') window.refreshInventoryUI();
+      else {
+        if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
+        if (typeof refreshManageList === 'function') refreshManageList();
+        if (typeof updateCart === 'function') updateCart();
+      }
+      return firestoreItems;
+    }
+    async function gfyStartCustomerMenuOneShot(){
+      try {
+        const cacheKey = '_gfy_menu_cache_v2';
+        const ttlMs = 10 * 60 * 1000;
+        let cached = null;
+        try { cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null'); } catch(e) {}
+        if (cached && cached.ts && (Date.now() - cached.ts) < ttlMs && Array.isArray(cached.items)) {
+          if (Array.isArray(window.categories)) { window.categories.length = 0; (cached.categories || defaultCategories).forEach(c => window.categories.push(c)); }
+          if (typeof categories !== 'undefined' && Array.isArray(categories)) { categories.length = 0; (cached.categories || defaultCategories).forEach(c => categories.push(c)); }
+          ['items','menuItems','allItems','products','menuData'].forEach(k=>{ if (Array.isArray(window[k])) { window[k].length = 0; cached.items.forEach(item => window[k].push(item)); } });
+          window._firestoreMenuSynced = true;
+          setMenuLoadingState(false);
+          if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
+          if (typeof updateCart === 'function') updateCart();
+          console.log('[FirestoreSync] Customer menu loaded from session cache; no Firestore reads.');
+          return;
+        }
+        const [catSnap, itemSnap] = await Promise.all([
+          firebaseDB.collection('categories').get(),
+          firebaseDB.collection('menuItems').get()
+        ]);
+        const cats = gfyApplyCatsSnapshot(catSnap);
+        const its = gfyApplyItemsSnapshot(itemSnap);
+        try { sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), categories: cats, items: its })); } catch(e) {}
+        console.log('[FirestoreSync] Customer menu loaded once and cached.');
+      } catch (err) {
+        console.error('[FirestoreSync] Customer one-shot menu load failed:', err);
+        setMenuLoadingState(false);
+        if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
+        if (typeof updateCart === 'function') updateCart();
+      }
+    }
+    if (typeof currentRole === 'undefined' || currentRole !== 'admin') {
+      gfyStartCustomerMenuOneShot();
+      return;
+    }
+
+    // Start category realtime sync for admin only
     startCategoriesSync(firebaseDB);
 
-    console.log('[FirestoreSync] Initializing realtime menuItems sync listener...');
+    console.log('[FirestoreSync] Initializing realtime menuItems sync listener for admin...');
 
     onSnapshot(collection(firebaseDB, "menuItems"), (snapshot) => {
       try {

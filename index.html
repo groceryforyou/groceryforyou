@@ -10323,5 +10323,253 @@ document.addEventListener('click', function(e) {
 })();
 </script>
 
+
+<script>
+/* ===== Support ticket admin notification/page fix =====
+   Keeps the existing support flow, but makes admin notifications and
+   the Admin > Submit Tickets page reliable after customer ticket submit. */
+(function(){
+  'use strict';
+  if (window.__gfySupportAdminNotificationFixApplied) return;
+  window.__gfySupportAdminNotificationFixApplied = true;
+
+  var supportUnsub = null;
+  var adminSupportUnsub = null;
+  var adminSupportTicketsCache = [];
+  var initializedTicketIds = new Set();
+
+  function getDb(){
+    try { return (typeof db !== 'undefined' && db) ? db : null; } catch(e) { return null; }
+  }
+  function getFirebase(){
+    try { return (typeof firebase !== 'undefined' && firebase) ? firebase : null; } catch(e) { return null; }
+  }
+  function isAdmin(){
+    try {
+      var role = (typeof currentRole !== 'undefined') ? currentRole : window.currentRole;
+      var user = (typeof currentUser !== 'undefined') ? currentUser : window.currentUser;
+      var email = (user && user.email ? String(user.email).toLowerCase() : '');
+      return role === 'admin' || email === 'dragootalks@gmail.com';
+    } catch(e) { return false; }
+  }
+  function ts(){
+    var fb = getFirebase();
+    return fb && fb.firestore && fb.firestore.FieldValue ? fb.firestore.FieldValue.serverTimestamp() : new Date();
+  }
+  function esc(v){
+    if (typeof escapeHtml === 'function') return escapeHtml(v == null ? '' : v);
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function toast(msg, dur, type){
+    if (typeof showToast === 'function') showToast(msg, dur || 4500, type || 'info');
+    else console.log(msg);
+  }
+  function ticketTime(t){
+    try {
+      if (t && t.createdAt && typeof t.createdAt.toDate === 'function') return t.createdAt.toDate().getTime();
+      if (t && t.createdAt instanceof Date) return t.createdAt.getTime();
+      if (t && typeof t.createdAt === 'number') return t.createdAt;
+    } catch(e) {}
+    return 0;
+  }
+  function normalizeTicket(doc){
+    var data = doc.data ? (doc.data() || {}) : (doc || {});
+    return Object.assign({ id: doc.id || data.id || '' }, data);
+  }
+  function renderAdminTickets(tickets){
+    var list = document.getElementById('admin-support-list');
+    if (!list) return;
+    adminSupportTicketsCache = (tickets || []).slice().sort(function(a,b){ return ticketTime(b) - ticketTime(a); });
+    var q = (document.getElementById('admin-support-search')?.value || '').trim().toLowerCase();
+    var filtered = q ? adminSupportTicketsCache.filter(function(t){
+      return String(t.orderId || '').toLowerCase().includes(q) ||
+             String(t.customerEmail || t.email || '').toLowerCase().includes(q) ||
+             String(t.type || '').toLowerCase().includes(q) ||
+             String(t.desc || t.description || '').toLowerCase().includes(q);
+    }) : adminSupportTicketsCache;
+
+    if (!filtered.length) {
+      list.innerHTML = '<div class="empty-cat-msg"><div class="big">💬</div>No support tickets found</div>';
+      return;
+    }
+
+    list.innerHTML = filtered.map(function(t){
+      var status = String(t.status || 'open').toLowerCase();
+      var isOpen = status !== 'resolved';
+      var dateText = '';
+      try { dateText = t.createdAt?.toDate?.()?.toLocaleString?.() || ''; } catch(e) {}
+      return '<div class="tracking-panel" data-ticket-id="'+esc(t.id)+'" style="border-left:5px solid '+(isOpen?'var(--red)':'var(--green)')+'">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'
+        + '<strong>🎟️ '+esc(t.type || 'Support Ticket')+'</strong>'
+        + '<span style="font-weight:800;color:'+(isOpen?'var(--red)':'var(--green)')+'">'+esc(status.toUpperCase())+'</span>'
+        + '</div>'
+        + '<div style="font-size:.85rem;color:#333;margin-top:8px;line-height:1.55">'
+        + '<b>Order:</b> '+esc(t.orderId || '—')+'<br>'
+        + '<b>Customer:</b> '+esc(t.customerEmail || t.email || '—')+'<br>'
+        + '<b>Description:</b> '+esc(t.desc || t.description || '—')+'<br>'
+        + '<b>Created:</b> '+esc(dateText || 'Just now')
+        + '</div>'
+        + (isOpen ? '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'
+          + '<textarea id="ticket-reply-'+esc(t.id)+'" class="aip-input" placeholder="Reply to customer..." style="flex:1;min-width:220px;min-height:70px"></textarea>'
+          + '<button class="place-order-btn" style="width:auto;margin-top:0;min-width:140px" onclick="replyToTicket(\''+esc(t.id)+'\')">Reply & Resolve</button>'
+          + '<button class="back-btn-light" style="margin-bottom:0" onclick="resolveTicket(\''+esc(t.id)+'\')">✔️ Mark Resolved</button>'
+          + '</div>' : (t.reply ? '<div style="margin-top:10px;background:#f0faf4;border-radius:10px;padding:10px"><b>Reply:</b> '+esc(t.reply)+'</div>' : ''))
+        + '</div>';
+    }).join('');
+  }
+
+  window.filterAdminSupportTickets = function(){ renderAdminTickets(adminSupportTicketsCache); };
+
+  window.renderAdminSupportPage = function(){
+    var d = getDb();
+    var list = document.getElementById('admin-support-list');
+    if (!list) return;
+    if (!d) {
+      list.innerHTML = '<div class="empty-cat-msg"><div class="big">⏳</div>Connecting to Firestore...</div>';
+      setTimeout(window.renderAdminSupportPage, 500);
+      return;
+    }
+    if (!isAdmin()) {
+      list.innerHTML = '<div class="empty-cat-msg"><div class="big">🔒</div>Admin login required</div>';
+      return;
+    }
+    if (adminSupportUnsub) { try { adminSupportUnsub(); } catch(e) {} adminSupportUnsub = null; }
+    list.innerHTML = '<div class="empty-cat-msg"><div class="big">⏳</div>Loading tickets...</div>';
+
+    function attach(query, fallback){
+      adminSupportUnsub = query.onSnapshot(function(snap){
+        var rows = snap.docs.map(normalizeTicket);
+        renderAdminTickets(rows);
+      }, function(err){
+        console.warn('[AdminSupportFix] Ticket listener failed:', err.code || err.message);
+        if (!fallback) attach(d.collection('support').limit(100), true);
+        else list.innerHTML = '<div class="empty-cat-msg"><div class="big">⚠️</div>Unable to load tickets. Check Firestore rules for the support collection.</div>';
+      });
+    }
+    attach(d.collection('support').orderBy('createdAt', 'desc').limit(100), false);
+  };
+
+  window.replyToTicket = async function(ticketId){
+    var d = getDb();
+    if (!d || !ticketId) return;
+    var input = document.getElementById('ticket-reply-' + ticketId);
+    var reply = (input?.value || '').trim();
+    if (!reply) { toast('⚠️ Please enter a reply'); return; }
+    try {
+      await d.collection('support').doc(ticketId).set({
+        reply: reply,
+        status: 'resolved',
+        updatedAt: ts(),
+        resolvedAt: ts()
+      }, { merge: true });
+      toast('✅ Reply sent and ticket resolved', 3000);
+    } catch(e) {
+      console.error('[AdminSupportFix] Reply failed:', e);
+      toast('❌ Reply failed: ' + (e.message || e.code || 'Unknown error'), 4500, 'error');
+    }
+  };
+
+  window.resolveTicket = async function(ticketId){
+    var d = getDb();
+    if (!d || !ticketId) return;
+    try {
+      await d.collection('support').doc(ticketId).set({
+        status: 'resolved',
+        updatedAt: ts(),
+        resolvedAt: ts()
+      }, { merge: true });
+      toast('✅ Ticket marked resolved', 3000);
+    } catch(e) {
+      console.error('[AdminSupportFix] Resolve failed:', e);
+      toast('❌ Resolve failed: ' + (e.message || e.code || 'Unknown error'), 4500, 'error');
+    }
+  };
+
+  function notifyAdmin(ticket, id){
+    if (!isAdmin()) return;
+    var msg = '🎟️ New Support Ticket: ' + (ticket.type || 'Support') + ' | Order: ' + (ticket.orderId || '—');
+    toast(msg, 6000, 'info');
+    try { if (typeof playChimePattern === 'function') playChimePattern(); } catch(e) {}
+    try {
+      if (typeof showPromoNotification === 'function') {
+        showPromoNotification('🎟️ New Support Ticket', 'Order: ' + (ticket.orderId || '—') + '\nFrom: ' + (ticket.customerEmail || 'Customer'), '💬');
+      }
+    } catch(e) {}
+    try {
+      var badge = document.getElementById('asb-support')?.querySelector('.admin-sb-badge');
+      if (badge) { badge.classList.add('visible'); badge.textContent = '!'; }
+    } catch(e) {}
+    if ((localStorage.getItem('currentPage') || '') === 'admin-support') {
+      setTimeout(window.renderAdminSupportPage, 100);
+    }
+  }
+
+  function startRealtimeNotificationWatch(){
+    var d = getDb();
+    if (!d || supportUnsub) return;
+    supportUnsub = d.collection('support').orderBy('createdAt', 'desc').limit(50).onSnapshot(function(snap){
+      snap.docChanges().forEach(function(change){
+        var id = change.doc.id;
+        var ticket = normalizeTicket(change.doc);
+        if (!initializedTicketIds.has(id)) {
+          initializedTicketIds.add(id);
+          if (change.type === 'added' && isAdmin() && document.readyState !== 'loading') {
+            // Server timestamps can be null on the first local snapshot, so do not
+            // depend on createdAt time here. New unseen added docs notify admin.
+            notifyAdmin(ticket, id);
+          }
+        } else if (change.type === 'added') {
+          notifyAdmin(ticket, id);
+        }
+      });
+    }, function(err){
+      console.warn('[AdminSupportFix] Notification watcher failed:', err.code || err.message);
+    });
+  }
+
+  var originalSubmit = window.submitSupportTicket;
+  if (typeof originalSubmit === 'function' && !originalSubmit.__gfyAdminNotifyWrapped) {
+    var wrapped = async function(){
+      var result = await originalSubmit.apply(this, arguments);
+      var d = getDb();
+      try {
+        if (d && isAdmin()) setTimeout(window.renderAdminSupportPage, 150);
+      } catch(e) {}
+      return result;
+    };
+    wrapped.__gfyAdminNotifyWrapped = true;
+    window.submitSupportTicket = wrapped;
+  }
+
+  var originalShowPage = window.showPage;
+  if (typeof originalShowPage === 'function' && !originalShowPage.__gfyAdminSupportWrapped) {
+    window.showPage = function(page){
+      var result = originalShowPage.apply(this, arguments);
+      if (page === 'admin-support') {
+        setTimeout(function(){
+          window.renderAdminSupportPage();
+          try {
+            var badge = document.getElementById('asb-support')?.querySelector('.admin-sb-badge');
+            if (badge) { badge.classList.remove('visible'); badge.textContent = ''; }
+          } catch(e) {}
+        }, 120);
+      }
+      return result;
+    };
+    window.showPage.__gfyAdminSupportWrapped = true;
+  }
+
+  function boot(){
+    if (!getDb()) { setTimeout(boot, 500); return; }
+    startRealtimeNotificationWatch();
+    if ((localStorage.getItem('currentPage') || '') === 'admin-support') window.renderAdminSupportPage();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once:true });
+  else boot();
+})();
+</script>
+
 </body>
 </html>

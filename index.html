@@ -8471,17 +8471,35 @@ window.addEventListener('load', function() {
       target.style.display = '';
 
       if (page === 'profile') {
-        var profileEmail = (window.currentUser && window.currentUser.email) || '—';
-        var profileName = (window.currentUser && window.currentUser.displayName) || 'Guest User';
-        
+        // GFY FIX: Keep the Profile header stable when switching pages.
+        // Do not briefly write "Guest User" while Firebase/profile data is still available or loading.
+        var authUser = window.currentUser || null;
+        try {
+          if (!authUser && window.firebase && firebase.auth) authUser = firebase.auth().currentUser || null;
+        } catch(e) {}
+
+        var cachedProfile = window.currentUserProfile || {};
+        var storedName = '';
+        var storedEmail = '';
+        try {
+          storedName = localStorage.getItem('gfyStableProfileName') || '';
+          storedEmail = localStorage.getItem('gfyStableProfileEmail') || '';
+        } catch(e) {}
+
+        var profileEmail = (cachedProfile.email || (authUser && authUser.email) || storedEmail || '—');
+        var profileName = (cachedProfile.name || cachedProfile.displayName || (authUser && authUser.displayName) || (authUser && authUser.email) || storedName || 'Checking account...');
+
         var profileNameEl = document.getElementById('profile-name');
         var profileEmailDisplay = document.getElementById('profile-email-display');
-        
-        if (profileNameEl) {
-          profileNameEl.textContent = profileName;
+
+        if (profileNameEl) profileNameEl.textContent = profileName;
+        if (profileEmailDisplay) profileEmailDisplay.textContent = profileEmail;
+
+        if (profileName && profileName !== 'Guest User' && profileName !== 'Checking account...') {
+          try { localStorage.setItem('gfyStableProfileName', profileName); } catch(e) {}
         }
-        if (profileEmailDisplay) {
-          profileEmailDisplay.textContent = profileEmail;
+        if (profileEmail && profileEmail !== '—') {
+          try { localStorage.setItem('gfyStableProfileEmail', profileEmail); } catch(e) {}
         }
       }
     } else {
@@ -10112,8 +10130,33 @@ document.addEventListener('click', function(e) {
   function setProfileHeader(name, email){
     var nameEl = getEl('profile-name');
     var emailEl = getEl('profile-email-display');
-    if (nameEl) nameEl.textContent = name || 'Guest User';
-    if (emailEl) emailEl.textContent = email || '—';
+    var nextName = name || 'Guest User';
+    var nextEmail = email || '—';
+
+    // GFY FIX: Prevent transient Guest User flicker while auth/profile is still resolving.
+    var oldName = nameEl ? (nameEl.textContent || '').trim() : '';
+    var oldEmail = emailEl ? (emailEl.textContent || '').trim() : '';
+    var storedName = '';
+    var storedEmail = '';
+    try {
+      storedName = localStorage.getItem('gfyStableProfileName') || '';
+      storedEmail = localStorage.getItem('gfyStableProfileEmail') || '';
+    } catch(e) {}
+
+    if (nextName === 'Guest User' && !window.gfyProfileAuthResolved) {
+      nextName = (oldName && oldName !== 'Guest User' && oldName !== 'Checking account...') ? oldName : (storedName || 'Checking account...');
+      nextEmail = (oldEmail && oldEmail !== '—' && oldEmail !== 'Please wait') ? oldEmail : (storedEmail || 'Please wait');
+    }
+
+    if (nameEl) nameEl.textContent = nextName;
+    if (emailEl) emailEl.textContent = nextEmail;
+
+    if (nextName && nextName !== 'Guest User' && nextName !== 'Checking account...') {
+      try { localStorage.setItem('gfyStableProfileName', nextName); } catch(e) {}
+    }
+    if (nextEmail && nextEmail !== '—' && nextEmail !== 'Please wait') {
+      try { localStorage.setItem('gfyStableProfileEmail', nextEmail); } catch(e) {}
+    }
   }
 
   function setProfileChecking(){
@@ -10158,7 +10201,8 @@ document.addEventListener('click', function(e) {
     } else {
       window.currentUser = null;
       window.currentUserProfile = null;
-      setProfileHeader('Guest User', '—');
+      // Only show Guest after auth is actually resolved. This avoids page-switch flicker.
+      setProfileHeader(window.gfyProfileAuthResolved ? 'Guest User' : 'Checking account...', window.gfyProfileAuthResolved ? '—' : 'Please wait');
     }
   }
 

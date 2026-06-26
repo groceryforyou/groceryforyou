@@ -1760,6 +1760,17 @@ body.support-create-ticket-mode #support-form-section{
   font-weight:700!important;
 }
 
+
+
+/* GFY: admin category drag reorder */
+.gfy-manage-cat-row.gfy-cat-dragging{
+  opacity:.55!important;
+  transform:scale(.98);
+  border-color:var(--saffron)!important;
+  box-shadow:0 8px 24px rgba(0,176,78,.18)!important;
+}
+.gfy-manage-cat-row:active{cursor:grabbing!important;}
+
 </style>
 </head>
 <body>
@@ -7849,6 +7860,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         name: name,
         emoji: emoji,
         subLabel: subLabel,
+        sortOrder: getNextCategorySortOrder(),
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
@@ -7867,24 +7879,121 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   };
 
   // Manage Categories Modal & Edit/Delete Operations
+  function gfyEscapeAttr(value) {
+    return String(value ?? '').replace(/[&<>"']/g, function(ch) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);
+    });
+  }
+
+  function getNextCategorySortOrder() {
+    const allCats = (typeof window.categories !== 'undefined' && Array.isArray(window.categories)) ? window.categories : [];
+    if (!allCats.length) return 1000;
+    const maxOrder = Math.max(...allCats.map(function(cat, index) {
+      const n = Number(cat.sortOrder ?? cat.order ?? cat.orderIndex);
+      return Number.isFinite(n) ? n : ((index + 1) * 10);
+    }));
+    return maxOrder + 10;
+  }
+
+  async function persistCategoryOrderFromList(listContainer) {
+    if (currentRole !== 'admin' || !listContainer) return;
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db :
+      (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+
+    if (!firebaseDB) {
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
+      return;
+    }
+
+    const allCats = (typeof window.categories !== 'undefined' && Array.isArray(window.categories)) ? window.categories : [];
+    const rows = Array.from(listContainer.querySelectorAll('[data-cat-id]'));
+    const orderedIds = rows.map(row => row.getAttribute('data-cat-id')).filter(Boolean);
+    if (!orderedIds.length) return;
+
+    try {
+      const batch = firebaseDB.batch();
+      orderedIds.forEach(function(catId, index) {
+        const cat = allCats.find(c => c.id === catId) || { id: catId };
+        const ref = firebaseDB.collection('categories').doc(catId);
+        batch.set(ref, {
+          id: catId,
+          name: cat.name || catId,
+          emoji: cat.emoji || '📂',
+          subLabel: cat.subLabel || cat.subtitle || cat.description || '',
+          deleted: false,
+          sortOrder: (index + 1) * 10,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      });
+      await batch.commit();
+      if (typeof showToast === 'function') showToast('✅ Category order saved', 1800);
+    } catch (err) {
+      console.error('[CategoryOrder] Firestore order save failed:', err);
+      if (typeof showToast === 'function') showToast('⚠️ Could not save category order: ' + (err.message || err), 3500);
+    }
+  }
+
+  function enableCategoryDragOrdering(listContainer) {
+    if (!listContainer || listContainer.dataset.dragOrderingReady === 'true') return;
+    listContainer.dataset.dragOrderingReady = 'true';
+    let draggedRow = null;
+
+    listContainer.addEventListener('dragstart', function(e) {
+      const row = e.target.closest('[data-cat-id]');
+      if (!row) return;
+      draggedRow = row;
+      row.classList.add('gfy-cat-dragging');
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', row.getAttribute('data-cat-id') || '');
+      }
+    });
+
+    listContainer.addEventListener('dragover', function(e) {
+      if (!draggedRow) return;
+      e.preventDefault();
+      const target = e.target.closest('[data-cat-id]');
+      if (!target || target === draggedRow) return;
+      const rect = target.getBoundingClientRect();
+      const beforeTarget = e.clientY < rect.top + rect.height / 2;
+      listContainer.insertBefore(draggedRow, beforeTarget ? target : target.nextSibling);
+    });
+
+    listContainer.addEventListener('dragend', async function() {
+      if (!draggedRow) return;
+      draggedRow.classList.remove('gfy-cat-dragging');
+      draggedRow = null;
+      await persistCategoryOrderFromList(listContainer);
+    });
+  }
+
   window.openManageCatsModal = function() {
     const listContainer = document.getElementById('manage-cats-list');
     if (!listContainer) return;
 
-    const allCats = (typeof window.categories !== 'undefined') ? window.categories : [];
-    
-    listContainer.innerHTML = allCats.map(cat => `
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--cream); border:1.5px solid var(--border); border-radius:12px; gap:10px;">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="font-size:1.3rem;">${cat.emoji}</span>
-          <span style="font-weight:700; color:var(--brown); font-size:.9rem;">${cat.name}</span>${(cat.subLabel || cat.subtitle || cat.description) ? `<span style="display:block;font-size:.72rem;color:#777;margin-top:2px;">${cat.subLabel || cat.subtitle || cat.description}</span>` : ``}
+    const allCats = (typeof window.categories !== 'undefined' && Array.isArray(window.categories)) ? window.categories : [];
+
+    listContainer.innerHTML = allCats.map(cat => {
+      const sub = cat.subLabel || cat.subtitle || cat.description || '';
+      return `
+      <div class="gfy-manage-cat-row" data-cat-id="${gfyEscapeAttr(cat.id)}" draggable="true" style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--cream); border:1.5px solid var(--border); border-radius:12px; gap:10px; cursor:grab; touch-action:none;">
+        <div style="display:flex; align-items:center; gap:9px; min-width:0; flex:1;">
+          <span class="gfy-cat-drag-handle" style="font-size:1.05rem; color:#777; cursor:grab; user-select:none;" title="Drag to move">☰</span>
+          <span style="font-size:1.3rem; flex-shrink:0;">${gfyEscapeAttr(cat.emoji || '📂')}</span>
+          <span style="display:flex; flex-direction:column; min-width:0;">
+            <span style="font-weight:700; color:var(--brown); font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${gfyEscapeAttr(cat.name || '')}</span>
+            ${sub ? `<span style="font-size:.72rem;color:#777;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${gfyEscapeAttr(sub)}</span>` : ``}
+          </span>
         </div>
-        <div style="display:flex; gap:6px;">
-          <button onclick="openEditCatModal('${cat.id}')" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Edit Category">✏️</button>
-          <button onclick="deleteCategory('${cat.id}')" style="background:#ffebee; border:1.5px solid #ffcdd2; color:#c62828; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Delete Category">🗑️</button>
+        <div style="display:flex; gap:6px; flex-shrink:0;">
+          <button onclick="openEditCatModal('${gfyEscapeAttr(cat.id)}')" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Edit Category">✏️</button>
+          <button onclick="deleteCategory('${gfyEscapeAttr(cat.id)}')" style="background:#ffebee; border:1.5px solid #ffcdd2; color:#c62828; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Delete Category">🗑️</button>
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
+
+    enableCategoryDragOrdering(listContainer);
 
     const overlay = document.getElementById('manage-cats-modal-overlay');
     if (overlay) overlay.classList.add('open');
@@ -7981,6 +8090,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         name: name,
         emoji: emoji,
         subLabel: subLabel,
+        sortOrder: (allCats.find(c => c.id === catId)?.sortOrder ?? allCats.findIndex(c => c.id === catId) * 10 + 10),
         deleted: false,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
@@ -8104,13 +8214,13 @@ window.updateOrderCardStatus = updateOrderCardStatus;
 
   // ── 5. REALTIME SNAPSHOT LISTENERS ─────────────────────────────────────
   const defaultCategories = [
-    { id: 'vegetables', name: 'Vegetables', emoji: '🥦' },
-    { id: 'fruits', name: 'Fruits', emoji: '🍎' },
-    { id: 'dairy', name: 'Dairy', emoji: '🥛' },
-    { id: 'grocery', name: 'Grocery', emoji: '🌾' },
-    { id: 'leafy', name: 'Leafy', emoji: '🥬' },
-    { id: 'snacks', name: 'Snacks', emoji: '🍿' },
-    { id: 'beverages', name: 'Beverages', emoji: '🥤' }
+    { id: 'vegetables', name: 'Vegetables', emoji: '🥦', sortOrder: 10 },
+    { id: 'fruits', name: 'Fruits', emoji: '🍎', sortOrder: 20 },
+    { id: 'dairy', name: 'Dairy', emoji: '🥛', sortOrder: 30 },
+    { id: 'grocery', name: 'Grocery', emoji: '🌾', sortOrder: 40 },
+    { id: 'leafy', name: 'Leafy', emoji: '🥬', sortOrder: 50 },
+    { id: 'snacks', name: 'Snacks', emoji: '🍿', sortOrder: 60 },
+    { id: 'beverages', name: 'Beverages', emoji: '🥤', sortOrder: 70 }
   ];
 
   function setMenuLoadingState(isLoading, message = 'Loading latest prices...') {
@@ -8142,6 +8252,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
               name: data.name || '',
               emoji: data.emoji || '📂',
               subLabel: data.subLabel || data.subtitle || data.description || '',
+              sortOrder: Number.isFinite(Number(data.sortOrder ?? data.order ?? data.orderIndex)) ? Number(data.sortOrder ?? data.order ?? data.orderIndex) : null,
               deleted: data.deleted === true
             });
           });
@@ -8149,15 +8260,23 @@ window.updateOrderCardStatus = updateOrderCardStatus;
 
         const mergedCats = defaultCategories.map(dc => {
           const matched = loadedCats.find(lc => lc.id === dc.id);
-          return matched ? matched : dc;
+          return matched ? { ...dc, ...matched, sortOrder: matched.sortOrder ?? dc.sortOrder } : dc;
         }).filter(cat => {
           const matched = loadedCats.find(lc => lc.id === cat.id);
           return !(matched && matched.deleted === true);
         });
         loadedCats.forEach(lc => {
           if (lc.deleted !== true && !mergedCats.some(mc => mc.id === lc.id)) {
-            mergedCats.push(lc);
+            const fallbackOrder = (mergedCats.length + 1) * 10;
+            mergedCats.push({ ...lc, sortOrder: lc.sortOrder ?? fallbackOrder });
           }
+        });
+
+        mergedCats.sort(function(a, b) {
+          const ao = Number.isFinite(Number(a.sortOrder)) ? Number(a.sortOrder) : 999999;
+          const bo = Number.isFinite(Number(b.sortOrder)) ? Number(b.sortOrder) : 999999;
+          if (ao !== bo) return ao - bo;
+          return String(a.name || '').localeCompare(String(b.name || ''));
         });
 
         // Update arrays in-place to preserve references

@@ -4234,15 +4234,51 @@ function toggleSidebar() {
       } catch (_e) {}
     }
 
-    // Validate order exists in Firestore
+    // Validate order exists in Firestore.
+    // Orders in this app are commonly stored with the real order number as the
+    // Firestore document ID, while some older records store it in the orderId/id
+    // field. Check all supported locations so valid IDs like GYF-289991 work.
     let orderDoc = null;
+    let matchedOrderId = orderId;
     try {
-      const orderSnap = await db.collection('orders').where('orderId', '==', orderId).get();
-      if (!orderSnap || orderSnap.empty || !orderSnap.docs.length) {
+      const cleanOrderId = orderId.replace(/^#+/, '').trim();
+      const orderCandidates = Array.from(new Set([
+        orderId,
+        cleanOrderId,
+        cleanOrderId.toUpperCase(),
+        cleanOrderId.toLowerCase()
+      ].filter(Boolean)));
+
+      // 1) Check Firestore document ID first: /orders/{orderId}
+      for (const candidate of orderCandidates) {
+        const byDocId = await db.collection('orders').doc(candidate).get();
+        if (byDocId && byDocId.exists) {
+          orderDoc = byDocId.data() || {};
+          matchedOrderId = byDocId.id;
+          break;
+        }
+      }
+
+      // 2) Check common fields used by older/newer order writers
+      if (!orderDoc) {
+        const fieldsToCheck = ['orderId', 'id', 'orderNo', 'orderNumber'];
+        for (const fieldName of fieldsToCheck) {
+          for (const candidate of orderCandidates) {
+            const snap = await db.collection('orders').where(fieldName, '==', candidate).limit(1).get();
+            if (snap && !snap.empty && snap.docs.length) {
+              orderDoc = snap.docs[0].data() || {};
+              matchedOrderId = orderDoc.orderId || orderDoc.id || snap.docs[0].id || candidate;
+              break;
+            }
+          }
+          if (orderDoc) break;
+        }
+      }
+
+      if (!orderDoc) {
         showToast('⚠️ Order ID not found. Please check and try again.');
         throw new Error('Not a valid order ID');
       }
-      orderDoc = orderSnap.docs[0].data();
     } catch (err) {
       if (err.message === 'Not a valid order ID') throw err;
       // Firestore query itself failed (rules / network) — still allow submit
@@ -4251,8 +4287,8 @@ function toggleSidebar() {
 
     // Only verify ownership when we got the order doc
     if (orderDoc) {
-      const orderEmail = (orderDoc.customerEmail || '').toLowerCase();
-      const orderUid   = orderDoc.customerUid || null;
+      const orderEmail = (orderDoc.customerEmail || orderDoc.email || orderDoc.userEmail || '').toLowerCase();
+      const orderUid   = orderDoc.customerUid || orderDoc.userUid || orderDoc.uid || null;
       const matches = _cu
         ? (orderUid === _cu.uid || orderEmail === (_cu.email || '').toLowerCase())
         : (customerEmail && orderEmail && orderEmail === customerEmail.toLowerCase());

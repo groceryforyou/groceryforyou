@@ -9951,5 +9951,141 @@ document.addEventListener('click', function(e) {
     };
 })();</script>
   
+<script>
+/* GFY_ESTIMATED_DELIVERY_FIX_V1
+   Fixes Track Order "Estimated Delivery - Calculating..." without changing the
+   existing tracking renderer, popups, status flow, cart, admin or order history. */
+(function(){
+  'use strict';
+  if (window.__GFY_ESTIMATED_DELIVERY_FIX_V1__) return;
+  window.__GFY_ESTIMATED_DELIVERY_FIX_V1__ = true;
+
+  const FINAL_STATUSES = new Set(['delivered','completed','cancelled','canceled','rejected']);
+
+  function norm(v){
+    return String(v || '').toLowerCase().trim().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+  }
+
+  function toDate(v){
+    try {
+      if (!v) return null;
+      if (typeof v.toDate === 'function') return v.toDate();
+      if (typeof v.seconds === 'number') return new Date(v.seconds * 1000);
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? null : d;
+    } catch(e) { return null; }
+  }
+
+  function formatClock(d){
+    try {
+      return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } catch(e) {
+      return d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
+    }
+  }
+
+  function explicitEstimate(order){
+    const candidates = [
+      order.estimatedDeliveryTime,
+      order.estimatedDeliveryAt,
+      order.estimatedDelivery,
+      order.deliveryEta,
+      order.deliveryETA,
+      order.eta
+    ];
+    for (const v of candidates) {
+      if (!v) continue;
+      if (typeof v === 'string') {
+        const t = v.trim();
+        if (t && !/calculating/i.test(t)) return t;
+      }
+      const d = toDate(v);
+      if (d) return 'By ' + formatClock(d);
+    }
+    return '';
+  }
+
+  function statusWindow(status){
+    const st = norm(status || 'pending');
+    if (st === 'out_for_delivery' || st === 'ofd') return {min:5, max:15};
+    if (st === 'ready' || st === 'order_ready' || st === 'preparing' || st === 'being_prepared') return {min:15, max:25};
+    return {min:30, max:45};
+  }
+
+  function orderStartDate(order){
+    return toDate(order.acceptedAt) || toDate(order.createdAt) || toDate(order.orderTime) || toDate(order.timestamp) || toDate(order.updatedAt) || new Date();
+  }
+
+  function calculateEstimate(order){
+    order = order || {};
+    const st = norm(order.status || 'pending');
+    if (FINAL_STATUSES.has(st)) return '';
+
+    const explicit = explicitEstimate(order);
+    if (explicit) return explicit;
+
+    const win = statusWindow(st);
+    const start = orderStartDate(order);
+    const targetMin = new Date(start.getTime() + win.min * 60000);
+    const targetMax = new Date(start.getTime() + win.max * 60000);
+    const now = new Date();
+
+    if (targetMax <= now) {
+      return st === 'out_for_delivery' || st === 'ofd' ? 'Arriving shortly' : 'Almost ready';
+    }
+
+    const remainMin = Math.max(1, Math.ceil((targetMin - now) / 60000));
+    const remainMax = Math.max(remainMin, Math.ceil((targetMax - now) / 60000));
+    if (remainMax <= 2) return 'Arriving shortly';
+    return remainMin + '-' + remainMax + ' mins';
+  }
+
+  function patchEstimateIn(container, order){
+    if (!container) return;
+    const estimate = calculateEstimate(order);
+    if (!estimate) return;
+
+    const scope = container.nodeType === 1 ? container : document;
+    const banner = scope.querySelector('.est-delivery-banner') || scope;
+    const timeEl = banner.querySelector('.edb-time');
+    if (timeEl && (!timeEl.textContent.trim() || /calculating/i.test(timeEl.textContent))) {
+      timeEl.textContent = estimate;
+    }
+
+    const titleEl = banner.querySelector('.edb-title');
+    if (titleEl && /estimated delivery/i.test(titleEl.textContent || '')) {
+      const next = titleEl.nextElementSibling;
+      if (next && /calculating/i.test(next.textContent || '')) next.textContent = estimate;
+    }
+
+    const countdown = banner.querySelector('#edb-countdown');
+    if (countdown && /calculating/i.test(countdown.textContent || '')) {
+      countdown.textContent = '⏱ ' + estimate;
+    }
+  }
+
+  function hookRenderTrackingUI(){
+    if (typeof window.renderTrackingUI !== 'function') {
+      setTimeout(hookRenderTrackingUI, 300);
+      return;
+    }
+    if (window.renderTrackingUI.__gfyEstimateFixHooked) return;
+
+    const original = window.renderTrackingUI;
+    window.renderTrackingUI = function(container, order){
+      const result = original.apply(this, arguments);
+      try { patchEstimateIn(container, order || {}); }
+      catch(e) { console.warn('[TrackEstimateFix] patch failed', e); }
+      return result;
+    };
+    window.renderTrackingUI.__gfyEstimateFixHooked = true;
+  }
+
+  hookRenderTrackingUI();
+  window.gfyCalculateTrackingEstimate = calculateEstimate;
+  window.gfyPatchTrackingEstimate = patchEstimateIn;
+})();
+</script>
+
 </body>
 </html>

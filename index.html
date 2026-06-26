@@ -1824,6 +1824,8 @@ body.support-create-ticket-mode #support-form-section{
   .admin-orders-search-input{font-size:16px!important}
   .admin-orders-search-clear{padding:6px 8px}
 }
+.admin-orders-page-search-panel{display:block;margin-bottom:14px;}
+#admin-orders-search-clear-page{display:inline-flex;align-items:center;justify-content:center;}
 
 
 /* GFY admin orders search button */
@@ -2758,6 +2760,18 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
       <button id="admin-otab-rejected" class="orders-tab" data-orders-status-tab="rejected" onclick="filterOrdersByTab('rejected')">❌ Rejected</button>
       <button id="admin-otab-all" class="orders-tab" data-orders-status-tab="all" onclick="filterOrdersByTab('all')">📋 All Orders</button>
     </div>
+
+    <!-- GFY FIX: Admin My Orders page search -->
+    <div id="admin-orders-page-search-panel" class="admin-orders-page-search-panel">
+      <div class="admin-orders-search-wrap">
+        <span class="admin-orders-search-icon">🔎</span>
+        <input id="admin-orders-search" class="admin-orders-search-input" type="search" placeholder="Search order ID, customer, phone, address, item, status..." autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();gfyApplyAdminOrdersSearch()}" />
+        <button id="admin-orders-search-button-page" class="admin-orders-search-clear" type="button" onclick="gfyApplyAdminOrdersSearch()">Search</button>
+        <button id="admin-orders-search-clear-page" class="admin-orders-search-clear" type="button" onclick="gfyClearAdminOrdersSearch()">Clear</button>
+      </div>
+      <div id="admin-orders-search-count" class="admin-orders-search-count"></div>
+    </div>
+
     <div class="revenue-section">
       <div class="transaction-list" id="admin-orders-list"></div>
     </div>
@@ -11261,6 +11275,44 @@ document.addEventListener('click', function(e) {
   } else {
     bindAdminOrdersSearch();
   }
+})();
+</script>
+
+
+<script>
+/* GFY FIX: bind Admin My Orders page search input to existing orders renderer */
+(function(){
+  function activeAdminOrdersTab(){
+    const active = document.querySelector('#admin-otab-active.active,#admin-otab-delivered.active,#admin-otab-rejected.active,#admin-otab-all.active');
+    return (active && active.getAttribute('data-orders-status-tab')) || 'active';
+  }
+  function pageInput(){ return document.getElementById('admin-orders-search'); }
+  function runSearch(){
+    try{
+      if(typeof window.renderOrdersByTab === 'function') window.renderOrdersByTab(activeAdminOrdersTab());
+    }catch(e){ console.error('[GFY Admin Orders Page Search] failed', e); }
+  }
+  window.gfyApplyAdminOrdersSearch = function(){ runSearch(); };
+  window.gfyClearAdminOrdersSearch = function(){
+    const input = pageInput();
+    if(input) input.value = '';
+    runSearch();
+    if(input) input.focus();
+  };
+  function bind(){
+    const input = pageInput();
+    if(!input || input.dataset.gfyPageSearchBound === '1') return;
+    input.dataset.gfyPageSearchBound = '1';
+    input.addEventListener('input', function(){
+      clearTimeout(input._gfySearchTimer);
+      input._gfySearchTimer = setTimeout(runSearch, 150);
+    });
+    input.addEventListener('keydown', function(e){
+      if(e.key === 'Escape') window.gfyClearAdminOrdersSearch();
+    });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+  else bind();
 })();
 </script>
 

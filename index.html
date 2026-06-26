@@ -1737,6 +1737,36 @@ body.support-create-ticket-mode #support-form-section{
   visibility:hidden!important;
 }
 
+
+
+/* ===== GFY CATEGORY + ITEM SUB-LABEL FIX ===== */
+.card-type{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  min-height:14px;
+  margin-top:4px!important;
+  color:#6b7f70!important;
+  text-transform:none!important;
+  letter-spacing:.2px!important;
+  font-size:.75rem!important;
+  font-weight:700!important;
+}
+.gfy-cat-sub-label{
+  margin:-10px 0 16px 16px;
+  color:#6b7f70;
+  font-size:.88rem;
+  line-height:1.35;
+  font-weight:700;
+}
+.gfy-manage-cat-sub{
+  margin-top:3px;
+  color:#6b7f70;
+  font-size:.76rem;
+  line-height:1.25;
+  font-weight:700;
+}
+
 </style>
 </head>
 <body>
@@ -3191,6 +3221,8 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="cat-modal-body">
       <label class="aip-label" for="new-cat-name">Category Name *</label>
       <input class="aip-input" type="text" id="new-cat-name" placeholder="e.g. Special Grocerys, Drinks..." style="margin-bottom:12px"/>
+      <label class="aip-label" for="new-cat-sub-label">Category Sub-label</label>
+      <input class="aip-input" type="text" id="new-cat-sub-label" placeholder="e.g. Fresh picks, daily essentials" style="margin-bottom:12px"/>
       <label class="aip-label" for="new-cat-emoji-custom">Choose Icon</label>
       <div class="cat-emoji-row" id="cat-emoji-row"></div>
       <input class="aip-input" type="text" id="new-cat-emoji-custom" placeholder="Or type any emoji: 🥙"/>
@@ -3231,6 +3263,8 @@ document.addEventListener('DOMContentLoaded', () => {
       <input type="hidden" id="edit-cat-id" />
       <label class="aip-label" for="edit-cat-name">Category Name *</label>
       <input class="aip-input" type="text" id="edit-cat-name" placeholder="e.g. Special Grocerys" style="margin-bottom:12px"/>
+      <label class="aip-label" for="edit-cat-sub-label">Category Sub-label</label>
+      <input class="aip-input" type="text" id="edit-cat-sub-label" placeholder="e.g. Fresh picks, daily essentials" style="margin-bottom:12px"/>
       <label class="aip-label" for="edit-cat-emoji-custom">Choose Icon</label>
       <div class="cat-emoji-row" id="edit-cat-emoji-row"></div>
       <input class="aip-input" type="text" id="edit-cat-emoji-custom" placeholder="Or type any emoji: 🥙"/>
@@ -7763,8 +7797,10 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     }
     const nameInput = document.getElementById('new-cat-name');
     const emojiInput = document.getElementById('new-cat-emoji-custom');
+    const subLabelInput = document.getElementById('new-cat-sub-label');
     
     const name = nameInput ? nameInput.value.trim() : '';
+    const subLabel = subLabelInput ? subLabelInput.value.trim() : '';
     const emoji = (emojiInput && emojiInput.value.trim()) || window.selectedCatEmoji || '📂';
 
     if (!name) {
@@ -7788,6 +7824,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         id: catId,
         name: name,
         emoji: emoji,
+        subLabel: subLabel,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
@@ -7796,6 +7833,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       if (typeof closeCatModal === 'function') closeCatModal();
       if (nameInput) nameInput.value = '';
       if (emojiInput) emojiInput.value = '';
+      if (subLabelInput) subLabelInput.value = '';
     } catch (err) {
       console.error('[AddCategory] Firestore write failed:', err);
       const user = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth().currentUser : null;
@@ -7813,9 +7851,12 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     
     listContainer.innerHTML = allCats.map(cat => `
       <div style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--cream); border:1.5px solid var(--border); border-radius:12px; gap:10px;">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="font-size:1.3rem;">${cat.emoji}</span>
-          <span style="font-weight:700; color:var(--brown); font-size:.9rem;">${cat.name}</span>
+        <div style="display:flex; align-items:flex-start; gap:8px; min-width:0; flex:1;">
+          <span style="font-size:1.3rem; flex-shrink:0;">${cat.emoji}</span>
+          <div style="min-width:0;">
+            <div style="font-weight:700; color:var(--brown); font-size:.9rem;">${cat.name}</div>
+            ${cat.subLabel ? `<div class="gfy-manage-cat-sub">${cat.subLabel}</div>` : ''}
+          </div>
         </div>
         <div style="display:flex; gap:6px;">
           <button onclick="openEditCatModal('${cat.id}')" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Edit Category">✏️</button>
@@ -7845,9 +7886,11 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const editId = document.getElementById('edit-cat-id');
     const editName = document.getElementById('edit-cat-name');
     const editEmoji = document.getElementById('edit-cat-emoji-custom');
+    const editSubLabel = document.getElementById('edit-cat-sub-label');
     if (editId) editId.value = cat.id;
     if (editName) editName.value = cat.name;
     if (editEmoji) editEmoji.value = cat.emoji;
+    if (editSubLabel) editSubLabel.value = cat.subLabel || '';
     window.selectedEditCatEmoji = cat.emoji;
  
     // Render emojis in the row
@@ -7892,8 +7935,10 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const catId = document.getElementById('edit-cat-id').value;
     const nameInput = document.getElementById('edit-cat-name');
     const emojiInput = document.getElementById('edit-cat-emoji-custom');
+    const subLabelInput = document.getElementById('edit-cat-sub-label');
 
     const name = nameInput ? nameInput.value.trim() : '';
+    const subLabel = subLabelInput ? subLabelInput.value.trim() : '';
     const emoji = (emojiInput && emojiInput.value.trim()) || window.selectedEditCatEmoji || '📂';
 
     if (!name) {
@@ -7914,6 +7959,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         id: catId,
         name: name,
         emoji: emoji,
+        subLabel: subLabel,
         deleted: false,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
@@ -8074,6 +8120,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
               id: doc.id,
               name: data.name || '',
               emoji: data.emoji || '📂',
+              subLabel: data.subLabel || data.sub_label || data.subtitle || data.description || '',
               deleted: data.deleted === true
             });
           });
@@ -10535,6 +10582,97 @@ document.addEventListener('click', function(e) {
     hideAuthSplash();
   }
   window.addEventListener('load', hideAuthSplash, {once:true});
+})();
+</script>
+
+
+
+<script>
+/* ===== GFY: show item sub-labels to customers + category sub-labels after render ===== */
+(function(){
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>'"]/g,function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c] || c;
+    });
+  }
+  function getCats(){ return Array.isArray(window.categories) ? window.categories : []; }
+  function getItems(){ return Array.isArray(window.items) ? window.items : []; }
+
+  function applyVisibleSubLabels(){
+    try{
+      getItems().forEach(function(item){
+        if(!item || !item.id) return;
+        var card = document.getElementById('mcard-' + item.id);
+        if(!card) return;
+        var holder = card.querySelector('.card-header > div:first-child') || card.querySelector('.card-header') || card;
+        var label = card.querySelector('.card-type');
+        if(!label){
+          label = document.createElement('div');
+          label.className = 'card-type';
+          holder.appendChild(label);
+        }
+        var text = item.type || item.subLabel || item.sub_label || item.label || '';
+        if(text){
+          label.textContent = text;
+          label.style.display = 'block';
+        }else{
+          label.textContent = '';
+          label.style.display = 'none';
+        }
+      });
+
+      getCats().forEach(function(cat){
+        if(!cat || !cat.id) return;
+        var text = cat.subLabel || cat.sub_label || cat.subtitle || cat.description || '';
+        var section = document.getElementById('msec-' + cat.id) || document.getElementById('section-' + cat.id);
+        if(!section){
+          var titles = document.querySelectorAll('#menu-container .section-title, .menu-section .section-title, .section-title');
+          Array.prototype.some.call(titles,function(t){
+            if((t.textContent || '').indexOf(cat.name || '') !== -1){ section = t.closest('.menu-section') || t.parentElement; return true; }
+            return false;
+          });
+        }
+        if(!section) return;
+        var existing = section.querySelector('.gfy-cat-sub-label');
+        if(text){
+          if(!existing){
+            existing = document.createElement('div');
+            existing.className = 'gfy-cat-sub-label';
+            var title = section.querySelector('.section-title') || section.firstElementChild;
+            if(title && title.parentNode) title.insertAdjacentElement('afterend', existing);
+            else section.insertBefore(existing, section.firstChild);
+          }
+          existing.textContent = text;
+        }else if(existing){
+          existing.remove();
+        }
+      });
+    }catch(e){ console.warn('[GFYSubLabel] display apply failed', e); }
+  }
+
+  function hookRender(){
+    if(typeof window.renderMenuPage === 'function' && !window.__gfySubLabelRenderHooked){
+      var originalRenderMenuPage = window.renderMenuPage;
+      window.renderMenuPage = function(){
+        var result = originalRenderMenuPage.apply(this, arguments);
+        setTimeout(applyVisibleSubLabels, 0);
+        return result;
+      };
+      window.__gfySubLabelRenderHooked = true;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    hookRender();
+    setTimeout(applyVisibleSubLabels, 300);
+    setTimeout(applyVisibleSubLabels, 1200);
+  });
+  window.addEventListener('load', function(){
+    hookRender();
+    applyVisibleSubLabels();
+  });
+  window.gfyApplyVisibleSubLabels = applyVisibleSubLabels;
+  setTimeout(hookRender, 800);
 })();
 </script>
 

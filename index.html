@@ -1648,6 +1648,168 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
   font-family: var(--site-font) !important;
 }
 
+
+/* ===== PROFILE ANIMATED BOY GREETING ===== */
+.gfy-profile-avatar-wrap{
+  width:96px;
+  height:96px;
+  border-radius:50%;
+  background:linear-gradient(135deg,#ffc107 0%,#ff9800 100%);
+  margin:0 auto 16px;
+  position:relative;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  overflow:visible;
+  box-shadow:0 14px 36px rgba(255,152,0,.28), inset 0 -10px 22px rgba(255,143,0,.18);
+}
+.gfy-boy-avatar{
+  position:relative;
+  width:74px;
+  height:86px;
+  animation:gfyBoyFloat 2.8s ease-in-out infinite;
+  transform-origin:50% 100%;
+}
+.gfy-boy-head{
+  position:absolute;
+  left:17px;
+  top:14px;
+  width:42px;
+  height:47px;
+  border-radius:46% 46% 44% 44%;
+  background:linear-gradient(180deg,#ffd0a6 0%,#f2a979 100%);
+  z-index:3;
+  box-shadow:0 2px 0 rgba(126,63,32,.12);
+}
+.gfy-boy-hair{
+  position:absolute;
+  left:14px;
+  top:8px;
+  width:48px;
+  height:28px;
+  background:#2a2019;
+  border-radius:60% 60% 45% 45%;
+  z-index:4;
+}
+.gfy-boy-hair::after{
+  content:"";
+  position:absolute;
+  left:5px;
+  top:14px;
+  width:38px;
+  height:14px;
+  background:#2a2019;
+  border-radius:0 0 55% 55%;
+}
+.gfy-boy-ear{
+  position:absolute;
+  top:31px;
+  width:10px;
+  height:14px;
+  border-radius:50%;
+  background:#efaa7b;
+  z-index:2;
+}
+.gfy-boy-ear-left{left:10px}
+.gfy-boy-ear-right{right:12px}
+.gfy-boy-eye{
+  position:absolute;
+  top:24px;
+  width:5px;
+  height:6px;
+  background:#27221d;
+  border-radius:50%;
+  animation:gfyBoyBlink 4.5s infinite;
+}
+.gfy-boy-eye-left{left:12px}
+.gfy-boy-eye-right{right:12px}
+.gfy-boy-smile{
+  position:absolute;
+  left:15px;
+  top:34px;
+  width:13px;
+  height:7px;
+  border-bottom:2px solid #8d3f2a;
+  border-radius:0 0 14px 14px;
+}
+.gfy-boy-neck{
+  position:absolute;
+  left:31px;
+  top:56px;
+  width:14px;
+  height:12px;
+  background:#efa36f;
+  z-index:2;
+  border-radius:0 0 6px 6px;
+}
+.gfy-boy-body{
+  position:absolute;
+  left:9px;
+  bottom:0;
+  width:58px;
+  height:33px;
+  background:linear-gradient(135deg,var(--brown),#1e7a3a);
+  border-radius:28px 28px 8px 8px;
+  z-index:1;
+  box-shadow:0 -2px 0 rgba(255,255,255,.18) inset;
+}
+.gfy-boy-hand{
+  position:absolute;
+  right:-6px;
+  top:36px;
+  font-size:24px;
+  z-index:5;
+  transform-origin:25% 85%;
+  animation:gfyBoyWave 1.05s ease-in-out infinite;
+  filter:drop-shadow(0 3px 3px rgba(0,0,0,.18));
+}
+.gfy-hi-bubble{
+  position:absolute;
+  left:58px;
+  top:-15px;
+  z-index:8;
+  background:#fff;
+  color:var(--brown);
+  border:1px solid var(--border);
+  border-radius:18px 18px 18px 6px;
+  padding:7px 12px;
+  font-weight:900;
+  font-size:.86rem;
+  line-height:1.1;
+  white-space:nowrap;
+  box-shadow:0 10px 26px rgba(0,0,0,.14);
+  opacity:0;
+  transform:translateY(8px) scale(.92);
+  pointer-events:none;
+}
+.gfy-profile-avatar-wrap.gfy-say-hi .gfy-hi-bubble{
+  animation:gfyHiBubble 3.1s ease both;
+}
+@keyframes gfyBoyFloat{
+  0%,100%{transform:translateY(0) rotate(0deg)}
+  50%{transform:translateY(-4px) rotate(-1deg)}
+}
+@keyframes gfyBoyWave{
+  0%,100%{transform:rotate(8deg)}
+  25%{transform:rotate(-20deg)}
+  50%{transform:rotate(18deg)}
+  75%{transform:rotate(-12deg)}
+}
+@keyframes gfyBoyBlink{
+  0%,92%,100%{transform:scaleY(1)}
+  94%,96%{transform:scaleY(.12)}
+}
+@keyframes gfyHiBubble{
+  0%{opacity:0;transform:translateY(8px) scale(.92)}
+  14%,78%{opacity:1;transform:translateY(0) scale(1)}
+  100%{opacity:0;transform:translateY(-4px) scale(.96)}
+}
+@media(max-width:480px){
+  .gfy-profile-avatar-wrap{width:88px;height:88px}
+  .gfy-boy-avatar{transform:scale(.92)}
+  .gfy-hi-bubble{left:50px;top:-12px;font-size:.78rem;padding:6px 10px}
+}
+
 </style>
 </head>
 <body>
@@ -2199,7 +2361,22 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
     
     <!-- Profile Header -->
     <div style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:28px 24px;margin-bottom:20px;text-align:center;box-shadow:var(--shadow)">
-      <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#ffc107,#ff9800);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:#fff">👤</div>
+      <div class="gfy-profile-avatar-wrap" aria-label="Animated profile greeting">
+        <div class="gfy-hi-bubble" id="gfy-profile-hi-bubble">Hi!</div>
+        <div class="gfy-boy-avatar" id="gfy-boy-avatar">
+          <div class="gfy-boy-hair"></div>
+          <div class="gfy-boy-head">
+            <span class="gfy-boy-eye gfy-boy-eye-left"></span>
+            <span class="gfy-boy-eye gfy-boy-eye-right"></span>
+            <span class="gfy-boy-smile"></span>
+          </div>
+          <div class="gfy-boy-ear gfy-boy-ear-left"></div>
+          <div class="gfy-boy-ear gfy-boy-ear-right"></div>
+          <div class="gfy-boy-neck"></div>
+          <div class="gfy-boy-body"></div>
+          <div class="gfy-boy-hand">👋</div>
+        </div>
+      </div>
       <div id="profile-name" style="font-weight:800;font-size:1.3rem;color:var(--brown);margin-bottom:4px">Checking account...</div>
       <div id="profile-email-display" style="font-size:.9rem;color:#888;margin-bottom:4px">—</div>
       <div style="font-size:.75rem;color:#aaa">Your profile & account settings</div>
@@ -10320,6 +10497,65 @@ document.addEventListener('click', function(e) {
 
   hookShowPage();
   initAuthListener();
+})();
+</script>
+
+
+<script>
+/* ===== Profile animated boy greeting: safe wrapper, no existing feature changes ===== */
+(function(){
+  function getCleanName(){
+    var nameEl = document.getElementById('profile-name');
+    var name = nameEl ? (nameEl.textContent || '').trim() : '';
+    if (!name || /checking|guest user|account/i.test(name)) return 'Guest';
+    return name;
+  }
+
+  function playProfileBoyHi(){
+    var wrap = document.querySelector('.gfy-profile-avatar-wrap');
+    var bubble = document.getElementById('gfy-profile-hi-bubble');
+    if (!wrap || !bubble) return;
+    bubble.textContent = 'Hi, ' + getCleanName() + '!';
+    wrap.classList.remove('gfy-say-hi');
+    void wrap.offsetWidth;
+    wrap.classList.add('gfy-say-hi');
+  }
+
+  window.gfyPlayProfileBoyHi = playProfileBoyHi;
+
+  function hookShowPage(){
+    if (typeof window.showPage !== 'function' || window.__gfyProfileBoyHooked) return;
+    var originalShowPage = window.showPage;
+    window.showPage = function(pageName){
+      var result = originalShowPage.apply(this, arguments);
+      if (pageName === 'profile') {
+        setTimeout(playProfileBoyHi, 120);
+      }
+      return result;
+    };
+    window.__gfyProfileBoyHooked = true;
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    hookShowPage();
+    var profilePage = document.getElementById('page-profile');
+    if (profilePage && profilePage.classList.contains('active')) {
+      setTimeout(playProfileBoyHi, 250);
+    }
+
+    var nameEl = document.getElementById('profile-name');
+    if (nameEl && window.MutationObserver) {
+      new MutationObserver(function(){
+        var profilePageNow = document.getElementById('page-profile');
+        if (profilePageNow && profilePageNow.classList.contains('active')) {
+          var bubble = document.getElementById('gfy-profile-hi-bubble');
+          if (bubble) bubble.textContent = 'Hi, ' + getCleanName() + '!';
+        }
+      }).observe(nameEl, {childList:true, characterData:true, subtree:true});
+    }
+  });
+
+  setTimeout(hookShowPage, 800);
 })();
 </script>
 

@@ -2214,7 +2214,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
     <!-- Profile Header -->
     <div style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:28px 24px;margin-bottom:20px;text-align:center;box-shadow:var(--shadow)">
       <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#ffc107,#ff9800);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:#fff">👤</div>
-      <div id="profile-name" style="font-weight:800;font-size:1.3rem;color:var(--brown);margin-bottom:4px">Guest User</div>
+      <div id="profile-name" style="font-weight:800;font-size:1.3rem;color:var(--brown);margin-bottom:4px">Checking account...</div>
       <div id="profile-email-display" style="font-size:.9rem;color:#888;margin-bottom:4px">—</div>
       <div style="font-size:.75rem;color:#aaa">Your profile & account settings</div>
     </div>
@@ -10110,5 +10110,147 @@ document.addEventListener('click', function(e) {
     };
 })();</script>
   
+
+<!-- GFY FIX: Profile refresh must wait for Firebase auth before showing Guest User -->
+<script>
+(function gfyProfileRefreshAuthFix(){
+  'use strict';
+  if (window.__gfyProfileRefreshAuthFix) return;
+  window.__gfyProfileRefreshAuthFix = true;
+
+  window.gfyProfileAuthResolved = !!window.authStateReady;
+  window.gfyPendingProfileAfterAuth = false;
+
+  function getEl(id){ return document.getElementById(id); }
+
+  function setProfileHeader(name, email){
+    var nameEl = getEl('profile-name');
+    var emailEl = getEl('profile-email-display');
+    if (nameEl) nameEl.textContent = name || 'Guest User';
+    if (emailEl) emailEl.textContent = email || '—';
+  }
+
+  function setProfileChecking(){
+    var user = (window.currentUser) || (window.firebase && firebase.auth && firebase.auth().currentUser) || null;
+    if (user) {
+      setProfileHeader(
+        (window.currentUserProfile && window.currentUserProfile.name) || user.displayName || user.email || 'User',
+        user.email || '—'
+      );
+    } else {
+      setProfileHeader('Checking account...', 'Please wait');
+    }
+  }
+
+  async function loadUserProfile(user){
+    var profile = {};
+    try {
+      if (user && window.firebase && firebase.firestore) {
+        var snap = await firebase.firestore().collection('users').doc(user.uid).get();
+        if (snap && snap.exists) profile = snap.data() || {};
+      }
+    } catch (e) {
+      console.warn('[ProfileRefreshFix] Could not load Firestore profile', e);
+    }
+    if (user) {
+      profile = Object.assign({}, profile, {
+        uid: user.uid,
+        email: profile.email || user.email || '',
+        name: profile.name || user.displayName || user.email || 'User',
+        photoURL: profile.photoURL || user.photoURL || ''
+      });
+      window.currentUserProfile = profile;
+    }
+    return profile;
+  }
+
+  async function refreshProfileFromAuth(user){
+    if (user) {
+      window.currentUser = user;
+      var profile = await loadUserProfile(user);
+      setProfileHeader(profile.name || user.displayName || user.email || 'User', profile.email || user.email || '—');
+    } else {
+      window.currentUser = null;
+      window.currentUserProfile = null;
+      setProfileHeader('Guest User', '—');
+    }
+  }
+
+  function isProfilePageActive(){
+    var page = getEl('page-profile');
+    return !!(page && page.classList.contains('active'));
+  }
+
+  function hookShowPage(){
+    if (typeof window.showPage !== 'function') {
+      setTimeout(hookShowPage, 100);
+      return;
+    }
+    if (window.showPage.__gfyProfileRefreshHooked) return;
+    var originalShowPage = window.showPage;
+    window.showPage = function(page){
+      if (page === 'profile' && !window.gfyProfileAuthResolved) {
+        window.gfyPendingProfileAfterAuth = true;
+        setProfileChecking();
+        return originalShowPage.call(this, 'auth-loading');
+      }
+      var result = originalShowPage.apply(this, arguments);
+      if (page === 'profile') {
+        setTimeout(function(){
+          var user = (window.currentUser) || (window.firebase && firebase.auth && firebase.auth().currentUser) || null;
+          if (!window.gfyProfileAuthResolved) setProfileChecking();
+          else refreshProfileFromAuth(user);
+        }, 0);
+      }
+      return result;
+    };
+    window.showPage.__gfyProfileRefreshHooked = true;
+  }
+
+  function initAuthListener(){
+    if (!window.firebase || !firebase.auth || !firebase.firestore) {
+      setTimeout(initAuthListener, 200);
+      return;
+    }
+    try {
+      firebase.auth().onAuthStateChanged(async function(user){
+        window.gfyProfileAuthResolved = true;
+        window.authStateReady = true;
+        await refreshProfileFromAuth(user || null);
+
+        if (window.gfyPendingProfileAfterAuth) {
+          window.gfyPendingProfileAfterAuth = false;
+          if (user) {
+            setTimeout(function(){ if (typeof window.showPage === 'function') window.showPage('profile'); }, 0);
+          } else {
+            setTimeout(function(){ if (typeof window.showPage === 'function') window.showPage('login'); }, 0);
+          }
+        } else if (isProfilePageActive()) {
+          await refreshProfileFromAuth(user || null);
+        }
+      });
+    } catch (e) {
+      console.warn('[ProfileRefreshFix] Auth listener failed', e);
+    }
+  }
+
+  // If the saved page is Profile, do not allow the static Guest UI to flash before auth resolves.
+  try {
+    var saved = localStorage.getItem('currentPage') || localStorage.getItem('activePage') || '';
+    if (saved === 'profile' && !window.authStateReady) {
+      window.gfyPendingProfileAfterAuth = true;
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setProfileChecking, { once: true });
+      } else {
+        setProfileChecking();
+      }
+    }
+  } catch(e) {}
+
+  hookShowPage();
+  initAuthListener();
+})();
+</script>
+
 </body>
 </html>

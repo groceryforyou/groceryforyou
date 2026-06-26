@@ -2758,15 +2758,6 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
       <button id="admin-otab-rejected" class="orders-tab" data-orders-status-tab="rejected" onclick="filterOrdersByTab('rejected')">❌ Rejected</button>
       <button id="admin-otab-all" class="orders-tab" data-orders-status-tab="all" onclick="filterOrdersByTab('all')">📋 All Orders</button>
     </div>
-    <div id="admin-orders-search-panel" class="admin-orders-search-panel" style="display:block;margin-bottom:14px">
-      <div class="admin-orders-search-wrap">
-        <span class="admin-orders-search-icon">🔎</span>
-        <input id="admin-orders-search-input" class="admin-orders-search-input" type="search" placeholder="Search order ID, customer, phone, address, item, status..." autocomplete="off" />
-        <button id="admin-orders-search-button" class="admin-orders-search-clear" type="button" onclick="applyAdminOrdersSearch()">Search</button>
-        <button id="admin-orders-search-clear" class="admin-orders-search-clear" type="button" onclick="clearAdminOrdersSearch()" style="display:none">Clear</button>
-      </div>
-      <div id="admin-orders-search-count" class="admin-orders-search-count"></div>
-    </div>
     <div class="revenue-section">
       <div class="transaction-list" id="admin-orders-list"></div>
     </div>
@@ -3466,6 +3457,15 @@ document.addEventListener('DOMContentLoaded', () => {
         <button id="otab-delivered" class="orders-tab" data-orders-status-tab="delivered" onclick="filterOrdersByTab('delivered')">✅ Delivered</button>
         <button id="otab-rejected" class="orders-tab" data-orders-status-tab="rejected" onclick="filterOrdersByTab('rejected')">❌ Rejected</button>
         <button id="otab-all"  class="orders-tab" data-orders-status-tab="all" onclick="filterOrdersByTab('all')">📋 All Orders</button>
+      </div>
+      <div id="admin-orders-search-panel" class="admin-orders-search-panel" style="display:none">
+        <div class="admin-orders-search-wrap">
+          <span class="admin-orders-search-icon">🔎</span>
+          <input id="admin-orders-search-input" class="admin-orders-search-input" type="search" placeholder="Search order ID, customer, phone, address, item, status..." autocomplete="off" />
+          <button id="admin-orders-search-button" class="admin-orders-search-clear" type="button" onclick="applyAdminOrdersSearch()">Search</button>
+          <button id="admin-orders-search-clear" class="admin-orders-search-clear" type="button" onclick="clearAdminOrdersSearch()" style="display:none">Clear</button>
+        </div>
+        <div id="admin-orders-search-count" class="admin-orders-search-count"></div>
       </div>
       <div id="orders-list"></div>
     </div>
@@ -11261,87 +11261,6 @@ document.addEventListener('click', function(e) {
   } else {
     bindAdminOrdersSearch();
   }
-})();
-</script>
-
-
-<script>
-/* GFY ADMIN MY ORDERS SEARCH: added only for admin Orders page.
-   It filters the already-loaded _allOrders array and lets the existing
-   renderOrdersByTab/renderOrdersList functions keep the original order-card UI. */
-(function(){
-  window.__gfyAdminOrdersSearchText = window.__gfyAdminOrdersSearchText || '';
-
-  function gfyOrderSearchText(order){
-    try{
-      const parts = [];
-      const add = v => {
-        if (v === null || v === undefined) return;
-        if (typeof v === 'object') {
-          if (Array.isArray(v)) v.forEach(add);
-          else Object.keys(v).forEach(k => add(v[k]));
-        } else {
-          parts.push(String(v));
-        }
-      };
-      ['id','orderId','customerName','name','customerPhone','phone','customerEmail','email',
-       'address','deliveryAddress','landmark','status','paymentMethod','paymentStatus','note',
-       'total','grandTotal','amount'].forEach(k => add(order && order[k]));
-      add(order && order.items);
-      return parts.join(' ').toLowerCase();
-    }catch(e){
-      return '';
-    }
-  }
-
-  window.filterAdminOrdersSearch = function(orders){
-    const q = (window.__gfyAdminOrdersSearchText || '').trim().toLowerCase();
-    if (!q) return orders || [];
-    const terms = q.split(/\s+/).filter(Boolean);
-    return (orders || []).filter(order => {
-      const haystack = gfyOrderSearchText(order);
-      return terms.every(term => haystack.includes(term));
-    });
-  };
-
-  window.updateAdminOrdersSearchCount = function(count){
-    const countEl = document.getElementById('admin-orders-search-count');
-    const clearBtn = document.getElementById('admin-orders-search-clear');
-    const input = document.getElementById('admin-orders-search-input');
-    const q = (window.__gfyAdminOrdersSearchText || '').trim();
-    if (clearBtn) clearBtn.style.display = q ? 'inline-flex' : 'none';
-    if (input && input.value !== q) input.value = q;
-    if (countEl) countEl.textContent = q ? (count + ' matching order' + (count === 1 ? '' : 's')) : '';
-  };
-
-  window.applyAdminOrdersSearch = function(){
-    const input = document.getElementById('admin-orders-search-input');
-    window.__gfyAdminOrdersSearchText = input ? input.value.trim() : '';
-    if (typeof renderOrdersByTab === 'function') renderOrdersByTab(typeof _currentOrderTab !== 'undefined' ? _currentOrderTab : 'active');
-  };
-
-  window.clearAdminOrdersSearch = function(){
-    window.__gfyAdminOrdersSearchText = '';
-    const input = document.getElementById('admin-orders-search-input');
-    if (input) input.value = '';
-    if (typeof renderOrdersByTab === 'function') renderOrdersByTab(typeof _currentOrderTab !== 'undefined' ? _currentOrderTab : 'active');
-  };
-
-  document.addEventListener('DOMContentLoaded', function(){
-    const input = document.getElementById('admin-orders-search-input');
-    if (!input || input.dataset.gfySearchBound === '1') return;
-    input.dataset.gfySearchBound = '1';
-    input.addEventListener('keydown', function(e){
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        window.applyAdminOrdersSearch();
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        window.clearAdminOrdersSearch();
-      }
-    });
-  });
 })();
 </script>
 

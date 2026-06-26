@@ -1738,33 +1738,26 @@ body.support-create-ticket-mode #support-form-section{
 }
 
 
-
-/* ===== GFY CATEGORY + ITEM SUB-LABEL FIX ===== */
-.card-type{
+/* GFY SUB-LABEL FIX */
+.card-type,
+.gfy-item-sub-label{
   display:block!important;
   visibility:visible!important;
-  opacity:1!important;
-  min-height:14px;
-  margin-top:4px!important;
-  color:#6b7f70!important;
+  font-size:.72rem!important;
+  color:#6a7a6d!important;
+  margin-top:3px!important;
+  line-height:1.25!important;
   text-transform:none!important;
   letter-spacing:.2px!important;
-  font-size:.75rem!important;
   font-weight:700!important;
 }
-.gfy-cat-sub-label{
-  margin:-10px 0 16px 16px;
-  color:#6b7f70;
-  font-size:.88rem;
-  line-height:1.35;
-  font-weight:700;
-}
-.gfy-manage-cat-sub{
-  margin-top:3px;
-  color:#6b7f70;
-  font-size:.76rem;
-  line-height:1.25;
-  font-weight:700;
+.gfy-category-sub-label{
+  display:block!important;
+  font-family:var(--site-font)!important;
+  font-size:.78rem!important;
+  color:#6f7f70!important;
+  margin:4px 0 10px 16px!important;
+  font-weight:700!important;
 }
 
 </style>
@@ -1773,6 +1766,24 @@ body.support-create-ticket-mode #support-form-section{
 <script>
 /* GFY FIX: On refresh, never show Sign In until Firebase auth state is resolved. */
 window.authStateReady = false;
+
+/* GFY SAFE STARTUP GUARDS: prevent old missing helper calls from breaking page render. */
+window.setMenuLoadingState = window.setMenuLoadingState || function(isLoading, message) {
+  try {
+    var container = document.getElementById('menu-sections-container');
+    if (!container) return;
+    if (isLoading) {
+      container.dataset.loading = 'true';
+      if (!container.innerHTML.trim()) {
+        container.innerHTML = '<div class="empty-cat-msg"><div class="big">⏳</div><div>' + (message || 'Loading...') + '</div></div>';
+      }
+    } else {
+      if (container.dataset.loading === 'true') container.innerHTML = '';
+      container.dataset.loading = 'false';
+    }
+  } catch (e) {}
+};
+window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 </script>
 <!-- Offline Banner -->
 <div id="offline-banner"><span class="ob-icon">📡</span> No internet connection. Please check your network.</div>
@@ -3221,8 +3232,8 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="cat-modal-body">
       <label class="aip-label" for="new-cat-name">Category Name *</label>
       <input class="aip-input" type="text" id="new-cat-name" placeholder="e.g. Special Grocerys, Drinks..." style="margin-bottom:12px"/>
-      <label class="aip-label" for="new-cat-sub-label">Category Sub-label</label>
-      <input class="aip-input" type="text" id="new-cat-sub-label" placeholder="e.g. Fresh picks, daily essentials" style="margin-bottom:12px"/>
+      <label class="aip-label" for="new-cat-sublabel">Sub-label</label>
+      <input class="aip-input" type="text" id="new-cat-sublabel" placeholder="e.g. Fresh vegetables and daily essentials" style="margin-bottom:12px"/>
       <label class="aip-label" for="new-cat-emoji-custom">Choose Icon</label>
       <div class="cat-emoji-row" id="cat-emoji-row"></div>
       <input class="aip-input" type="text" id="new-cat-emoji-custom" placeholder="Or type any emoji: 🥙"/>
@@ -3263,8 +3274,8 @@ document.addEventListener('DOMContentLoaded', () => {
       <input type="hidden" id="edit-cat-id" />
       <label class="aip-label" for="edit-cat-name">Category Name *</label>
       <input class="aip-input" type="text" id="edit-cat-name" placeholder="e.g. Special Grocerys" style="margin-bottom:12px"/>
-      <label class="aip-label" for="edit-cat-sub-label">Category Sub-label</label>
-      <input class="aip-input" type="text" id="edit-cat-sub-label" placeholder="e.g. Fresh picks, daily essentials" style="margin-bottom:12px"/>
+      <label class="aip-label" for="edit-cat-sublabel">Sub-label</label>
+      <input class="aip-input" type="text" id="edit-cat-sublabel" placeholder="e.g. Fresh vegetables and daily essentials" style="margin-bottom:12px"/>
       <label class="aip-label" for="edit-cat-emoji-custom">Choose Icon</label>
       <div class="cat-emoji-row" id="edit-cat-emoji-row"></div>
       <input class="aip-input" type="text" id="edit-cat-emoji-custom" placeholder="Or type any emoji: 🥙"/>
@@ -7519,6 +7530,10 @@ window.updateOrderCardStatus = updateOrderCardStatus;
             <input type="number" id="edit-item-price" class="aip-input" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff;" />
           </div>
           <div style="margin-bottom: 12px;">
+            <label class="aip-label" for="edit-item-type" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Sub-label</label>
+            <input type="text" id="edit-item-type" class="aip-input" placeholder="e.g. 500g bag" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff;" />
+          </div>
+          <div style="margin-bottom: 12px;">
             <label class="aip-label" for="edit-item-stock" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Stock Status</label>
             <select id="edit-item-stock" class="aip-select" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff; cursor: pointer;">
               <option value="1">✅ In Stock</option>
@@ -7548,6 +7563,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     
     document.getElementById('edit-item-name').value = item.name || '';
     document.getElementById('edit-item-price').value = item.price || 0;
+    var editItemType = document.getElementById('edit-item-type');
+    if (editItemType) editItemType.value = item.type || item.description || '';
     document.getElementById('edit-item-stock').value = item.inStock ? '1' : '0';
     document.getElementById('edit-item-id').value = itemId;
 
@@ -7587,10 +7604,12 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const catSelect = document.getElementById('aip-cat');
     const emojiCustom = document.getElementById('aip-emoji-custom');
     const stockSelect = document.getElementById('aip-stock');
+    const typeInput = document.getElementById('aip-type');
 
     const name = nameInput ? nameInput.value.trim() : '';
     const price = priceInput ? parseFloat(priceInput.value) : 0;
     const category = catSelect ? catSelect.value : '';
+    const type = typeInput ? typeInput.value.trim() : '';
     const emojiCustomVal = (emojiCustom && emojiCustom.value.trim()) || '';
     const emoji = emojiCustomVal || (window.selectedEmoji ? String(window.selectedEmoji).trim() : '') || '🍎';
     console.log('[AddItem] Emoji saved:', emoji);
@@ -7631,8 +7650,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         catId: category,
         inStock,
         emoji,
-        description: '',
-        type: '',
+        description: type,
+        type: type,
         image: '',
         discount: 0,
         rating: 5.0,
@@ -7647,6 +7666,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       if (nameInput) nameInput.value = '';
       if (priceInput) priceInput.value = '';
       if (emojiCustom) emojiCustom.value = '';
+      if (typeInput) typeInput.value = '';
       if (stockSelect) stockSelect.value = '1';
       
       window.selectedEmoji = '🍽';
@@ -7693,6 +7713,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const itemId = document.getElementById('edit-item-id').value;
     const name = document.getElementById('edit-item-name').value.trim();
     const price = parseFloat(document.getElementById('edit-item-price').value);
+    const typeInput = document.getElementById('edit-item-type');
+    const type = typeInput ? typeInput.value.trim() : '';
     const inStock = document.getElementById('edit-item-stock').value === '1';
 
     if (!name) {
@@ -7716,6 +7738,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       await updateDoc(doc(firebaseDB, "menuItems", itemId), {
         name,
         price,
+        description: type,
+        type: type,
         inStock,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -7797,11 +7821,11 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     }
     const nameInput = document.getElementById('new-cat-name');
     const emojiInput = document.getElementById('new-cat-emoji-custom');
-    const subLabelInput = document.getElementById('new-cat-sub-label');
+    const subLabelInput = document.getElementById('new-cat-sublabel');
     
     const name = nameInput ? nameInput.value.trim() : '';
-    const subLabel = subLabelInput ? subLabelInput.value.trim() : '';
     const emoji = (emojiInput && emojiInput.value.trim()) || window.selectedCatEmoji || '📂';
+    const subLabel = subLabelInput ? subLabelInput.value.trim() : '';
 
     if (!name) {
       if (nameInput) nameInput.focus();
@@ -7851,12 +7875,9 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     
     listContainer.innerHTML = allCats.map(cat => `
       <div style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--cream); border:1.5px solid var(--border); border-radius:12px; gap:10px;">
-        <div style="display:flex; align-items:flex-start; gap:8px; min-width:0; flex:1;">
-          <span style="font-size:1.3rem; flex-shrink:0;">${cat.emoji}</span>
-          <div style="min-width:0;">
-            <div style="font-weight:700; color:var(--brown); font-size:.9rem;">${cat.name}</div>
-            ${cat.subLabel ? `<div class="gfy-manage-cat-sub">${cat.subLabel}</div>` : ''}
-          </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:1.3rem;">${cat.emoji}</span>
+          <span style="font-weight:700; color:var(--brown); font-size:.9rem;">${cat.name}</span>${(cat.subLabel || cat.subtitle || cat.description) ? `<span style="display:block;font-size:.72rem;color:#777;margin-top:2px;">${cat.subLabel || cat.subtitle || cat.description}</span>` : ``}
         </div>
         <div style="display:flex; gap:6px;">
           <button onclick="openEditCatModal('${cat.id}')" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Edit Category">✏️</button>
@@ -7886,11 +7907,11 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const editId = document.getElementById('edit-cat-id');
     const editName = document.getElementById('edit-cat-name');
     const editEmoji = document.getElementById('edit-cat-emoji-custom');
-    const editSubLabel = document.getElementById('edit-cat-sub-label');
+    const editSubLabel = document.getElementById('edit-cat-sublabel');
     if (editId) editId.value = cat.id;
     if (editName) editName.value = cat.name;
     if (editEmoji) editEmoji.value = cat.emoji;
-    if (editSubLabel) editSubLabel.value = cat.subLabel || '';
+    if (editSubLabel) editSubLabel.value = cat.subLabel || cat.subtitle || cat.description || '';
     window.selectedEditCatEmoji = cat.emoji;
  
     // Render emojis in the row
@@ -7935,11 +7956,11 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const catId = document.getElementById('edit-cat-id').value;
     const nameInput = document.getElementById('edit-cat-name');
     const emojiInput = document.getElementById('edit-cat-emoji-custom');
-    const subLabelInput = document.getElementById('edit-cat-sub-label');
+    const subLabelInput = document.getElementById('edit-cat-sublabel');
 
     const name = nameInput ? nameInput.value.trim() : '';
-    const subLabel = subLabelInput ? subLabelInput.value.trim() : '';
     const emoji = (emojiInput && emojiInput.value.trim()) || window.selectedEditCatEmoji || '📂';
+    const subLabel = subLabelInput ? subLabelInput.value.trim() : '';
 
     if (!name) {
       if (typeof showToast === 'function') showToast('⚠️ Category name is required');
@@ -8120,7 +8141,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
               id: doc.id,
               name: data.name || '',
               emoji: data.emoji || '📂',
-              subLabel: data.subLabel || data.sub_label || data.subtitle || data.description || '',
+              subLabel: data.subLabel || data.subtitle || data.description || '',
               deleted: data.deleted === true
             });
           });
@@ -8243,8 +8264,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
             catId: category, // compatibility catId mapping
             inStock: data.inStock !== false,
             emoji: data.emoji || '🍎',
-            description: data.description || '',
-            type: data.description || '', // backward compatible description holder
+            description: data.type || data.description || '',
+            type: data.type || data.description || '', // backward compatible sub-label holder
             rating: typeof data.rating === 'number' ? data.rating : 5.0,
             ratingCount: typeof data.ratingCount === 'number' ? data.ratingCount : 5,
             image: data.image || '',
@@ -10586,93 +10607,87 @@ document.addEventListener('click', function(e) {
 </script>
 
 
-
 <script>
-/* ===== GFY: show item sub-labels to customers + category sub-labels after render ===== */
+/* GFY SUB-LABEL RUNTIME ENHANCER: non-duplicating patch for existing rendered menu cards and category sections. */
 (function(){
   function esc(s){
-    return String(s == null ? '' : s).replace(/[&<>'"]/g,function(c){
-      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c] || c;
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(ch){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch];
     });
   }
-  function getCats(){ return Array.isArray(window.categories) ? window.categories : []; }
-  function getItems(){ return Array.isArray(window.items) ? window.items : []; }
+  function itemSubLabel(item){ return (item && (item.type || item.description || item.subLabel || item.subtitle || '') || '').trim(); }
+  function catSubLabel(cat){ return (cat && (cat.subLabel || cat.subtitle || cat.description || '') || '').trim(); }
 
-  function applyVisibleSubLabels(){
-    try{
-      getItems().forEach(function(item){
-        if(!item || !item.id) return;
+  window.gfyApplySubLabels = function(){
+    try {
+      var items = Array.isArray(window.items) ? window.items : [];
+      var cats = Array.isArray(window.categories) ? window.categories : [];
+
+      cats.forEach(function(cat){
+        var sec = document.getElementById('section-' + cat.id) || document.getElementById('sec-' + cat.id);
+        if (!sec) return;
+        var label = catSubLabel(cat);
+        var old = sec.querySelector('.gfy-category-sub-label');
+        if (!label) { if (old) old.remove(); return; }
+        if (!old) {
+          old = document.createElement('div');
+          old.className = 'gfy-category-sub-label';
+          var title = sec.querySelector('.section-title');
+          if (title && title.parentNode) title.insertAdjacentElement('afterend', old);
+          else sec.insertBefore(old, sec.firstChild);
+        }
+        old.textContent = label;
+      });
+
+      items.forEach(function(item){
         var card = document.getElementById('mcard-' + item.id);
-        if(!card) return;
-        var holder = card.querySelector('.card-header > div:first-child') || card.querySelector('.card-header') || card;
-        var label = card.querySelector('.card-type');
-        if(!label){
-          label = document.createElement('div');
-          label.className = 'card-type';
-          holder.appendChild(label);
-        }
-        var text = item.type || item.subLabel || item.sub_label || item.label || '';
-        if(text){
-          label.textContent = text;
-          label.style.display = 'block';
-        }else{
-          label.textContent = '';
-          label.style.display = 'none';
-        }
-      });
+        if (!card) return;
+        var label = itemSubLabel(item);
+        var existing = card.querySelector('.gfy-item-sub-label');
+        if (!label) { if (existing) existing.remove(); return; }
 
-      getCats().forEach(function(cat){
-        if(!cat || !cat.id) return;
-        var text = cat.subLabel || cat.sub_label || cat.subtitle || cat.description || '';
-        var section = document.getElementById('msec-' + cat.id) || document.getElementById('section-' + cat.id);
-        if(!section){
-          var titles = document.querySelectorAll('#menu-container .section-title, .menu-section .section-title, .section-title');
-          Array.prototype.some.call(titles,function(t){
-            if((t.textContent || '').indexOf(cat.name || '') !== -1){ section = t.closest('.menu-section') || t.parentElement; return true; }
-            return false;
-          });
+        var typeEl = card.querySelector('.card-type');
+        if (typeEl) {
+          typeEl.textContent = label;
+          typeEl.style.display = 'block';
+          return;
         }
-        if(!section) return;
-        var existing = section.querySelector('.gfy-cat-sub-label');
-        if(text){
-          if(!existing){
-            existing = document.createElement('div');
-            existing.className = 'gfy-cat-sub-label';
-            var title = section.querySelector('.section-title') || section.firstElementChild;
-            if(title && title.parentNode) title.insertAdjacentElement('afterend', existing);
-            else section.insertBefore(existing, section.firstChild);
-          }
-          existing.textContent = text;
-        }else if(existing){
-          existing.remove();
+        if (!existing) {
+          existing = document.createElement('div');
+          existing.className = 'gfy-item-sub-label';
+          var nameEl = card.querySelector('.card-name');
+          if (nameEl && nameEl.parentNode) nameEl.insertAdjacentElement('afterend', existing);
+          else card.insertBefore(existing, card.firstChild);
         }
+        existing.textContent = label;
       });
-    }catch(e){ console.warn('[GFYSubLabel] display apply failed', e); }
-  }
-
-  function hookRender(){
-    if(typeof window.renderMenuPage === 'function' && !window.__gfySubLabelRenderHooked){
-      var originalRenderMenuPage = window.renderMenuPage;
-      window.renderMenuPage = function(){
-        var result = originalRenderMenuPage.apply(this, arguments);
-        setTimeout(applyVisibleSubLabels, 0);
-        return result;
-      };
-      window.__gfySubLabelRenderHooked = true;
+    } catch(e) {
+      console.warn('[GFYSubLabel] apply skipped:', e);
     }
+  };
+
+  function wrapRender(name){
+    var fn = window[name];
+    if (typeof fn !== 'function' || fn.__gfySubLabelWrapped) return;
+    var wrapped = function(){
+      var result = fn.apply(this, arguments);
+      setTimeout(window.gfyApplySubLabels, 0);
+      return result;
+    };
+    wrapped.__gfySubLabelWrapped = true;
+    window[name] = wrapped;
   }
 
-  document.addEventListener('DOMContentLoaded', function(){
-    hookRender();
-    setTimeout(applyVisibleSubLabels, 300);
-    setTimeout(applyVisibleSubLabels, 1200);
-  });
-  window.addEventListener('load', function(){
-    hookRender();
-    applyVisibleSubLabels();
-  });
-  window.gfyApplyVisibleSubLabels = applyVisibleSubLabels;
-  setTimeout(hookRender, 800);
+  function install(){
+    wrapRender('renderMenuPage');
+    wrapRender('renderCatGrid');
+    wrapRender('renderManagePage');
+    window.gfyApplySubLabels();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(install, 0); });
+  else setTimeout(install, 0);
+  setInterval(function(){ wrapRender('renderMenuPage'); wrapRender('renderCatGrid'); }, 1500);
 })();
 </script>
 

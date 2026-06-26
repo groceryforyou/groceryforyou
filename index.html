@@ -9308,32 +9308,25 @@ window.addEventListener('load', function() {
 })();
 </script>
 
-<!-- Customer multi-order tracking UI: renders only fresh Firestore active orders for signed-in customer -->
+<!-- Customer multi-order tracking UI: fresh Firestore multi-active-order renderer -->
 <script>
 (function customerTrackingUI(){
   'use strict';
 
   let _queryUnsub = null;
-  const _perOrderUnsubs = new Map();
   let _hasFreshSnapshot = false;
   let _activeUid = null;
+  let _latestActiveOrders = [];
 
   const FINAL_STATUSES = new Set(['delivered','completed','cancelled','canceled','rejected']);
-  const ACTIVE_STATUSES = [
-    'pending',
-    'placed',
-    'order_placed',
-    'accepted',
-    'order_accepted',
-    'preparing',
-    'being_prepared',
-    'ready',
-    'order_ready',
-    'out_for_delivery'
-  ];
+  const ACTIVE_STATUSES = new Set([
+    'pending','placed','order_placed','waiting','waiting_for_restaurant',
+    'accepted','order_accepted','preparing','being_prepared','ready','order_ready',
+    'out_for_delivery','ofd'
+  ]);
 
   function normalizeTrackingStatus(raw){
-    return String(raw || '').toLowerCase().trim().replace(/[\s-]+/g, '_');
+    return String(raw || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   }
 
   function isFinalTrackingStatus(status){
@@ -9342,7 +9335,7 @@ window.addEventListener('load', function() {
 
   function isActiveTrackingStatus(status){
     const st = normalizeTrackingStatus(status);
-    return ACTIVE_STATUSES.includes(st) && !FINAL_STATUSES.has(st);
+    return !!st && !FINAL_STATUSES.has(st) && ACTIVE_STATUSES.has(st);
   }
 
   function escapeHtml(s){
@@ -9356,17 +9349,13 @@ window.addEventListener('load', function() {
   }
 
   function clearPossibleStaleOrderCache(){
-    // Do not delete Firestore order history. This only removes client-side active-order cache
-    // that can flash a delivered order during refresh before Firestore returns fresh data.
     const staleKeyPattern = /(active.*order|order.*active|current.*order|tracking.*order|last.*order|pending.*order|live.*order)/i;
     try {
       [localStorage, sessionStorage].forEach(function(store){
         if(!store) return;
         const keys = [];
         for(let i = 0; i < store.length; i++) keys.push(store.key(i));
-        keys.forEach(function(key){
-          if(staleKeyPattern.test(key || '')) store.removeItem(key);
-        });
+        keys.forEach(function(key){ if(staleKeyPattern.test(key || '')) store.removeItem(key); });
       });
     } catch(e) {}
     try {
@@ -9378,164 +9367,136 @@ window.addEventListener('load', function() {
 
   function showLoading(){
     const root = trackingRoot();
-    if(!root) return;
-    root.innerHTML = '<div class="empty-cat-msg"><div class="big">📦</div>Checking active orders...</div>';
+    if(root) root.innerHTML = '<div class="empty-cat-msg"><div class="big">📦</div>Checking active orders...</div>';
   }
 
   function showEmpty(){
     const root = trackingRoot();
-    if(!root) return;
-    root.innerHTML = '<div class="empty-cat-msg"><div class="big">📦</div>No active orders to track.</div>';
+    if(root) root.innerHTML = '<div class="empty-cat-msg"><div class="big">📦</div>No active orders to track.</div>';
   }
 
-  function ensureContainer(){
-    const root = trackingRoot();
-    let list = document.getElementById('gfy-tracking-list');
-    if(!list){
-      if(root) root.innerHTML = '';
-      list = document.createElement('div');
-      list.id = 'gfy-tracking-list';
-      list.style.cssText = 'display:flex;flex-direction:column;gap:12px;max-height:60vh;overflow:auto;padding:12px';
-      if(root && root.appendChild) root.appendChild(list);
-    }
-    return list;
+  function toMillis(v){
+    try {
+      if(v && typeof v.toDate === 'function') return v.toDate().getTime();
+      if(v) return new Date(v).getTime() || 0;
+    } catch(e) {}
+    return 0;
   }
 
-  function renderEmptyIfNoActive(){
-    const list = document.getElementById('gfy-tracking-list');
-    if(!list || !list.querySelector('[data-order-id]')) showEmpty();
+  function normalizedOrderForRender(entry){
+    const data = Object.assign({}, entry.data || {});
+    data.id = entry.id;
+    data.orderId = data.orderId || entry.id;
+    data.status = normalizeTrackingStatus(data.status || 'pending');
+    return data;
   }
 
-  function buildCard(orderId, data){
-    const card = document.createElement('div');
-    card.className = 'gfy-tracking-card';
-    card.dataset.orderId = orderId;
-    card.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 6px 20px rgba(0,0,0,0.06);color:#111';
-    const items = Array.isArray(data.items) ? data.items.map(i => `<div style="font-size:.9rem;margin:.12rem 0">${escapeHtml(i.name || i.title || 'Item')} × ${escapeHtml(i.qty || i.quantity || 1)}<span style="float:right;color:#666">₹${escapeHtml(i.price || 0)}</span></div>`).join('') : '';
-    const status = escapeHtml(data.status || '');
-    const displayId = escapeHtml(data.orderId || orderId);
-    const when = data.updatedAt && data.updatedAt.toDate ? data.updatedAt.toDate().toLocaleString() : (data.createdAt && data.createdAt.toDate ? data.createdAt.toDate().toLocaleString() : '');
-    card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:800;margin-bottom:6px">Order: <strong>${displayId}</strong> · <span style="color:#0b8457;font-weight:700">${status}</span></div>
-          <div style="font-size:.86rem;color:#444">${items || '<span style="color:#888">No line items</span>'}</div>
-        </div>
-        <div style="text-align:right;min-width:120px">
-          <div style="font-size:.78rem;color:#666">${escapeHtml(when)}</div>
-          <div style="margin-top:8px"><button onclick="showPage('orders')" style="background:#00b04e;color:#fff;border:none;padding:8px 10px;border-radius:8px;cursor:pointer">View</button></div>
-        </div>
-      </div>`;
-    return card;
-  }
+  function renderSingleOrderCard(entry){
+    const order = normalizedOrderForRender(entry);
+    const outer = document.createElement('div');
+    outer.className = 'gfy-tracking-card';
+    outer.dataset.orderId = entry.id;
+    outer.style.cssText = 'margin-bottom:18px;';
 
-  function updateOrCreateCard(orderId, data){
-    if(!data || !isActiveTrackingStatus(data.status)){
-      removeCard(orderId);
-      return null;
-    }
-    const list = ensureContainer();
-    let existing = list.querySelector(`[data-order-id="${CSS.escape(orderId)}"]`);
-    const freshCard = buildCard(orderId, data);
-    if(existing){
-      existing.replaceWith(freshCard);
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;padding:8px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;';
+    head.innerHTML = '<div style="font-weight:900;color:var(--brown)">📦 Order '+escapeHtml(order.orderId)+'</div><div style="font-size:.78rem;font-weight:800;color:var(--saffron);text-transform:capitalize">'+escapeHtml(order.status.replace(/_/g,' '))+'</div>';
+    outer.appendChild(head);
+
+    const body = document.createElement('div');
+    outer.appendChild(body);
+
+    if(typeof window.renderTrackingUI === 'function'){
+      try {
+        window.renderTrackingUI(body, order);
+      } catch(e) {
+        body.innerHTML = fallbackCard(order);
+      }
     } else {
-      list.appendChild(freshCard);
+      body.innerHTML = fallbackCard(order);
     }
-    return freshCard;
+    return outer;
   }
 
-  function removeCard(orderId){
-    const list = document.getElementById('gfy-tracking-list');
-    if(list){
-      const el = list.querySelector(`[data-order-id="${CSS.escape(orderId)}"]`);
-      if(el) el.remove();
-    }
-    if(_hasFreshSnapshot) renderEmptyIfNoActive();
+  function fallbackCard(order){
+    const items = Array.isArray(order.items) ? order.items.map(function(i){
+      return '<div style="font-size:.86rem;margin:.12rem 0">'+escapeHtml(i.name || i.title || 'Item')+' × '+escapeHtml(i.qty || i.quantity || 1)+'</div>';
+    }).join('') : '';
+    return '<div class="tracking-panel"><div style="font-weight:800;color:var(--brown);margin-bottom:8px">Status: '+escapeHtml((order.status||'pending').replace(/_/g,' '))+'</div>'+ (items || '<div style="color:#888;font-size:.85rem">No line items</div>') +'</div>';
   }
 
-  function detachPerOrder(id){
-    const u = _perOrderUnsubs.get(id);
-    if(u){ try { u(); } catch(e) {} }
-    _perOrderUnsubs.delete(id);
+  function renderLatestOrders(){
+    const root = trackingRoot();
+    if(!root) return;
+    clearPossibleStaleOrderCache();
+
+    if(!_hasFreshSnapshot){
+      showLoading();
+      return;
+    }
+
+    if(!_latestActiveOrders.length){
+      showEmpty();
+      return;
+    }
+
+    root.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.id = 'gfy-tracking-list';
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:12px;padding-bottom:10px;';
+    _latestActiveOrders.forEach(function(entry){ wrap.appendChild(renderSingleOrderCard(entry)); });
+    root.appendChild(wrap);
   }
 
   function startForUser(db, uid){
     if(!db || !uid) return;
     _activeUid = uid;
     _hasFreshSnapshot = false;
+    _latestActiveOrders = [];
 
     clearPossibleStaleOrderCache();
     showLoading();
 
     if(_queryUnsub){ try { _queryUnsub(); } catch(e) {} _queryUnsub = null; }
-    _perOrderUnsubs.forEach(function(u){ try { u(); } catch(e) {} });
-    _perOrderUnsubs.clear();
 
     try{
+      // Do not query by status. Status values in Firestore are mixed case/spacing
+      // (example: "Out for Delivery"), so filter statuses only after normalizing client-side.
       _queryUnsub = db.collection('orders')
         .where('customerUid', '==', uid)
-        .where('status', 'in', ACTIVE_STATUSES)
         .orderBy('createdAt', 'desc')
+        .limit(25)
         .onSnapshot(function(snap){
-          // Firestore may first return an old local cache after refresh. Do not render it.
+          if(_activeUid !== uid) return;
+
+          // Avoid refresh flash from local cache. First render only after fresh server snapshot.
           if(snap.metadata && snap.metadata.fromCache && !_hasFreshSnapshot){
             showLoading();
             return;
           }
 
-          _hasFreshSnapshot = true;
-          const seen = new Set();
           const activeDocs = [];
-
           snap.forEach(function(doc){
             const data = doc.data() || {};
-            const st = normalizeTrackingStatus(data.status);
-            if(isFinalTrackingStatus(st) || !isActiveTrackingStatus(st)) return;
-            seen.add(doc.id);
-            activeDocs.push({id: doc.id, data: data});
+            if(isActiveTrackingStatus(data.status)) activeDocs.push({id: doc.id, data: data});
           });
 
-          if(!activeDocs.length){
-            _perOrderUnsubs.forEach(function(u, id){ detachPerOrder(id); });
-            showEmpty();
-            return;
-          }
-
-          ensureContainer().innerHTML = '';
-          activeDocs.forEach(function(entry){
-            updateOrCreateCard(entry.id, entry.data);
-
-            if(!_perOrderUnsubs.has(entry.id)){
-              const unsub = db.collection('orders').doc(entry.id).onSnapshot(function(d){
-                if(_activeUid !== uid) return;
-                const od = d.data();
-                if(!od || isFinalTrackingStatus(od.status) || !isActiveTrackingStatus(od.status)){
-                  detachPerOrder(entry.id);
-                  removeCard(entry.id);
-                  clearPossibleStaleOrderCache();
-                  return;
-                }
-                updateOrCreateCard(entry.id, od);
-              }, function(e){ console.warn('[CustTrack] per-order listener error', e); });
-              _perOrderUnsubs.set(entry.id, unsub);
-            }
+          activeDocs.sort(function(a,b){
+            return toMillis(b.data.createdAt || b.data.updatedAt) - toMillis(a.data.createdAt || a.data.updatedAt);
           });
 
-          Array.from(_perOrderUnsubs.keys()).forEach(function(id){
-            if(!seen.has(id)){
-              detachPerOrder(id);
-              removeCard(id);
-            }
-          });
-          renderEmptyIfNoActive();
+          _latestActiveOrders = activeDocs;
+          _hasFreshSnapshot = true;
+          renderLatestOrders();
         }, function(err){
-          console.warn('[CustTrack] query error', err);
+          console.warn('[CustTrack] multi-order query error', err);
+          _latestActiveOrders = [];
           _hasFreshSnapshot = true;
           showEmpty();
         });
     } catch(e){
       console.error('[CustTrack] startForUser failed', e);
+      _latestActiveOrders = [];
       _hasFreshSnapshot = true;
       showEmpty();
     }
@@ -9543,34 +9504,61 @@ window.addEventListener('load', function() {
 
   function stopAll(){
     if(_queryUnsub){ try { _queryUnsub(); } catch(e) {} _queryUnsub = null; }
-    _perOrderUnsubs.forEach(function(u){ try { u(); } catch(e) {} });
-    _perOrderUnsubs.clear();
     _activeUid = null;
     _hasFreshSnapshot = false;
+    _latestActiveOrders = [];
     clearPossibleStaleOrderCache();
     showEmpty();
   }
 
-  // Clear stale tracking UI immediately on refresh, before any cached order can remain visible.
-  clearPossibleStaleOrderCache();
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', showLoading, {once:true});
-  } else {
-    showLoading();
+  function hookPageNavigation(){
+    const hook = function(){
+      const original = window.showPage;
+      if(typeof original !== 'function' || original.__gfyMultiTrackHooked){
+        if(typeof original !== 'function') setTimeout(hook, 300);
+        return;
+      }
+      function wrappedShowPage(page){
+        const result = original.apply(this, arguments);
+        if(page === 'tracking') setTimeout(renderLatestOrders, 0);
+        return result;
+      }
+      wrappedShowPage.__gfyMultiTrackHooked = true;
+      window.showPage = wrappedShowPage;
+    };
+    hook();
   }
+
+  function hookOldRenderTrackingPage(){
+    const hook = function(){
+      if(typeof window.renderTrackingPage !== 'function') { setTimeout(hook, 300); return; }
+      if(window.renderTrackingPage.__gfyMultiTrackHooked) return;
+      window.renderTrackingPage = function(){ renderLatestOrders(); };
+      window.renderTrackingPage.__gfyMultiTrackHooked = true;
+    };
+    hook();
+  }
+
+  clearPossibleStaleOrderCache();
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showLoading, {once:true});
+  else showLoading();
 
   (function hookAuth(){
     const tryHook = function(){
       if(typeof firebase === 'undefined' || !firebase.auth || !firebase.firestore){ setTimeout(tryHook, 600); return; }
-      const db = firebase.firestore();
+      const fdb = firebase.firestore();
       firebase.auth().onAuthStateChanged(function(user){
-        if(user && user.uid) startForUser(db, user.uid);
+        if(user && user.uid) startForUser(fdb, user.uid);
         else stopAll();
       });
     };
     tryHook();
   })();
 
+  hookPageNavigation();
+  hookOldRenderTrackingPage();
+
+  window._gfyRenderCustomerMultiTracking = renderLatestOrders;
   window._gfyStopCustomerTrackingUI = stopAll;
 })();
 </script>

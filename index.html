@@ -1725,18 +1725,6 @@ body.support-create-ticket-mode #support-form-section{
   visibility:visible!important;
 }
 
-
-
-/* FIX: Do not show auth checking splash on refresh.
-   Keep login hidden until Firebase confirms signed-out; app/auth logic will activate login when needed. */
-#page-auth-loading,
-#page-auth-loading.active{
-  display:none!important;
-  opacity:0!important;
-  pointer-events:none!important;
-  visibility:hidden!important;
-}
-
 </style>
 </head>
 <body>
@@ -10510,31 +10498,6 @@ document.addEventListener('click', function(e) {
   });
 
   setTimeout(hookShowPage, 800);
-})();
-</script>
-
-
-<script>
-/* FIX: suppress refresh auth-loading screen */
-(function(){
-  function hideAuthSplash(){
-    var el=document.getElementById('page-auth-loading');
-    if(el){
-      el.classList.remove('active');
-      el.style.setProperty('display','none','important');
-      el.style.setProperty('opacity','0','important');
-      el.style.setProperty('visibility','hidden','important');
-      el.setAttribute('aria-hidden','true');
-    }
-  }
-  hideAuthSplash();
-  document.addEventListener('DOMContentLoaded', hideAuthSplash);
-  window.addEventListener('load', hideAuthSplash);
-  var obs=new MutationObserver(hideAuthSplash);
-  document.addEventListener('DOMContentLoaded', function(){
-    var el=document.getElementById('page-auth-loading');
-    if(el) obs.observe(el,{attributes:true,attributeFilter:['class','style']});
-  });
 })();
 </script>
 

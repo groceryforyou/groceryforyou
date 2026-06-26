@@ -1713,6 +1713,18 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
   display:flex!important;
 }
 
+
+
+/* FIX: while creating a support ticket, never show previous/raised tickets. */
+body.support-create-ticket-mode #support-tickets-list{
+  display:none!important;
+  visibility:hidden!important;
+}
+body.support-create-ticket-mode #support-form-section{
+  display:grid!important;
+  visibility:visible!important;
+}
+
 </style>
 </head>
 <body>
@@ -4086,11 +4098,34 @@ function toggleSidebar() {
 
   let _supportFormOpen = false;
 
+  function hideRaisedTicketsWhileCreating() {
+    _supportFormOpen = true;
+    document.body.classList.add('support-create-ticket-mode');
+    const tl = ticketsList();
+    if (tl) {
+      tl.style.setProperty('display', 'none', 'important');
+      tl.style.setProperty('visibility', 'hidden', 'important');
+    }
+  }
+
+  function allowRaisedTicketsAfterSubmit() {
+    _supportFormOpen = false;
+    document.body.classList.remove('support-create-ticket-mode');
+    const tl = ticketsList();
+    if (tl) {
+      tl.style.removeProperty('visibility');
+      tl.style.removeProperty('display');
+    }
+  }
+
   /* ── show ticket list, hide form ── */
   function showTicketList() {
-    _supportFormOpen = false;
+    allowRaisedTicketsAfterSubmit();
     const tl = ticketsList(), fs = formSection();
-    if (tl) { tl.style.display = 'grid'; }
+    if (tl) {
+      tl.style.removeProperty('visibility');
+      tl.style.setProperty('display', 'grid', 'important');
+    }
     if (fs) { fs.style.display = 'none'; }
     if (newBtn())   newBtn().style.display   = 'inline-flex';
     if (cancelBtn()) cancelBtn().style.display = 'none';
@@ -4098,10 +4133,13 @@ function toggleSidebar() {
 
   /* ── show form only (for new ticket) ── */
   function showTicketForm() {
-    _supportFormOpen = true;
+    hideRaisedTicketsWhileCreating();
     const tl = ticketsList(), fs = formSection();
-    if (tl) tl.style.display = 'none'; // Do not show raised tickets while creating a new ticket
-    if (fs) { fs.style.display = 'grid'; }
+    if (tl) {
+      tl.style.setProperty('display', 'none', 'important');
+      tl.style.setProperty('visibility', 'hidden', 'important');
+    }
+    if (fs) { fs.style.setProperty('display', 'grid', 'important'); }
     if (cancelBtn()) cancelBtn().style.display = 'inline-flex';
     if (newBtn())    newBtn().style.display    = 'none';
   }
@@ -4138,6 +4176,11 @@ function toggleSidebar() {
 
     // Wait for db + auth to be ready (Firebase loads deferred)
     if (typeof db === 'undefined' || !db) {
+      if (_supportFormOpen) {
+        hideRaisedTicketsWhileCreating();
+        setTimeout(loadTickets, 1200);
+        return;
+      }
       tl.innerHTML = '<div class="empty-cat-msg"><div class="big">⏳</div>Loading...</div>';
       tl.style.display = 'grid';
       setTimeout(loadTickets, 1200);
@@ -4157,7 +4200,11 @@ function toggleSidebar() {
     if (newBtn()) newBtn().style.display = 'inline-flex';
 
     tl.innerHTML = '<div class="empty-cat-msg"><div class="big">⏳</div>Loading your tickets...</div>';
-    tl.style.display = 'grid';
+    if (_supportFormOpen) {
+      hideRaisedTicketsWhileCreating();
+    } else {
+      tl.style.display = 'grid';
+    }
 
     try {
       const snap = await db.collection('support')
@@ -4250,6 +4297,7 @@ function toggleSidebar() {
     };
 
     window.closeSupportForm = function(...args) {
+      allowRaisedTicketsAfterSubmit();
       if (typeof origClose === 'function') origClose.apply(this, args);
       // After closing form, reload tickets so the list shows
       setTimeout(loadTickets, 100);
@@ -4263,6 +4311,8 @@ function toggleSidebar() {
       try {
         const result = await submitSupportTicketInternal(...args);
         console.log('[TicketSubmit] ✅ Submission completed successfully');
+        allowRaisedTicketsAfterSubmit();
+        showTicketList();
         // Reload after a short delay to let Firestore write settle
         setTimeout(() => { loadTickets(); }, 800);
         return result;

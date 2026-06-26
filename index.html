@@ -1706,18 +1706,18 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
 }
 .gfy-wave-hand{
   position:absolute;
-  right:18px;
-  top:72px;
-  font-size:30px;
+  left:17px;
+  top:70px;
+  font-size:31px;
   line-height:1;
   z-index:8;
-  transform-origin:20% 85%;
+  transform-origin:82% 86%;
   opacity:0;
   filter:drop-shadow(0 4px 5px rgba(0,0,0,.2));
   pointer-events:none;
 }
 .gfy-profile-avatar-wrap.gfy-say-hi .gfy-wave-hand{
-  animation:gfyAvatarWaveHand 1.45s ease-in-out .62s 2 both;
+  animation:gfyAvatarLeftHandWave 1.35s ease-in-out .62s 3 both, gfyAvatarLeftHandIdle 2.2s ease-in-out 4.8s infinite;
 }
 .gfy-hi-bubble{
   position:absolute;
@@ -1774,14 +1774,20 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
   0%,100%{transform:translateX(-50%) translateY(0) scale(1)}
   50%{transform:translateX(-50%) translateY(-3px) scale(1.005)}
 }
-@keyframes gfyAvatarWaveHand{
-  0%{opacity:0;transform:rotate(0deg) scale(.7)}
-  12%{opacity:1;transform:rotate(14deg) scale(1)}
-  28%{opacity:1;transform:rotate(-24deg) scale(1.04)}
-  44%{opacity:1;transform:rotate(20deg) scale(1.02)}
-  60%{opacity:1;transform:rotate(-18deg) scale(1.03)}
-  76%{opacity:1;transform:rotate(12deg) scale(1)}
-  100%{opacity:0;transform:rotate(0deg) scale(.72)}
+@keyframes gfyAvatarLeftHandWave{
+  0%{opacity:0;transform:rotate(0deg) scale(.72) translateY(2px)}
+  10%{opacity:1;transform:rotate(-10deg) scale(1) translateY(0)}
+  26%{opacity:1;transform:rotate(24deg) scale(1.04) translateY(-1px)}
+  42%{opacity:1;transform:rotate(-22deg) scale(1.03) translateY(0)}
+  58%{opacity:1;transform:rotate(20deg) scale(1.03) translateY(-1px)}
+  74%{opacity:1;transform:rotate(-12deg) scale(1) translateY(0)}
+  100%{opacity:1;transform:rotate(0deg) scale(1) translateY(0)}
+}
+@keyframes gfyAvatarLeftHandIdle{
+  0%,100%{opacity:1;transform:rotate(0deg) scale(1)}
+  25%{opacity:1;transform:rotate(10deg) scale(1.02)}
+  50%{opacity:1;transform:rotate(-8deg) scale(1.01)}
+  75%{opacity:1;transform:rotate(7deg) scale(1.02)}
 }
 @keyframes gfyHiBubble{
   0%{opacity:0;transform:translateY(8px) scale(.92)}
@@ -1793,7 +1799,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
   .gfy-profile-avatar-wrap::before{inset:14px}
   .gfy-profile-avatar-wrap::after{inset:7px;border-width:6px}
   .gfy-exact-profile-avatar-img{width:226%;bottom:-3px}
-  .gfy-wave-hand{right:13px;top:65px;font-size:27px}
+  .gfy-wave-hand{left:12px;top:63px;font-size:28px}
   .gfy-hi-bubble{left:calc(50% + 47px);top:16px;font-size:.96rem;padding:8px 14px}
 }
 </style>

@@ -4084,8 +4084,11 @@ function toggleSidebar() {
   const newBtn       = () => $('support-new-btn');
   const cancelBtn    = () => $('support-cancel-btn');
 
+  let _supportFormOpen = false;
+
   /* ── show ticket list, hide form ── */
   function showTicketList() {
+    _supportFormOpen = false;
     const tl = ticketsList(), fs = formSection();
     if (tl) { tl.style.display = 'grid'; }
     if (fs) { fs.style.display = 'none'; }
@@ -4093,12 +4096,11 @@ function toggleSidebar() {
     if (cancelBtn()) cancelBtn().style.display = 'none';
   }
 
-  /* ── show form (for new ticket) ── */
+  /* ── show form only (for new ticket) ── */
   function showTicketForm() {
+    _supportFormOpen = true;
     const tl = ticketsList(), fs = formSection();
-    if (tl && tl.innerHTML.trim() !== '' && !tl.innerHTML.includes('Loading')) {
-      if (tl) tl.style.display = 'grid';   // keep list visible above form
-    }
+    if (tl) tl.style.display = 'none'; // Do not show raised tickets while creating a new ticket
     if (fs) { fs.style.display = 'grid'; }
     if (cancelBtn()) cancelBtn().style.display = 'inline-flex';
     if (newBtn())    newBtn().style.display    = 'none';
@@ -4172,7 +4174,12 @@ function toggleSidebar() {
         let html = '';
         snap.forEach(doc => { html += renderTicketCard(doc); });
         tl.innerHTML = html;
-        showTicketList();
+        if (_supportFormOpen) {
+          // Keep the raised tickets hidden while the Create Ticket form is open.
+          tl.style.display = 'none';
+        } else {
+          showTicketList();
+        }
       }
     } catch (err) {
       console.warn('[SupportPatch] Ticket load error:', err && (err.code || err.message));

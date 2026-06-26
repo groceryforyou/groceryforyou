@@ -9391,41 +9391,6 @@ window.addEventListener('load', function() {
     return data;
   }
 
-  function getOrderBaseTime(order){
-    return toMillis(order.createdAt) || toMillis(order.orderTime) || toMillis(order.placedAt) || toMillis(order.updatedAt) || Date.now();
-  }
-
-  function getEstimatedDeliveryText(order){
-    const explicit = order.estimatedDeliveryAt || order.estimatedDeliveryTime || order.deliveryEstimate || order.deliveryTime || order.eta;
-    const explicitMs = toMillis(explicit);
-    if(explicitMs){
-      const minsLeft = Math.max(0, Math.round((explicitMs - Date.now()) / 60000));
-      const timeText = new Date(explicitMs).toLocaleTimeString('en-IN', {hour:'numeric', minute:'2-digit'});
-      return minsLeft > 0 ? (minsLeft + ' min • by ' + timeText) : ('Arriving soon • ' + timeText);
-    }
-    if(typeof explicit === 'string' && explicit.trim()) return explicit.trim();
-
-    const base = getOrderBaseTime(order);
-    const st = normalizeTrackingStatus(order.status);
-    let totalMinutes = 30;
-    if(st === 'ready' || st === 'order_ready') totalMinutes = 20;
-    if(st === 'out_for_delivery' || st === 'ofd') totalMinutes = 12;
-    const etaMs = base + totalMinutes * 60000;
-    const minsLeft = Math.max(1, Math.round((etaMs - Date.now()) / 60000));
-    return minsLeft + ' min';
-  }
-
-  function renderEstimatedDeliveryBanner(order){
-    const text = getEstimatedDeliveryText(order);
-    const banner = document.createElement('div');
-    banner.className = 'est-delivery-banner';
-    banner.style.cssText = 'margin:0 0 10px 0;';
-    banner.innerHTML = '<div class="edb-icon">🛵</div>'+
-      '<div class="edb-info"><div class="edb-title">Estimated delivery time</div>'+
-      '<div class="edb-time">'+escapeHtml(text)+'</div></div>';
-    return banner;
-  }
-
   function renderSingleOrderCard(entry){
     const order = normalizedOrderForRender(entry);
     const outer = document.createElement('div');
@@ -9437,7 +9402,6 @@ window.addEventListener('load', function() {
     head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;padding:8px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;';
     head.innerHTML = '<div style="font-weight:900;color:var(--brown)">📦 Order '+escapeHtml(order.orderId)+'</div><div style="font-size:.78rem;font-weight:800;color:var(--saffron);text-transform:capitalize">'+escapeHtml(order.status.replace(/_/g,' '))+'</div>';
     outer.appendChild(head);
-    outer.appendChild(renderEstimatedDeliveryBanner(order));
 
     const body = document.createElement('div');
     outer.appendChild(body);

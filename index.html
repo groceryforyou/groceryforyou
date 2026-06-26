@@ -1641,6 +1641,13 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
   unicode-bidi: normal !important;
 }
 
+/* FIX: Remove customer hamburger icons only.
+   Admin mobile hamburger (#admin-mob-menu-btn) is intentionally preserved. */
+.user-avatar,
+#mob-nav-more .mni-icon {
+  font-family: var(--site-font) !important;
+}
+
 </style>
 </head>
 <body>
@@ -1910,7 +1917,7 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
       <div class="user-menu">
         <button id="signin-top-btn" class="signin-top-btn" onclick="signInWithGoogle()" style="display:none">Sign in</button>
         <div id="user-status-display" class="user-status" style="display:none">
-          <div class="user-avatar" id="user-avatar" onclick="toggleUserMenu()">☰</div>
+          <div class="user-avatar" id="user-avatar" onclick="toggleUserMenu()" title="Account">👤</div>
         </div>
         <div class="user-menu-popup" id="user-menu-popup">
           <div class="user-menu-head"><div class="email" id="user-menu-email">—</div></div>
@@ -2916,7 +2923,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="mni-icon">👤</div><span>Profile</span>
     </button>
     <button class="mob-nav-item" id="mob-nav-more" onclick="showPage('support');setMobNav('more')">
-      <div class="mni-icon">☰</div><span>Support</span>
+      <div class="mni-icon">💬</div><span>Support</span>
     </button>
   </div>
 </nav>

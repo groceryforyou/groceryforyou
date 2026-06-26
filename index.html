@@ -2739,7 +2739,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
       <button id="admin-odtab-all-dates" class="orders-tab" data-orders-date-filter="all" onclick="filterOrdersByDate('all')">📋 All Orders</button>
     </div>
     <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px">
-      <button id="admin-otab-active" class="orders-tab active" data-orders-status-tab="active" onclick="filterOrdersByTab('active')">🔄 Active</button>
+      <button id="admin-otab-active" class="orders-tab" data-orders-status-tab="active" onclick="filterOrdersByTab('active')">🔄 Active</button>
       <button id="admin-otab-delivered" class="orders-tab" data-orders-status-tab="delivered" onclick="filterOrdersByTab('delivered')">✅ Delivered</button>
       <button id="admin-otab-rejected" class="orders-tab" data-orders-status-tab="rejected" onclick="filterOrdersByTab('rejected')">❌ Rejected</button>
       <button id="admin-otab-all" class="orders-tab" data-orders-status-tab="all" onclick="filterOrdersByTab('all')">📋 All Orders</button>
@@ -11140,6 +11140,67 @@ document.addEventListener('click', function(e) {
       if(typeof startOrderCountdown === 'function') startOrderCountdown(orderId,600);
     }catch(e){ console.error('[GFYOrderCardFix] addOrderCard failed', e); }
   };
+})();
+</script>
+
+
+<script>
+/* GFY FIX: Admin Orders filters must show only one selected button at a time.
+   Date click = date-only filter. Status click = status-only filter.
+   This reuses the existing renderOrdersByTab/applyDateFilter logic and does not add duplicate listeners. */
+(function(){
+  function clearAdminOrdersFilterActive(){
+    try {
+      document.querySelectorAll('#page-orders [data-orders-date-filter], #page-orders [data-orders-status-tab]').forEach(function(btn){
+        btn.classList.remove('active');
+        btn.setAttribute('aria-pressed','false');
+      });
+    } catch(e) {}
+  }
+
+  function setAdminOrdersFilterActive(selector){
+    try {
+      clearAdminOrdersFilterActive();
+      var btn = document.querySelector(selector);
+      if (btn) {
+        btn.classList.add('active');
+        btn.setAttribute('aria-pressed','true');
+      }
+    } catch(e) {}
+  }
+
+  window.filterOrdersByDate = function(filter){
+    try {
+      _currentOrderDateFilter = filter || 'today';
+      _currentOrderTab = 'all';
+      setAdminOrdersFilterActive('#page-orders [data-orders-date-filter="' + _currentOrderDateFilter + '"]');
+      renderOrdersByTab(_currentOrderTab);
+    } catch(e) {
+      console.error('[AdminOrdersDateFilter]', e);
+    }
+  };
+
+  window.filterOrdersByTab = function(tab){
+    try {
+      _currentOrderTab = tab || 'active';
+      _currentOrderDateFilter = 'all';
+      setAdminOrdersFilterActive('#page-orders [data-orders-status-tab="' + _currentOrderTab + '"]');
+      renderOrdersByTab(_currentOrderTab);
+    } catch(e) {
+      console.error('[AdminOrdersStatusFilter]', e);
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    try {
+      clearAdminOrdersFilterActive();
+      var defaultBtn = document.querySelector('#page-orders [data-orders-date-filter="today"]');
+      if (defaultBtn) {
+        defaultBtn.classList.add('active');
+        defaultBtn.setAttribute('aria-pressed','true');
+      }
+    } catch(e) {}
+  });
 })();
 </script>
 

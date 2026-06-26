@@ -273,14 +273,15 @@ document.addEventListener('error', function(e) {
     .section-title{font-family:"Yeseva One",serif;font-size:1.5rem;color:var(--brown);margin-bottom:18px;display:flex;align-items:center;gap:10px;border-left:4px solid var(--saffron);padding-left:12px}
     .page{display:none;opacity:0;transition:opacity .3s ease-in-out}
     .page.active{display:block;opacity:1}
-    .page-auth-loading{position:fixed;inset:0;z-index:10050;background:linear-gradient(180deg,#f4fff6,#e8f7ed);display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px;opacity:0;transition:opacity .3s ease-in-out}
-    .page-auth-loading.active{opacity:1}
+    .page-auth-loading{position:fixed;inset:0;z-index:10050;background:linear-gradient(180deg,#f4fff6,#e8f7ed);display:none;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px;opacity:0;transition:opacity .3s ease-in-out}
+    .page-auth-loading.active{display:flex;opacity:1}
     .auth-loading-card{width:100%;max-width:360px;background:rgba(255,255,255,0.96);border-radius:28px;box-shadow:0 28px 80px rgba(0,0,0,0.08);padding:36px 28px;text-align:center}
     .auth-loading-logo{width:180px;height:auto;border-radius:24px;margin:0 auto 20px;display:block;box-shadow:0 18px 48px rgba(0,0,0,0.08)}
     .auth-loading-message{font-family:"Yeseva One",serif;font-size:1.3rem;color:var(--brown);margin-bottom:20px}
     .auth-loading-spinner{width:44px;height:44px;margin:0 auto;border:5px solid rgba(0,0,0,0.08);border-top-color:var(--saffron);border-radius:50%;animation:spin 1s linear infinite}
     @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-    .page-login{position:fixed;inset:0;z-index:10050;background:linear-gradient(180deg,#f4fff6,#e8f7ed);display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px}
+    .page-login{position:fixed;inset:0;z-index:10050;background:linear-gradient(180deg,#f4fff6,#e8f7ed);display:none;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px}
+    .page-login.active{display:flex}
     .login-card{width:100%;max-width:420px;background:#fff;border-radius:28px;box-shadow:0 28px 80px rgba(0,0,0,0.0);padding:100px 40px;text-align:center}
     .login-logo{width:210px;height:auto;border-radius:55px;margin:0 auto 20px;box-shadow:0 16px 40px rgba(0,0,0,0.12)}
     .login-card h1{font-family:"Yeseva One",serif;font-size:2rem;color:var(--brown);margin:0 0 10px}
@@ -1701,9 +1702,24 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
   mix-blend-mode:normal!important;
 }
 
+
+/* GFY AUTH REFRESH FIX: auth pages are hidden by default; show only when active */
+#page-login:not(.active),
+#page-auth-loading:not(.active){
+  display:none!important;
+}
+#page-login.active,
+#page-auth-loading.active{
+  display:flex!important;
+}
+
 </style>
 </head>
 <body>
+<script>
+/* GFY FIX: On refresh, never show Sign In until Firebase auth state is resolved. */
+window.authStateReady = false;
+</script>
 <!-- Offline Banner -->
 <div id="offline-banner"><span class="ob-icon">📡</span> No internet connection. Please check your network.</div>
 
@@ -4202,7 +4218,7 @@ function toggleSidebar() {
       const validPages = ['menu', 'tracking', 'support', 'dashboard', 'orders', 'payments', 'customers', 'manage', 'admin-support', 'business-hours'];
       if (!currentUser) {
         if (typeof window.showPage === 'function') {
-          window.showPage('login');
+          window.showPage(window.authStateReady ? 'login' : 'auth-loading');
         }
         return;
       }
@@ -5956,19 +5972,9 @@ function toggleSidebar() {
       return;
     }
     
-    // Show the appropriate page based on cached state while auth check completes
-    const cachedState = getCachedAuthState();
-    if (cachedState && Date.now() - cachedState.ts < 300000) { // Cache valid for 5 minutes
-      if (cachedState.isLoggedIn) {
-        if (typeof showPage === 'function') showPage('menu');
-      } else {
-        if (typeof showPage === 'function') showPage('login');
-      }
-    } else {
-      // Show loading screen only if no cached state
-      if (document.getElementById('page-auth-loading')) {
-        document.getElementById('page-auth-loading').classList.add('active');
-      }
+    // Do not show Login from cached/local state. Wait for Firebase to confirm.
+    if (!window.authStateReady && typeof showPage === 'function') {
+      showPage('auth-loading');
     }
     
     auth.onAuthStateChanged(function(user) {

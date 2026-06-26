@@ -1824,59 +1824,6 @@ body.support-create-ticket-mode #support-form-section{
   .admin-orders-search-clear{padding:6px 8px}
 }
 
-
-
-/* ===== GFY ADMIN ORDERS CALENDAR FILTER ===== */
-.admin-orders-filter-panel{
-  background:#fff;
-  border:1.5px solid var(--border);
-  border-radius:16px;
-  padding:12px;
-  margin:0 0 14px;
-  box-shadow:var(--shadow);
-  display:grid;
-  gap:10px;
-}
-.admin-orders-calendar-wrap{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
-}
-.admin-orders-calendar-wrap label{
-  font-size:.78rem;
-  font-weight:900;
-  color:var(--brown);
-  text-transform:uppercase;
-  letter-spacing:.4px;
-}
-.admin-orders-date-input{
-  border:1.5px solid var(--border)!important;
-  border-radius:12px!important;
-  padding:9px 12px!important;
-  font-size:.9rem!important;
-  background:#fff!important;
-  color:var(--deep)!important;
-  min-width:170px;
-}
-.admin-orders-date-input:focus{border-color:var(--saffron)!important;outline:none!important}
-.admin-orders-calendar-clear{
-  border:none;
-  background:var(--cream);
-  color:var(--brown);
-  border-radius:999px;
-  padding:8px 12px;
-  font-weight:800;
-  cursor:pointer;
-  font-size:.78rem;
-}
-.admin-orders-calendar-note{font-size:.76rem;color:#777;font-weight:700}
-@media(max-width:600px){
-  .admin-orders-filter-panel{padding:10px}
-  .admin-orders-calendar-wrap{align-items:stretch}
-  .admin-orders-date-input{width:100%;font-size:16px!important}
-}
-
 </style>
 </head>
 <body>
@@ -2785,20 +2732,6 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
         <button class="back-btn-light" onclick="refreshAdminOrdersPage()" style="margin-bottom:0">↻ Refresh Orders</button>
         <div id="admin-orders-subtitle" style="font-size:.8rem;color:#888;font-weight:700"></div>
       </div>
-    </div>
-    <div class="admin-orders-filter-panel">
-      <div class="admin-orders-search-wrap">
-        <span class="admin-orders-search-icon">🔎</span>
-        <input id="admin-orders-search" class="admin-orders-search-input" type="search" placeholder="Search orders by ID, name, phone, item, status, payment, address" oninput="gfyApplyAdminOrdersSearch()" autocomplete="off"/>
-        <button class="admin-orders-search-clear" onclick="gfyClearAdminOrdersSearch()">Clear</button>
-      </div>
-      <div class="admin-orders-calendar-wrap">
-        <label for="admin-orders-calendar-date">📆 Calendar</label>
-        <input id="admin-orders-calendar-date" class="admin-orders-date-input" type="date" onchange="gfyApplyAdminOrderCalendar(this.value)"/>
-        <button class="admin-orders-calendar-clear" onclick="gfyClearAdminOrderCalendar()">Clear Date</button>
-        <span id="admin-orders-calendar-note" class="admin-orders-calendar-note">Pick a date to check that day’s orders.</span>
-      </div>
-      <div id="admin-orders-search-count" class="admin-orders-search-count"></div>
     </div>
     <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px">
       <button id="admin-odtab-today" class="orders-tab active" data-orders-date-filter="today" onclick="filterOrdersByDate('today')">📅 Today</button>
@@ -11207,115 +11140,6 @@ document.addEventListener('click', function(e) {
       if(typeof startOrderCountdown === 'function') startOrderCountdown(orderId,600);
     }catch(e){ console.error('[GFYOrderCardFix] addOrderCard failed', e); }
   };
-})();
-</script>
-
-<script>
-/* ===== GFY ADMIN ORDERS CALENDAR FILTER FIX ===== */
-(function(){
-  function pad2(n){ return String(n).padStart(2,'0'); }
-  function localDateStr(d){
-    if(!d || isNaN(d.getTime())) return '';
-    return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate());
-  }
-  function getOrderDateValue(order){
-    const raw = order && (order.createdAt || order.orderDate || order.date || order.timestamp || order.updatedAt);
-    if(!raw) return '';
-    try{
-      if(raw && typeof raw.toDate === 'function') return localDateStr(raw.toDate());
-      if(raw instanceof Date) return localDateStr(raw);
-      if(typeof raw === 'number') return localDateStr(new Date(raw));
-      if(typeof raw === 'string'){
-        const d = new Date(raw);
-        if(!isNaN(d.getTime())) return localDateStr(d);
-        const m = raw.match(/^(\d{4}-\d{2}-\d{2})/);
-        return m ? m[1] : '';
-      }
-    }catch(e){}
-    return '';
-  }
-  function currentTab(){
-    const active = document.querySelector('#admin-otab-active.active,#admin-otab-delivered.active,#admin-otab-rejected.active,#admin-otab-all.active');
-    return active?.getAttribute('data-orders-status-tab') || (typeof _currentOrderTab !== 'undefined' ? _currentOrderTab : 'active');
-  }
-  function refreshOrders(){
-    try{
-      if(typeof renderOrdersByTab === 'function') renderOrdersByTab(currentTab());
-    }catch(e){ console.error('[GFYAdminOrderCalendar] refresh failed', e); }
-  }
-  window.gfyApplyAdminOrderCalendar = function(value){
-    try{
-      if(typeof currentRole !== 'undefined' && currentRole !== 'admin') return;
-      if(value){
-        window._gfyAdminOrderCalendarDate = value;
-        if(typeof _currentOrderDateFilter !== 'undefined') _currentOrderDateFilter = 'custom';
-        document.querySelectorAll('[data-orders-date-filter]').forEach(btn => btn.classList.remove('active'));
-        const note = document.getElementById('admin-orders-calendar-note');
-        if(note) note.textContent = 'Showing orders for ' + value;
-      }else{
-        window.gfyClearAdminOrderCalendar();
-        return;
-      }
-      refreshOrders();
-    }catch(e){ console.error('[GFYAdminOrderCalendar] apply failed', e); }
-  };
-  window.gfyClearAdminOrderCalendar = function(){
-    try{
-      window._gfyAdminOrderCalendarDate = '';
-      const input = document.getElementById('admin-orders-calendar-date');
-      if(input) input.value = '';
-      const note = document.getElementById('admin-orders-calendar-note');
-      if(note) note.textContent = 'Pick a date to check that day’s orders.';
-      if(typeof filterOrdersByDate === 'function') filterOrdersByDate('today');
-      else{
-        if(typeof _currentOrderDateFilter !== 'undefined') _currentOrderDateFilter = 'today';
-        document.querySelectorAll('[data-orders-date-filter]').forEach(btn => btn.classList.remove('active'));
-        document.getElementById('admin-odtab-today')?.classList.add('active');
-        refreshOrders();
-      }
-    }catch(e){ console.error('[GFYAdminOrderCalendar] clear failed', e); }
-  };
-  const originalApplyDateFilter = (typeof applyDateFilter === 'function') ? applyDateFilter : null;
-  if(originalApplyDateFilter){
-    applyDateFilter = function(orders){
-      orders = Array.isArray(orders) ? orders : [];
-      if(typeof currentRole !== 'undefined' && currentRole === 'admin' && typeof _currentOrderDateFilter !== 'undefined' && _currentOrderDateFilter === 'custom'){
-        const selected = window._gfyAdminOrderCalendarDate || document.getElementById('admin-orders-calendar-date')?.value || '';
-        if(!selected) return orders;
-        return orders.filter(order => getOrderDateValue(order) === selected);
-      }
-      return originalApplyDateFilter(orders);
-    };
-  }
-  const originalFilterOrdersByDate = (typeof filterOrdersByDate === 'function') ? filterOrdersByDate : null;
-  if(originalFilterOrdersByDate){
-    filterOrdersByDate = function(filter){
-      window._gfyAdminOrderCalendarDate = '';
-      const input = document.getElementById('admin-orders-calendar-date');
-      if(input) input.value = '';
-      const note = document.getElementById('admin-orders-calendar-note');
-      if(note) note.textContent = 'Pick a date to check that day’s orders.';
-      return originalFilterOrdersByDate(filter);
-    };
-  }
-  const originalRenderOrdersByTab = (typeof renderOrdersByTab === 'function') ? renderOrdersByTab : null;
-  if(originalRenderOrdersByTab){
-    renderOrdersByTab = function(tab){
-      const result = originalRenderOrdersByTab(tab);
-      try{
-        if(typeof currentRole !== 'undefined' && currentRole === 'admin' && typeof _currentOrderDateFilter !== 'undefined' && _currentOrderDateFilter === 'custom'){
-          const selected = window._gfyAdminOrderCalendarDate || document.getElementById('admin-orders-calendar-date')?.value || '';
-          const list = Array.isArray(_allOrders) ? applyDateFilter(_allOrders) : [];
-          const title = '📆 ' + selected + ' — ' + (tab === 'active' ? 'Active' : tab === 'delivered' ? 'Delivered' : tab === 'rejected' ? 'Rejected' : 'All') + ' (' + list.length + ')';
-          const sub = document.getElementById('admin-orders-subtitle');
-          if(sub) sub.textContent = title;
-          const modalSub = document.getElementById('orders-modal-subtitle');
-          if(modalSub) modalSub.textContent = title;
-        }
-      }catch(e){}
-      return result;
-    };
-  }
 })();
 </script>
 

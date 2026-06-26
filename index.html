@@ -6041,10 +6041,8 @@ function toggleSidebar() {
       return;
     }
     
-    // Do not show Login from cached/local state. Wait for Firebase to confirm.
-    if (!window.authStateReady && typeof showPage === 'function') {
-      showPage('auth-loading');
-    }
+    // Do not show Login/Auth-loading while Firebase is still resolving.
+    // Keep the current visible app UI stable to avoid blank screen and mobile renderer crash.
     
     auth.onAuthStateChanged(function(user) {
       window.authStateReady = true;
@@ -8614,8 +8612,12 @@ window.addEventListener('load', function() {
     }
 
     // Prevent login page from showing until auth state has been resolved.
+    // Do NOT redirect to auth-loading because that splash is intentionally disabled on refresh.
     if (page === 'login' && !window.authStateReady) {
-      page = 'auth-loading';
+      return;
+    }
+    if (page === 'auth-loading') {
+      return;
     }
 
     // 3. Try original chained wrappers first (if any are left)
@@ -10515,26 +10517,24 @@ document.addEventListener('click', function(e) {
 
 
 <script>
-/* FIX: suppress refresh auth-loading screen */
+/* FIX: suppress refresh auth-loading screen safely.
+   No MutationObserver: repeatedly changing class/style inside an observer can crash mobile Chrome/WebView. */
 (function(){
   function hideAuthSplash(){
     var el=document.getElementById('page-auth-loading');
-    if(el){
-      el.classList.remove('active');
-      el.style.setProperty('display','none','important');
-      el.style.setProperty('opacity','0','important');
-      el.style.setProperty('visibility','hidden','important');
-      el.setAttribute('aria-hidden','true');
-    }
+    if(!el) return;
+    el.classList.remove('active');
+    el.style.setProperty('display','none','important');
+    el.style.setProperty('opacity','0','important');
+    el.style.setProperty('visibility','hidden','important');
+    el.setAttribute('aria-hidden','true');
   }
-  hideAuthSplash();
-  document.addEventListener('DOMContentLoaded', hideAuthSplash);
-  window.addEventListener('load', hideAuthSplash);
-  var obs=new MutationObserver(hideAuthSplash);
-  document.addEventListener('DOMContentLoaded', function(){
-    var el=document.getElementById('page-auth-loading');
-    if(el) obs.observe(el,{attributes:true,attributeFilter:['class','style']});
-  });
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', hideAuthSplash, {once:true});
+  } else {
+    hideAuthSplash();
+  }
+  window.addEventListener('load', hideAuthSplash, {once:true});
 })();
 </script>
 

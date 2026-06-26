@@ -1777,6 +1777,53 @@ body.support-create-ticket-mode #support-form-section{
 }
 .gfy-manage-cat-row:active{cursor:grabbing!important;}
 
+
+
+/* ===== GFY ADMIN ORDERS SEARCH ===== */
+.admin-orders-search-wrap{
+  background:#fff;
+  border:1.5px solid var(--border);
+  border-radius:14px;
+  padding:10px 12px;
+  margin:0 0 14px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  box-shadow:var(--shadow);
+}
+.admin-orders-search-icon{font-size:1rem;opacity:.8;flex-shrink:0}
+.admin-orders-search-input{
+  flex:1;
+  border:none!important;
+  outline:none!important;
+  background:transparent!important;
+  font-size:.92rem!important;
+  color:var(--deep);
+  min-width:0;
+}
+.admin-orders-search-input::placeholder{color:#888}
+.admin-orders-search-clear{
+  border:none;
+  background:var(--cream);
+  color:var(--brown);
+  border-radius:999px;
+  padding:6px 10px;
+  font-weight:800;
+  cursor:pointer;
+  font-size:.78rem;
+}
+.admin-orders-search-count{
+  font-size:.76rem;
+  color:#777;
+  font-weight:800;
+  margin:-6px 0 12px 4px;
+}
+@media(max-width:600px){
+  .admin-orders-search-wrap{padding:9px 10px}
+  .admin-orders-search-input{font-size:16px!important}
+  .admin-orders-search-clear{padding:6px 8px}
+}
+
 </style>
 </head>
 <body>
@@ -10903,6 +10950,196 @@ document.addEventListener('click', function(e) {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(install, 0); });
   else setTimeout(install, 0);
   setInterval(function(){ wrapRender('renderMenuPage'); wrapRender('renderCatGrid'); }, 1500);
+})();
+</script>
+
+
+
+<style>
+/* GFY FIX: make ordered items clearly visible in My Orders/Admin Orders */
+.gfy-order-items-list{margin-top:10px;border:1px solid var(--border);border-radius:12px;background:#fff;overflow:hidden}
+.gfy-order-items-title{font-weight:900;color:var(--brown);font-size:.82rem;padding:8px 10px;background:#f0faf4;border-bottom:1px solid var(--border)}
+.gfy-order-item-row{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border-bottom:1px dashed var(--border);font-size:.82rem;line-height:1.35}
+.gfy-order-item-row:last-child{border-bottom:none}
+.gfy-order-item-name{font-weight:800;color:var(--brown);word-break:break-word;min-width:0}
+.gfy-order-item-meta{white-space:nowrap;color:#555;font-weight:800}
+.gfy-order-item-options{width:100%;font-size:.72rem;color:#666;margin-top:2px;overflow-wrap:anywhere}
+.gfy-order-phone-badge{display:inline-flex;align-items:center;gap:4px;background:#e8f5e9;border:1px solid var(--green);color:var(--green);border-radius:999px;padding:4px 9px;font-size:.78rem;font-weight:900;margin-top:6px}
+.gfy-order-card{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:13px 14px;box-shadow:var(--shadow);display:grid;gap:8px}
+.gfy-order-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.gfy-order-id{font-weight:900;color:var(--brown);font-size:.9rem}
+.gfy-order-total{font-family:var(--site-font);font-weight:900;color:var(--saffron);font-size:1rem}
+.gfy-order-line{font-size:.82rem;color:#555;line-height:1.45;word-break:break-word}
+.gfy-order-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:4px}
+</style>
+<script>
+/* GFY FIX: admin phone visible + full item list visible in My Orders/Admin Orders */
+(function(){
+  function esc(v){
+    return String(v == null ? '' : v)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function orderPhone(order){
+    return order?.customerPhone || order?.phone || order?.mobile || order?.customerMobile || order?.contactPhone || order?.customerContact || '';
+  }
+  function orderAddress(order){
+    return order?.addressText || order?.address || order?.customerAddress || order?.deliveryAddress || '';
+  }
+  function orderNumber(order){
+    return order?.orderId || order?.id || '';
+  }
+  function itemName(item){
+    return item?.name || item?.title || item?.itemName || item?.label || 'Item';
+  }
+  function itemQty(item){
+    return item?.qty || item?.quantity || item?.count || 1;
+  }
+  function itemPrice(item){
+    const p = item?.price ?? item?.unitPrice ?? item?.amount ?? item?.totalPrice;
+    return p == null || p === '' ? '' : `₹${esc(p)}`;
+  }
+  function itemOptionsHtml(item){
+    const raw = item?.selectedOptions || item?.options || item?.variant || item?.variants || item?.subLabel || item?.sub_label;
+    let parts=[];
+    if(Array.isArray(raw)){
+      parts = raw.map(o => {
+        if(o == null) return '';
+        if(typeof o === 'string' || typeof o === 'number') return esc(o);
+        if(typeof o === 'object') return esc(o.name || o.label || o.value || JSON.stringify(o));
+        return esc(o);
+      }).filter(Boolean);
+    } else if(raw && typeof raw === 'object'){
+      parts = Object.entries(raw).map(([k,v]) => `${esc(k)}: ${esc(typeof v === 'string' || typeof v === 'number' ? v : JSON.stringify(v))}`);
+    } else if(raw != null && raw !== ''){
+      parts = [esc(raw)];
+    }
+    return parts.length ? `<div class="gfy-order-item-options">${parts.join(' · ')}</div>` : '';
+  }
+  function itemsHtml(order){
+    const items = Array.isArray(order?.items) ? order.items : [];
+    if(!items.length) return `<div class="gfy-order-items-list"><div class="gfy-order-items-title">🛒 Ordered Items</div><div class="gfy-order-item-row"><span class="gfy-order-item-name">No item details found</span></div></div>`;
+    return `<div class="gfy-order-items-list"><div class="gfy-order-items-title">🛒 Ordered Items (${items.length})</div>` + items.map(item => {
+      const meta = `x${esc(itemQty(item))}${itemPrice(item) ? ' · ' + itemPrice(item) : ''}`;
+      return `<div class="gfy-order-item-row"><div><div class="gfy-order-item-name">${esc(itemName(item))}</div>${itemOptionsHtml(item)}</div><div class="gfy-order-item-meta">${meta}</div></div>`;
+    }).join('') + `</div>`;
+  }
+  function statusBadge(status){
+    if(typeof badgeForStatus === 'function') return badgeForStatus(status);
+    return `<span class="om-route-badge">${esc(status || 'pending')}</span>`;
+  }
+  function paymentIcon(method){
+    return ({cod:'💵',upi:'📱',card:'💳',wallet:'👛'})[(method||'').toLowerCase()] || '💵';
+  }
+  function adminOrderSearchText(order){
+    const items = getItems(order).map(item => [itemName(item), itemQty(item), itemPrice(item), JSON.stringify(item || {})].join(' ')).join(' ');
+    return [
+      order?.id, orderNumber(order), order?.orderId, order?.orderNumber,
+      order?.customerName, order?.name, order?.email, orderPhone(order),
+      orderAddress(order), order?.status, order?.paymentMethod, order?.total,
+      items
+    ].filter(Boolean).join(' ').toLowerCase();
+  }
+  function currentAdminOrdersSearch(){
+    const input = document.getElementById('admin-orders-search');
+    return (input && input.value ? input.value : '').trim().toLowerCase();
+  }
+  window.gfyApplyAdminOrdersSearch = function(){
+    try{
+      const active = document.querySelector('#admin-otab-active.active,#admin-otab-delivered.active,#admin-otab-rejected.active,#admin-otab-all.active');
+      const tab = active?.getAttribute('data-orders-status-tab') || 'active';
+      if(typeof renderOrdersByTab === 'function') renderOrdersByTab(tab);
+    }catch(e){ console.error('[GFYAdminOrdersSearch] apply failed', e); }
+  };
+  window.gfyClearAdminOrdersSearch = function(){
+    const input = document.getElementById('admin-orders-search');
+    if(input) input.value = '';
+    window.gfyApplyAdminOrdersSearch();
+    if(input) input.focus();
+  };
+  window.renderOrdersList = function(orders, tab){
+    const target = (typeof currentRole !== 'undefined' && currentRole === 'admin') ? document.getElementById('admin-orders-list') : document.getElementById('orders-list');
+    if(!target) return;
+    orders = Array.isArray(orders) ? orders : [];
+    const originalOrdersCount = orders.length;
+    if((typeof currentRole !== 'undefined' && currentRole === 'admin')){
+      const q = currentAdminOrdersSearch();
+      if(q){
+        const words = q.split(/\s+/).filter(Boolean);
+        orders = orders.filter(order => {
+          const hay = adminOrderSearchText(order);
+          return words.every(word => hay.includes(word));
+        });
+      }
+      const countEl = document.getElementById('admin-orders-search-count');
+      if(countEl){
+        countEl.textContent = q ? `Showing ${orders.length} of ${originalOrdersCount} orders for “${q}”` : `${originalOrdersCount} orders`;
+      }
+    }
+    if(!orders.length){
+      target.innerHTML = `<div class="empty-cat-msg"><div class="big">🧾</div><div>No orders found</div></div>`;
+      return;
+    }
+    target.innerHTML = orders.map(order => {
+      const created = order?.createdAt && typeof order.createdAt.toDate === 'function' ? order.createdAt.toDate().toLocaleString() : '—';
+      const phone = orderPhone(order);
+      const address = orderAddress(order);
+      const isAdmin = (typeof currentRole !== 'undefined' && currentRole === 'admin');
+      const st = order?.status || 'pending';
+      const id = order?.id || '';
+      const adminButtons = isAdmin ? `
+        <div class="gfy-order-actions">
+          <button class="cat-save-btn" style="font-size:.76rem;padding:6px 10px" onclick="updateOrderStatus('${esc(id)}','accepted')" ${st !== 'pending' && st !== 'rejected' ? 'disabled' : ''}>✅ Accept</button>
+          <button class="cat-cancel-btn" style="font-size:.76rem;padding:6px 10px" onclick="updateOrderStatus('${esc(id)}','rejected')" ${['rejected','completed','delivered','cancelled'].includes(st) ? 'disabled' : ''}>❌ Reject</button>
+          <button style="font-size:.76rem;padding:6px 10px;background:linear-gradient(90deg,#ffcc00,#00b04e);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700" onclick="updateOrderStatus('${esc(id)}','ready')" ${['completed','delivered','rejected','cancelled'].includes(st) ? 'disabled' : ''}>🍳 Ready</button>
+          <button style="font-size:.76rem;padding:6px 10px;background:linear-gradient(90deg,#1565c0,#1976d2);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700" onclick="updateOrderStatus('${esc(id)}','out_for_delivery')" ${['completed','delivered','rejected','cancelled'].includes(st) ? 'disabled' : ''}>🚴 OFD</button>
+          <button style="font-size:.76rem;padding:6px 10px;background:linear-gradient(90deg,#2e7d32,#43a047);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700" onclick="updateOrderStatus('${esc(id)}','completed')" ${['completed','delivered'].includes(st) ? 'disabled' : ''}>🎉 Delivered</button>
+        </div>` : ((st === 'completed' || st === 'delivered') ? `<div class="gfy-order-actions"><button class="cat-save-btn" style="background:linear-gradient(90deg,#ffcc00,#00b04e);font-size:.8rem;padding:7px 12px" onclick="openRatingModal('${esc(orderNumber(order))}')">⭐ Rate</button></div>` : '');
+      const phoneHtml = isAdmin ? `<span class="gfy-order-phone-badge">📞 ${esc(phone || 'No phone')}</span>` : '';
+      const mapLink = isAdmin && order?.pin && order.pin.lat ? `<a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.pin.lat + ',' + order.pin.lng)}" target="_blank" class="om-route-badge" style="background:#e3f2fd;color:#1565C0;text-decoration:none">📍 Map</a>` : '';
+      return `<div class="gfy-order-card">
+        <div class="gfy-order-top"><div><div class="gfy-order-id">Order #${esc(orderNumber(order) || id)}</div><div class="gfy-order-line">${esc(created)}</div></div><div class="gfy-order-total">₹${esc(order?.total || 0)}</div></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${statusBadge(st)}<span class="om-route-badge">${paymentIcon(order?.paymentMethod)} ${esc((order?.paymentMethod || 'COD').toUpperCase())}</span>${mapLink}</div>
+        <div class="gfy-order-line"><strong>Customer:</strong> ${esc(order?.customerName || '—')} ${phoneHtml}</div>
+        <div class="gfy-order-line"><strong>Address:</strong> ${esc(address || '—')}</div>
+        ${itemsHtml(order)}
+        ${adminButtons}
+      </div>`;
+    }).join('');
+  };
+  window.addOrderCard = function(orderId, orderData){
+    try{
+      if(typeof _activeOrderIds !== 'undefined' && _activeOrderIds.has(orderId)) return;
+      if(typeof _activeOrderIds !== 'undefined') _activeOrderIds.add(orderId);
+      const container = document.getElementById('admin-orders-container');
+      if(!container) return;
+      const phone = orderPhone(orderData);
+      const cardHTML = `<div class="admin-order-card" data-order-id="${esc(orderId)}">
+        <div class="order-card-header"><div><div class="order-card-title"><span>🔔</span><span>New Order!</span></div><div class="order-card-meta">Order ID: #${esc(orderId)} · <span class="order-card-countdown" id="order-countdown-${esc(orderId)}">Auto-cancel in 10:00</span></div></div><button class="order-card-close" onclick="removeOrderCard('${esc(orderId)}')">✕</button></div>
+        <div class="order-card-body">
+          <span class="order-card-body-line"><strong>${esc(orderData?.customerName || 'Customer')}</strong> · ₹${esc(orderData?.total || 0)}</span>
+          <span class="order-card-body-line"><strong>📞 Phone:</strong> ${esc(phone || 'No phone')}</span>
+          ${itemsHtml(orderData)}
+          <span class="order-card-body-line"><strong>📍</strong> ${esc(orderAddress(orderData) || 'N/A').substring(0,80)}</span>
+          <span class="order-card-body-line"><strong>💳</strong> ${esc((orderData?.paymentMethod || 'COD').toUpperCase())}</span>
+        </div>
+        <div class="order-card-actions">
+          <button class="order-card-action-btn order-card-accept" onclick="updateOrderCardStatus('${esc(orderId)}','accepted')">✅Accept</button>
+          <button class="order-card-action-btn order-card-reject" onclick="updateOrderCardStatus('${esc(orderId)}','rejected')">❌Reject</button>
+          <button class="order-card-action-btn order-card-ready" onclick="updateOrderCardStatus('${esc(orderId)}','ready')">🍳Ready</button>
+          <button class="order-card-action-btn order-card-ofd" onclick="updateOrderCardStatus('${esc(orderId)}','out_for_delivery')">🚴OFD</button>
+          <button class="order-card-action-btn order-card-delivered" onclick="updateOrderCardStatus('${esc(orderId)}','completed')">🎉Done</button>
+        </div>
+      </div>`;
+      const el = document.createElement('div');
+      el.innerHTML = cardHTML;
+      container.appendChild(el.firstElementChild);
+      if(typeof showAdminOrdersContainer === 'function') showAdminOrdersContainer();
+      if(typeof playZomatoRingtone === 'function') playZomatoRingtone();
+      setTimeout(()=>{container.scrollTop = container.scrollHeight;},50);
+      if(typeof startOrderCountdown === 'function') startOrderCountdown(orderId,600);
+    }catch(e){ console.error('[GFYOrderCardFix] addOrderCard failed', e); }
+  };
 })();
 </script>
 

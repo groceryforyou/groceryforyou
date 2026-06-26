@@ -2165,7 +2165,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
-<button class="scroll-top-btn" id="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to Top">↑</button>
+
 
 <!-- PROMO NOTIFICATIONS -->
 <div class="promo-banner-wrap" id="promo-banner-wrap"></div>
@@ -3741,21 +3741,21 @@ async function openAddressModal(){const _0xa29843=a0_0x24f4ad;closeUserMenu();if
 (function() {
   'use strict';
 
-  // On page load, check for saved page
+  // GFY FIX: every fresh website/APK open must start on Menu page.
+  // Do not restore last visited pages such as Orders, Profile, Tracking, Support, etc.
   document.addEventListener('DOMContentLoaded', function() {
-    const savedPage = localStorage.getItem('currentPage');
-    if (savedPage && savedPage !== 'menu') { // Don't override if it's the default
-      // Wait a bit for the app to initialize
-      setTimeout(() => {
-        if (window.showPage) {
-          window.showPage(savedPage);
-          // Also update mobile nav if applicable
-          if (window.setMobNav) {
-            window.setMobNav(savedPage);
-          }
-        }
-      }, 100);
-    }
+    try {
+      localStorage.removeItem('currentPage');
+      localStorage.removeItem('activePage');
+    } catch (e) {}
+    setTimeout(function() {
+      if (window.authStateReady && window.currentUser && typeof window.showPage === 'function') {
+        window.showPage('menu');
+      }
+      if (window.setMobNav) {
+        window.setMobNav('menu');
+      }
+    }, 120);
   });
 })();
 </script>
@@ -4384,21 +4384,12 @@ function toggleSidebar() {
 
   function restoreLastActivePage() {
     try {
-      const saved = localStorage.getItem(PAGE_STORAGE_KEY);
-      if (!saved) return;
-      if (typeof window.showPage !== 'function') {
-        setTimeout(restoreLastActivePage, 300);
-        return;
-      }
-      const validPages = ['menu', 'tracking', 'support', 'dashboard', 'orders', 'payments', 'customers', 'manage', 'admin-support', 'business-hours'];
-      if (!currentUser) {
-        if (typeof window.showPage === 'function') {
-          window.showPage(window.authStateReady ? 'login' : 'auth-loading');
-        }
-        return;
-      }
-      if (validPages.includes(saved)) {
-        window.showPage(saved);
+      // GFY FIX: do not reopen the last visited page after website/APK restart.
+      // Always clear saved page state so the authenticated default is Menu.
+      localStorage.removeItem(PAGE_STORAGE_KEY);
+      localStorage.removeItem('currentPage');
+      if (currentUser && typeof window.showPage === 'function') {
+        window.showPage('menu');
       }
     } catch (_error) {
       // Ignore restore errors
@@ -10768,17 +10759,11 @@ document.addEventListener('click', function(e) {
     }
   }
 
-  // If the saved page is Profile, do not allow the static Guest UI to flash before auth resolves.
+  // GFY FIX: saved pages are intentionally ignored on fresh open; default stays Menu.
   try {
-    var saved = localStorage.getItem('currentPage') || localStorage.getItem('activePage') || '';
-    if (saved === 'profile' && !window.authStateReady) {
-      window.gfyPendingProfileAfterAuth = true;
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', setProfileChecking, { once: true });
-      } else {
-        setProfileChecking();
-      }
-    }
+    localStorage.removeItem('currentPage');
+    localStorage.removeItem('activePage');
+    window.gfyPendingProfileAfterAuth = false;
   } catch(e) {}
 
   hookShowPage();

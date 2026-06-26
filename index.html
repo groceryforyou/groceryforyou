@@ -6005,59 +6005,47 @@ function setupCustomerWatch(db,uid){
       .orderBy('createdAt','desc')
       .limit(5)
       .onSnapshot(snap=>{
-        // FIRST INITIALIZATION: Store all current statuses silently
-        if(!_customerWatcherInitialized){
-          snap.forEach(doc=>{
-            const s=(doc.data().status||'').toLowerCase();
-            if(s){
-              setLastProcessedStatus(doc.id,s);
-            }
-            if(s==='completed'||s==='delivered'){
-              const deliveredKey='deliveredPopupShown_'+doc.id;
-              localStorage.setItem(deliveredKey,'1');
-              const ratingKey='ratingPopupShown_'+doc.id;
-              localStorage.setItem(ratingKey,'1');
-            }
-          });
-          _customerWatcherInitialized=true;
-          console.log('[CustomerWatch] Initialized - old orders marked as seen');
-          return;
+        function normalizeOrderStatus(raw){
+          return String(raw||'')
+            .toLowerCase()
+            .trim()
+            .replace(/[\s-]+/g,'_');
         }
-        
-        // REAL-TIME CHANGES: Only show popups for actual status updates
-        snap.docChanges().forEach(ch=>{
-          if(ch.type!=='added' && ch.type!=='modified')return;
-          const o=ch.doc.data();
-          const orderId=ch.doc.id;
-          const s=(o.status||'').toLowerCase();
+
+        function showStatusPopup(orderId, status){
+          const s=normalizeOrderStatus(status);
           if(!s)return;
-          const lastStatus=getLastProcessedStatus(orderId);
-          if(lastStatus===s) return;
-          setLastProcessedStatus(orderId,s);
           const info=MSGS[s];
           if(!info)return;
+
           if(s==='completed'||s==='delivered'){
             const deliveredKey='deliveredPopupShown_'+orderId;
-            if(!localStorage.getItem(deliveredKey)){
-              localStorage.setItem(deliveredKey,'1');
-              showCustomerAlertModal(
-                info.title,
-                '<small>Order ID: '+orderId+'</small><br/>'+info.body,
-                info.type,
-                function(){
-                  const ratingKey='ratingPopupShown_'+orderId;
-                  if(!localStorage.getItem(ratingKey)){
-                    localStorage.setItem(ratingKey,'1');
-                    setTimeout(()=>openRatingModal(orderId),600);
-                  }
-                },
-                null,
-                2000
-              );
-              gfyNotif('Grocery For You 🛒', info.title);
-            }
+            if(localStorage.getItem(deliveredKey)) return;
+            localStorage.setItem(deliveredKey,'1');
+
+            const showRatingOnce=function(){
+              const ratingKey='ratingPopupShown_'+orderId;
+              if(!localStorage.getItem(ratingKey)){
+                localStorage.setItem(ratingKey,'1');
+                setTimeout(()=>openRatingModal(orderId),600);
+              }
+            };
+
+            showCustomerAlertModal(
+              info.title,
+              '<small>Order ID: '+orderId+'</small><br/>'+info.body,
+              info.type,
+              showRatingOnce,
+              null,
+              2000
+            );
+
+            // Fallback: some popup close paths do not execute the callback in WebView.
+            setTimeout(showRatingOnce,2800);
+            gfyNotif('Grocery For You 🛒', info.title);
             return;
           }
+
           showCustomerAlertModal(
             info.title,
             '<small>Order ID: '+orderId+'</small><br/>'+info.body,
@@ -6067,6 +6055,43 @@ function setupCustomerWatch(db,uid){
             2000
           );
           gfyNotif('Grocery For You 🛒', info.title);
+        }
+
+        function processOrderSnapshotDoc(doc, allowKnownInitialChanges){
+          const o=doc.data();
+          const orderId=doc.id;
+          const s=normalizeOrderStatus(o.status);
+          if(!s)return;
+
+          const lastStatus=getLastProcessedStatus(orderId);
+          if(lastStatus===s)return;
+
+          // First app/load snapshot: old unknown orders are recorded silently,
+          // but if this client had already seen this order before, a changed
+          // status must still show its popup after refresh/app reopen.
+          if(!_customerWatcherInitialized && !lastStatus && !allowKnownInitialChanges){
+            setLastProcessedStatus(orderId,s);
+            return;
+          }
+
+          setLastProcessedStatus(orderId,s);
+          showStatusPopup(orderId,s);
+        }
+
+        // FIRST INITIALIZATION:
+        // Do not replay old unknown orders, but do show missed status changes
+        // for orders this device already tracked before refresh/app reopen.
+        if(!_customerWatcherInitialized){
+          snap.forEach(doc=>processOrderSnapshotDoc(doc,false));
+          _customerWatcherInitialized=true;
+          console.log('[CustomerWatch] Initialized - old unknown orders marked as seen, known changes processed');
+          return;
+        }
+        
+        // REAL-TIME CHANGES: Only show popups for actual status updates
+        snap.docChanges().forEach(ch=>{
+          if(ch.type!=='added' && ch.type!=='modified')return;
+          processOrderSnapshotDoc(ch.doc,true);
         });
       },e=>console.error('[Cust Watch]',e));
   }catch(e){console.error('[Cust Watch setup]',e);}
@@ -9327,6 +9352,14 @@ window.addEventListener('load', function() {
     return card;
   }
 
+  function normalizeTrackingStatus(raw){
+    return String(raw||'').toLowerCase().trim().replace(/[\s-]+/g,'_');
+  }
+
+  function isActiveTrackingStatus(status){
+    return ['pending','placed','accepted','preparing','ready','out_for_delivery'].includes(normalizeTrackingStatus(status));
+  }
+
   function updateOrCreateCard(orderId, data){
     if(!isActiveTrackingStatus(data && data.status)){ removeCard(orderId); renderEmptyIfNoActive(); return null; }
     const list = ensureContainer();
@@ -9377,9 +9410,9 @@ window.addEventListener('load', function() {
               const unsub = db.collection('orders').doc(id).onSnapshot(d => {
                 const od = d.data();
                 if(!od) return;
-                const st = (od.status||'').toLowerCase();
+                const st = normalizeTrackingStatus(od.status);
                 // If order became delivered/completed/cancelled, remove listeners & card
-                if(st === 'completed' || st === 'delivered' || st === 'cancelled'){
+                if(st === 'completed' || st === 'delivered' || st === 'cancelled' || st === 'rejected'){
                   const u = _perOrderUnsubs.get(id); if(u) try{u();}catch(e){}
                   _perOrderUnsubs.delete(id);
                   removeCard(id);

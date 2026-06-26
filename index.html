@@ -1913,27 +1913,6 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
       </div>
       <button class="mob-search-btn" onclick="openMobSearch()">🔍</button>
       <button id="admin-mob-menu-btn" onclick="toggleMobileAdminSidebar()" title="Admin Menu">☰</button>
-
-      <div class="user-menu">
-        <button id="signin-top-btn" class="signin-top-btn" onclick="signInWithGoogle()" style="display:none">Sign in</button>
-        <div id="user-status-display" class="user-status" style="display:none">
-          <div class="user-avatar" id="user-avatar" onclick="toggleUserMenu()" title="Account">👤</div>
-        </div>
-        <div class="user-menu-popup" id="user-menu-popup">
-          <div class="user-menu-head"><div class="email" id="user-menu-email">—</div></div>
-          <div class="user-menu-actions">
-            <button class="user-menu-item" onclick="userMenuGo('menu')">🍽 Menu</button>
-            <button class="user-menu-item" onclick="userMenuGo('tracking')">📦 Track Order</button>
-            <button class="user-menu-item" id="user-menu-orders-btn" onclick="openOrdersModal()">🧾 Orders</button>
-            <button class="user-menu-item" onclick="userMenuGo('support')">💬 Support</button>
-            <div id="role-buttons-container" style="display:none;gap:5px;flex-direction:column">
-              <button class="user-menu-item" onclick="switchRole('customer')">👤 Customer View</button>
-              <button class="user-menu-item" onclick="switchRole('admin')">👨‍💼 Admin View</button>
-            </div>
-            <button class="user-menu-item danger" onclick="logoutUser()">🚪 Logout</button>
-          </div>
-        </div>
-      </div>
       <button class="cart-btn" onclick="openCart()">🛒 <span class="cart-btn-text">Cart</span><span class="cart-count" id="cart-count">0</span></button>
     </div>
   </div>

@@ -9308,155 +9308,272 @@ window.addEventListener('load', function() {
 })();
 </script>
 
-<!-- Customer multi-order tracking UI: renders multiple active orders for signed-in customer -->
+<!-- Customer multi-order tracking UI: renders only fresh Firestore active orders for signed-in customer -->
 <script>
 (function customerTrackingUI(){
   'use strict';
+
   let _queryUnsub = null;
   const _perOrderUnsubs = new Map();
+  let _hasFreshSnapshot = false;
+  let _activeUid = null;
+
+  const FINAL_STATUSES = new Set(['delivered','completed','cancelled','canceled','rejected']);
+  const ACTIVE_STATUSES = [
+    'pending',
+    'placed',
+    'order_placed',
+    'accepted',
+    'order_accepted',
+    'preparing',
+    'being_prepared',
+    'ready',
+    'order_ready',
+    'out_for_delivery'
+  ];
+
+  function normalizeTrackingStatus(raw){
+    return String(raw || '').toLowerCase().trim().replace(/[\s-]+/g, '_');
+  }
+
+  function isFinalTrackingStatus(status){
+    return FINAL_STATUSES.has(normalizeTrackingStatus(status));
+  }
+
+  function isActiveTrackingStatus(status){
+    const st = normalizeTrackingStatus(status);
+    return ACTIVE_STATUSES.includes(st) && !FINAL_STATUSES.has(st);
+  }
+
+  function escapeHtml(s){
+    return String(s || '').replace(/[&<>\"]/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+    });
+  }
+
+  function trackingRoot(){
+    return document.getElementById('tracking-content') || document.getElementById('page-tracking') || document.body;
+  }
+
+  function clearPossibleStaleOrderCache(){
+    // Do not delete Firestore order history. This only removes client-side active-order cache
+    // that can flash a delivered order during refresh before Firestore returns fresh data.
+    const staleKeyPattern = /(active.*order|order.*active|current.*order|tracking.*order|last.*order|pending.*order|live.*order)/i;
+    try {
+      [localStorage, sessionStorage].forEach(function(store){
+        if(!store) return;
+        const keys = [];
+        for(let i = 0; i < store.length; i++) keys.push(store.key(i));
+        keys.forEach(function(key){
+          if(staleKeyPattern.test(key || '')) store.removeItem(key);
+        });
+      });
+    } catch(e) {}
+    try {
+      if(window.currentOrder && isFinalTrackingStatus(window.currentOrder.status)) window.currentOrder = null;
+      if(window.activeOrder && isFinalTrackingStatus(window.activeOrder.status)) window.activeOrder = null;
+      if(window.currentTrackingOrder && isFinalTrackingStatus(window.currentTrackingOrder.status)) window.currentTrackingOrder = null;
+    } catch(e) {}
+  }
+
+  function showLoading(){
+    const root = trackingRoot();
+    if(!root) return;
+    root.innerHTML = '<div class="empty-cat-msg"><div class="big">📦</div>Checking active orders...</div>';
+  }
+
+  function showEmpty(){
+    const root = trackingRoot();
+    if(!root) return;
+    root.innerHTML = '<div class="empty-cat-msg"><div class="big">📦</div>No active orders to track.</div>';
+  }
 
   function ensureContainer(){
-    let root = document.getElementById('tracking-content') || document.getElementById('page-tracking') || document.getElementById('page-orders') || document.body;
+    const root = trackingRoot();
     let list = document.getElementById('gfy-tracking-list');
     if(!list){
+      if(root) root.innerHTML = '';
       list = document.createElement('div');
       list.id = 'gfy-tracking-list';
       list.style.cssText = 'display:flex;flex-direction:column;gap:12px;max-height:60vh;overflow:auto;padding:12px';
-      if(root && root.appendChild){ root.innerHTML=''; root.appendChild(list); }
+      if(root && root.appendChild) root.appendChild(list);
     }
     return list;
   }
 
-  function escapeHtml(s){ return String(s||'').replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function renderEmptyIfNoActive(){
+    const list = document.getElementById('gfy-tracking-list');
+    if(!list || !list.querySelector('[data-order-id]')) showEmpty();
+  }
 
   function buildCard(orderId, data){
     const card = document.createElement('div');
     card.className = 'gfy-tracking-card';
     card.dataset.orderId = orderId;
     card.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 6px 20px rgba(0,0,0,0.06);color:#111';
-    const items = Array.isArray(data.items) ? data.items.map(i=>`<div style="font-size:.9rem;margin:.12rem 0">${escapeHtml(i.name||i.title||'Item')} × ${escapeHtml(i.qty||i.quantity||1)}<span style="float:right;color:#666">₹${escapeHtml(i.price||0)}</span></div>`).join('') : '';
-    const status = escapeHtml(data.status||'');
-    const meta = `Order: <strong>${escapeHtml(data.orderId||orderId)}</strong> · <span style="color:#0b8457;font-weight:700">${status}</span>`;
-    const when = data.updatedAt && data.updatedAt.toDate ? data.updatedAt.toDate().toLocaleString() : (data.updatedAt||'');
+    const items = Array.isArray(data.items) ? data.items.map(i => `<div style="font-size:.9rem;margin:.12rem 0">${escapeHtml(i.name || i.title || 'Item')} × ${escapeHtml(i.qty || i.quantity || 1)}<span style="float:right;color:#666">₹${escapeHtml(i.price || 0)}</span></div>`).join('') : '';
+    const status = escapeHtml(data.status || '');
+    const displayId = escapeHtml(data.orderId || orderId);
+    const when = data.updatedAt && data.updatedAt.toDate ? data.updatedAt.toDate().toLocaleString() : (data.createdAt && data.createdAt.toDate ? data.createdAt.toDate().toLocaleString() : '');
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div style="flex:1;min-width:0">
-          <div style="font-weight:800;margin-bottom:6px">${meta}</div>
-          <div style="font-size:.86rem;color:#444">${items || '<span style=\"color:#888\">No line items</span>'}</div>
+          <div style="font-weight:800;margin-bottom:6px">Order: <strong>${displayId}</strong> · <span style="color:#0b8457;font-weight:700">${status}</span></div>
+          <div style="font-size:.86rem;color:#444">${items || '<span style="color:#888">No line items</span>'}</div>
         </div>
         <div style="text-align:right;min-width:120px">
-          <div style="font-size:.78rem;color:#666">${when}</div>
+          <div style="font-size:.78rem;color:#666">${escapeHtml(when)}</div>
           <div style="margin-top:8px"><button onclick="showPage('orders')" style="background:#00b04e;color:#fff;border:none;padding:8px 10px;border-radius:8px;cursor:pointer">View</button></div>
         </div>
       </div>`;
     return card;
   }
 
-  function normalizeTrackingStatus(raw){
-    return String(raw||'').toLowerCase().trim().replace(/[\s-]+/g,'_');
-  }
-
-  function isActiveTrackingStatus(status){
-    return ['pending','placed','accepted','preparing','ready','out_for_delivery'].includes(normalizeTrackingStatus(status));
-  }
-
   function updateOrCreateCard(orderId, data){
-    if(!isActiveTrackingStatus(data && data.status)){ removeCard(orderId); renderEmptyIfNoActive(); return null; }
-    const list = ensureContainer();
-    let existing = list.querySelector(`[data-order-id="${orderId}"]`);
-    if(existing){
-      // Update status and items quickly
-      const status = data.status || '';
-      const when = data.updatedAt && data.updatedAt.toDate ? data.updatedAt.toDate().toLocaleString() : (data.updatedAt||'');
-      existing.querySelector('div div') && (existing.querySelector('div div').innerHTML = `Order: <strong>${escapeHtml(data.orderId||orderId)}</strong> · <span style="color:#0b8457;font-weight:700">${escapeHtml(status)}</span>`);
-      const body = existing.querySelector('div[style*="font-size:.86rem"]');
-      if(body){
-        const items = Array.isArray(data.items) ? data.items.map(i=>`<div style="font-size:.9rem;margin:.12rem 0">${escapeHtml(i.name||i.title||'Item')} × ${escapeHtml(i.qty||i.quantity||1)}<span style="float:right;color:#666">₹${escapeHtml(i.price||0)}</span></div>`).join('') : '';
-        body.innerHTML = items || '<span style="color:#888">No line items</span>';
-      }
-      const whenEl = existing.querySelector('div[style*="font-size:.78rem"]'); if(whenEl) whenEl.textContent = when;
-      return existing;
+    if(!data || !isActiveTrackingStatus(data.status)){
+      removeCard(orderId);
+      return null;
     }
-    const card = buildCard(orderId, data);
-    ensureContainer().appendChild(card);
-    return card;
+    const list = ensureContainer();
+    let existing = list.querySelector(`[data-order-id="${CSS.escape(orderId)}"]`);
+    const freshCard = buildCard(orderId, data);
+    if(existing){
+      existing.replaceWith(freshCard);
+    } else {
+      list.appendChild(freshCard);
+    }
+    return freshCard;
   }
 
   function removeCard(orderId){
-    const list = document.getElementById('gfy-tracking-list'); if(!list){ renderEmptyIfNoActive(); return; }
-    const el = list.querySelector(`[data-order-id="${orderId}"]`);
-    if(el){ el.remove(); }
-    renderEmptyIfNoActive();
+    const list = document.getElementById('gfy-tracking-list');
+    if(list){
+      const el = list.querySelector(`[data-order-id="${CSS.escape(orderId)}"]`);
+      if(el) el.remove();
+    }
+    if(_hasFreshSnapshot) renderEmptyIfNoActive();
+  }
+
+  function detachPerOrder(id){
+    const u = _perOrderUnsubs.get(id);
+    if(u){ try { u(); } catch(e) {} }
+    _perOrderUnsubs.delete(id);
   }
 
   function startForUser(db, uid){
     if(!db || !uid) return;
-    // active statuses we want to show in tracking UI
-    const activeStatuses = ['pending','placed','accepted','preparing','ready','out_for_delivery'];
+    _activeUid = uid;
+    _hasFreshSnapshot = false;
 
-    if(_queryUnsub){ _queryUnsub(); _queryUnsub = null; }
+    clearPossibleStaleOrderCache();
+    showLoading();
+
+    if(_queryUnsub){ try { _queryUnsub(); } catch(e) {} _queryUnsub = null; }
+    _perOrderUnsubs.forEach(function(u){ try { u(); } catch(e) {} });
+    _perOrderUnsubs.clear();
 
     try{
       _queryUnsub = db.collection('orders')
-        .where('customerUid','==', uid)
-        .where('status','in', activeStatuses)
-        .orderBy('createdAt','desc')
-        .onSnapshot(snap => {
+        .where('customerUid', '==', uid)
+        .where('status', 'in', ACTIVE_STATUSES)
+        .orderBy('createdAt', 'desc')
+        .onSnapshot(function(snap){
+          // Firestore may first return an old local cache after refresh. Do not render it.
+          if(snap.metadata && snap.metadata.fromCache && !_hasFreshSnapshot){
+            showLoading();
+            return;
+          }
+
+          _hasFreshSnapshot = true;
           const seen = new Set();
-          snap.forEach(doc => {
-            const id = doc.id; seen.add(id);
-            // attach per-order doc listener if not present
-            if(!_perOrderUnsubs.has(id)){
-              const unsub = db.collection('orders').doc(id).onSnapshot(d => {
+          const activeDocs = [];
+
+          snap.forEach(function(doc){
+            const data = doc.data() || {};
+            const st = normalizeTrackingStatus(data.status);
+            if(isFinalTrackingStatus(st) || !isActiveTrackingStatus(st)) return;
+            seen.add(doc.id);
+            activeDocs.push({id: doc.id, data: data});
+          });
+
+          if(!activeDocs.length){
+            _perOrderUnsubs.forEach(function(u, id){ detachPerOrder(id); });
+            showEmpty();
+            return;
+          }
+
+          ensureContainer().innerHTML = '';
+          activeDocs.forEach(function(entry){
+            updateOrCreateCard(entry.id, entry.data);
+
+            if(!_perOrderUnsubs.has(entry.id)){
+              const unsub = db.collection('orders').doc(entry.id).onSnapshot(function(d){
+                if(_activeUid !== uid) return;
                 const od = d.data();
-                if(!od) return;
-                const st = normalizeTrackingStatus(od.status);
-                // If order became delivered/completed/cancelled, remove listeners & card
-                if(st === 'completed' || st === 'delivered' || st === 'cancelled' || st === 'rejected'){
-                  const u = _perOrderUnsubs.get(id); if(u) try{u();}catch(e){}
-                  _perOrderUnsubs.delete(id);
-                  removeCard(id);
+                if(!od || isFinalTrackingStatus(od.status) || !isActiveTrackingStatus(od.status)){
+                  detachPerOrder(entry.id);
+                  removeCard(entry.id);
+                  clearPossibleStaleOrderCache();
                   return;
                 }
-                // Update or create card without triggering popups
-                updateOrCreateCard(id, od);
-              }, e=>console.warn('[CustTrack] per-order listener error', e));
-              _perOrderUnsubs.set(id, unsub);
+                updateOrCreateCard(entry.id, od);
+              }, function(e){ console.warn('[CustTrack] per-order listener error', e); });
+              _perOrderUnsubs.set(entry.id, unsub);
             }
           });
 
-          // remove any per-order listeners that are no longer active
-          Array.from(_perOrderUnsubs.keys()).forEach(id => {
+          Array.from(_perOrderUnsubs.keys()).forEach(function(id){
             if(!seen.has(id)){
-              const u = _perOrderUnsubs.get(id); if(u) try{u();}catch(e){}
-              _perOrderUnsubs.delete(id);
+              detachPerOrder(id);
               removeCard(id);
             }
           });
           renderEmptyIfNoActive();
-        }, err => console.warn('[CustTrack] query error', err));
-    }catch(e){ console.error('[CustTrack] startForUser failed', e); }
+        }, function(err){
+          console.warn('[CustTrack] query error', err);
+          _hasFreshSnapshot = true;
+          showEmpty();
+        });
+    } catch(e){
+      console.error('[CustTrack] startForUser failed', e);
+      _hasFreshSnapshot = true;
+      showEmpty();
+    }
   }
 
-  function stopAll(){ if(_queryUnsub){ try{_queryUnsub(); }catch(e){} _queryUnsub=null; } _perOrderUnsubs.forEach(u=>{ try{u(); }catch(e){} }); _perOrderUnsubs.clear(); const content=document.getElementById('tracking-content'); if(content) content.innerHTML='<div class="empty-cat-msg"><div class="big">📦</div>No active orders to track.</div>'; }
+  function stopAll(){
+    if(_queryUnsub){ try { _queryUnsub(); } catch(e) {} _queryUnsub = null; }
+    _perOrderUnsubs.forEach(function(u){ try { u(); } catch(e) {} });
+    _perOrderUnsubs.clear();
+    _activeUid = null;
+    _hasFreshSnapshot = false;
+    clearPossibleStaleOrderCache();
+    showEmpty();
+  }
 
-  // Hook auth state to start/stop tracker
+  // Clear stale tracking UI immediately on refresh, before any cached order can remain visible.
+  clearPossibleStaleOrderCache();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', showLoading, {once:true});
+  } else {
+    showLoading();
+  }
+
   (function hookAuth(){
     const tryHook = function(){
-      if(typeof firebase === 'undefined' || !firebase.auth || !firebase.firestore) { setTimeout(tryHook, 600); return; }
+      if(typeof firebase === 'undefined' || !firebase.auth || !firebase.firestore){ setTimeout(tryHook, 600); return; }
       const db = firebase.firestore();
-      firebase.auth().onAuthStateChanged(user => {
-        if(user && user.uid){ startForUser(db, user.uid); }
-        else { stopAll(); }
+      firebase.auth().onAuthStateChanged(function(user){
+        if(user && user.uid) startForUser(db, user.uid);
+        else stopAll();
       });
     };
     tryHook();
   })();
 
-  // Expose stop for debugging
   window._gfyStopCustomerTrackingUI = stopAll;
-
 })();
+</script>
 
 window.openPersonalInfoModal = async function() {
     const overlay = document.getElementById('personal-info-overlay');

@@ -583,16 +583,18 @@ document.addEventListener('error', function(e) {
     .promo-banner .pb-close{background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:.95rem;padding:0;margin-left:auto;flex-shrink:0}
 
     /* ===== ORDERS MODAL ===== */
-    .orders-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:600;align-items:center;justify-content:center;padding:10px}
+    .orders-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:600;align-items:flex-end;justify-content:center;padding:14px 14px 10px;overflow:hidden}
     .orders-overlay.open{display:flex}
     .orders-modal{
     background:#fff;
-    border-radius:20px;
-    width:100%;
+    border-radius:22px 22px 16px 16px;
+    width:min(94vw,860px);
     max-width:860px;
-    height:auto;
-    min-height:320px;
-    max-height:calc(100vh - 20px);
+    height:calc(100dvh - 86px);
+    min-height:520px;
+    max-height:calc(100dvh - 20px);
+    margin:0 auto;
+    align-self:flex-end;
     overflow:hidden;
     display:flex;
     flex-direction:column;
@@ -601,15 +603,17 @@ document.addEventListener('error', function(e) {
     position:relative;
     z-index:10000;
 }
-    .orders-modal-header{background:linear-gradient(135deg,var(--brown),#1e7a3a);padding:16px 20px;display:flex;align-items:center;gap:10px}
+    .orders-modal-header{background:linear-gradient(135deg,var(--brown),#1e7a3a);padding:16px 20px;display:flex;align-items:center;gap:10px;flex:0 0 auto}
     .orders-modal-header h2{font-family:"Yeseva One",serif;color:var(--turmeric);font-size:1.2rem;flex:1}
-    .orders-modal-body{padding:16px 18px;flex:1;overflow-y:auto;min-height:220px}
-    #orders-list{display:grid;width:100%;min-height:120px;gap:10px;max-height:55vh;overflow-y:auto;padding-right:2px;scrollbar-width:thin;scrollbar-color:var(--saffron) #f0e0c8}
+    .orders-modal-body{padding:16px 18px;flex:1 1 auto;overflow-y:auto;min-height:0;display:flex;flex-direction:column}
+    #orders-list{display:grid;width:100%;flex:1 1 auto;min-height:0;gap:10px;max-height:none;overflow-y:auto;padding-right:2px;scrollbar-width:thin;scrollbar-color:var(--saffron) #f0e0c8}
     #orders-list::-webkit-scrollbar{width:5px}
     #orders-list::-webkit-scrollbar-thumb{background:var(--saffron);border-radius:6px}
     /* Order Tabs */
     .orders-tab{background:var(--cream);border:1.5px solid var(--border);border-radius:20px;padding:5px 13px;font-size:.78rem;font-weight:800;color:var(--brown);cursor:pointer;transition:all .2s;touch-action:manipulation;font-family:'Lato',sans-serif}
     .orders-tab.active,.orders-tab:hover{background:var(--brown);color:#fff;border-color:var(--brown)}
+    #orders-tab-row{display:flex;flex:0 0 auto;flex-wrap:nowrap;gap:6px;width:100%;overflow-x:hidden;margin-bottom:14px}
+    #orders-tab-row .orders-tab{flex:1 1 0;min-width:0;white-space:nowrap;text-align:center;padding:7px 6px;font-size:.72rem}
 
     /* ===== ADMIN ORDER POPUP ===== */
     #admin-order-popup{position:fixed;right:14px;bottom:14px;width:min(480px,calc(100vw - 20px));background:#fff;border:2px solid var(--saffron);border-radius:18px;box-shadow:0 12px 40px rgba(0,176,78,0.35);z-index:260;display:none;animation:popupSlideIn .4s cubic-bezier(0.34,1.56,0.64,1);padding:0;flex-direction:column;max-height:92vh;overflow:hidden}
@@ -862,8 +866,10 @@ document.addEventListener('error', function(e) {
       .cat-tabs-row::-webkit-scrollbar{display:none}
 
       /* Orders modal - slide up from bottom */
-      .orders-modal{border-radius:20px 20px 0 0;max-height:94dvh;max-height:94vh;align-self:flex-end;margin-top:auto;width:100%}
-      .orders-overlay{align-items:flex-end;padding:0}
+      .orders-modal{border-radius:22px 22px 12px 12px;height:calc(100dvh - 74px - var(--safe-bottom,0px));min-height:520px;max-height:calc(100dvh - 14px - var(--safe-bottom,0px));align-self:flex-end;margin:0 auto;width:96vw}
+      .orders-overlay{align-items:flex-end;padding:10px 10px calc(8px + var(--safe-bottom,0px));overflow:hidden}
+      #orders-tab-row{gap:5px}
+      #orders-tab-row .orders-tab{padding:7px 4px;font-size:.66rem}
 
       /* Admin */
       .manage-banner{font-size:.8rem;padding:10px 12px}
@@ -1822,128 +1828,6 @@ body.support-create-ticket-mode #support-form-section{
   .admin-orders-search-wrap{padding:9px 10px}
   .admin-orders-search-input{font-size:16px!important}
   .admin-orders-search-clear{padding:6px 8px}
-}
-
-
-
-/* ===== GFY MY ORDERS BOTTOM HEIGHT + SINGLE ROW TABS FIX ===== */
-/* My Orders now opens tall and reaches near the bottom of the screen.
-   Header/tabs stay inside the modal; only the orders list/body scrolls. */
-#orders-overlay.open{
-  display:flex!important;
-  align-items:flex-end!important;
-  justify-content:center!important;
-  padding:14px 14px 10px!important;
-  overflow:hidden!important;
-}
-#orders-overlay .orders-modal{
-  width:min(94vw,860px)!important;
-  height:calc(100dvh - 86px)!important;
-  min-height:520px!important;
-  max-height:calc(100dvh - 20px)!important;
-  margin:0 auto!important;
-  align-self:flex-end!important;
-  border-radius:22px 22px 16px 16px!important;
-  display:flex!important;
-  flex-direction:column!important;
-  overflow:hidden!important;
-}
-#orders-overlay .orders-modal-header{
-  flex:0 0 auto!important;
-}
-#orders-overlay .orders-modal-body{
-  flex:1 1 auto!important;
-  min-height:0!important;
-  overflow-y:auto!important;
-  display:flex!important;
-  flex-direction:column!important;
-}
-#orders-overlay #orders-list{
-  flex:1 1 auto!important;
-  max-height:none!important;
-  min-height:0!important;
-  overflow-y:auto!important;
-}
-#orders-overlay #orders-tab-row{
-  flex:0 0 auto!important;
-  display:flex!important;
-  flex-wrap:nowrap!important;
-  gap:6px!important;
-  width:100%!important;
-  overflow-x:hidden!important;
-  margin-bottom:14px!important;
-}
-#orders-overlay #orders-tab-row .orders-tab{
-  flex:1 1 0!important;
-  min-width:0!important;
-  white-space:nowrap!important;
-  text-align:center!important;
-  padding:7px 6px!important;
-  font-size:.72rem!important;
-}
-@media(max-width:768px){
-  #orders-overlay.open{
-    align-items:flex-end!important;
-    justify-content:center!important;
-    padding:10px 10px calc(8px + var(--safe-bottom,0px))!important;
-  }
-  #orders-overlay .orders-modal{
-    width:96vw!important;
-    height:calc(100dvh - 74px - var(--safe-bottom,0px))!important;
-    min-height:520px!important;
-    max-height:calc(100dvh - 14px - var(--safe-bottom,0px))!important;
-    margin:0 auto!important;
-    align-self:flex-end!important;
-    border-radius:22px 22px 12px 12px!important;
-  }
-  #orders-overlay #orders-tab-row{gap:5px!important;}
-  #orders-overlay #orders-tab-row .orders-tab{
-    padding:7px 4px!important;
-    font-size:.66rem!important;
-  }
-}
-@media(max-width:380px){
-  #orders-overlay #orders-tab-row .orders-tab{
-    font-size:.6rem!important;
-    padding:7px 3px!important;
-  }
-}
-
-
-/* ===== GFY PERSONAL INFORMATION FIXED HEADER ===== */
-/* Keep Personal Information header fixed while only the body content scrolls. */
-#personal-info-overlay.open{
-  overflow:hidden!important;
-}
-#personal-info-overlay #personal-info-modal{
-  display:flex!important;
-  flex-direction:column!important;
-  width:min(94vw,680px)!important;
-  max-height:88vh!important;
-  overflow:hidden!important;
-}
-#personal-info-overlay #personal-info-modal .auth-modal-header{
-  flex:0 0 auto!important;
-  position:relative!important;
-  z-index:2!important;
-}
-#personal-info-overlay #personal-info-modal .auth-modal-body{
-  flex:1 1 auto!important;
-  min-height:0!important;
-  overflow-y:auto!important;
-  -webkit-overflow-scrolling:touch!important;
-}
-@media(max-width:768px){
-  #personal-info-overlay.open{
-    align-items:center!important;
-    justify-content:center!important;
-    padding:12px!important;
-  }
-  #personal-info-overlay #personal-info-modal{
-    width:94vw!important;
-    max-height:86dvh!important;
-    border-radius:22px!important;
-  }
 }
 
 </style>
@@ -3560,7 +3444,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <button id="odtab-all-dates" class="orders-tab" data-orders-date-filter="all" onclick="filterOrdersByDate('all')">📋 All Orders</button>
       </div>
       <!-- STATUS FILTER TABS -->
-      <div id="orders-tab-row" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">
+      <div id="orders-tab-row">
         <button id="otab-active"  class="orders-tab active" data-orders-status-tab="active" onclick="filterOrdersByTab('active')">🔄 Active</button>
         <button id="otab-delivered" class="orders-tab" data-orders-status-tab="delivered" onclick="filterOrdersByTab('delivered')">✅ Delivered</button>
         <button id="otab-rejected" class="orders-tab" data-orders-status-tab="rejected" onclick="filterOrdersByTab('rejected')">❌ Rejected</button>
@@ -10412,11 +10296,26 @@ window.openPersonalInfoModal = async function() {
 
     if (modal) {
         modal.classList.add('open');
-        modal.style.setProperty('display', 'block', 'important');
+        modal.style.setProperty('display', 'flex', 'important');
+        modal.style.setProperty('flex-direction', 'column', 'important');
         modal.style.setProperty('height', 'auto', 'important');
         modal.style.setProperty('min-height', '320px', 'important');
         modal.style.setProperty('max-height', '88vh', 'important');
-        modal.style.setProperty('overflow-y', 'hidden', 'important');
+        modal.style.setProperty('overflow', 'hidden', 'important');
+
+        const header = modal.querySelector('.auth-modal-header');
+        const body = modal.querySelector('.auth-modal-body');
+
+        if (header) {
+            header.style.setProperty('flex', '0 0 auto', 'important');
+        }
+
+        if (body) {
+            body.style.setProperty('flex', '1 1 auto', 'important');
+            body.style.setProperty('min-height', '0', 'important');
+            body.style.setProperty('overflow-y', 'auto', 'important');
+            body.style.setProperty('-webkit-overflow-scrolling', 'touch', 'important');
+        }
     }
 
     document.documentElement.classList.add('modal-open');
@@ -10461,7 +10360,7 @@ window.openPersonalInfoModal = async function() {
 <!-- ADD HERE -->
 
 <div class="auth-overlay" id="personal-info-overlay">
-  <div class="auth-modal" id="personal-info-modal" style="max-width:680px">
+  <div class="auth-modal personal-info-modal" id="personal-info-modal" style="max-width:680px">
     <div class="auth-modal-header">
       <h2>👤 Personal Information</h2>
       <p>Name, email & contact details</p>

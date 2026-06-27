@@ -8021,6 +8021,17 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     }
   };
 
+
+  function gfySafeCategoryId(value, prefixIfName) {
+    var raw = String(value || '').trim().toLowerCase();
+    raw = raw.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    if (!raw) raw = 'category';
+    if (prefixIfName && raw.indexOf('cat-') !== 0 && !['vegetables','fruits','dairy','grocery','leafy','snacks','beverages'].includes(raw)) {
+      raw = 'cat-' + raw;
+    }
+    return raw;
+  }
+
   // Add New Category Function writing directly to Firestore
   window.saveNewCategory = async function() {
     if (currentRole !== 'admin') {
@@ -8041,7 +8052,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       return;
     }
 
-    const catId = 'cat-' + name.replace(/\s+/g, '-').toLowerCase();
+    const catId = gfySafeCategoryId(name, true);
 
     const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
                        (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
@@ -8282,31 +8293,13 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         <div style="display:flex; gap:6px; flex-shrink:0; align-items:center; justify-content:flex-end;">
           <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="up" title="Move up">↑</button>
           <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="down" title="Move down">↓</button>
-          <button type="button" data-gfy-cat-action="edit" data-cat-id="${gfyEscapeAttr(cat.id)}" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Edit Category">✏️</button>
-          <button type="button" data-gfy-cat-action="delete" data-cat-id="${gfyEscapeAttr(cat.id)}" style="background:#ffebee; border:1.5px solid #ffcdd2; color:#c62828; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Delete Category">🗑️</button>
+          <button onclick="openEditCatModal('${gfyEscapeAttr(cat.id)}')" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Edit Category">✏️</button>
+          <button onclick="deleteCategory('${gfyEscapeAttr(cat.id)}')" style="background:#ffebee; border:1.5px solid #ffcdd2; color:#c62828; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Delete Category">🗑️</button>
         </div>
       </div>`;
     }).join('');
 
     enableCategoryDragOrdering(listContainer);
-
-    if (listContainer.dataset.gfyCatActionReady !== 'true') {
-      listContainer.dataset.gfyCatActionReady = 'true';
-      listContainer.addEventListener('click', function(e) {
-        const actionBtn = e.target.closest && e.target.closest('[data-gfy-cat-action]');
-        if (!actionBtn) return;
-        e.preventDefault();
-        e.stopPropagation();
-        const catId = actionBtn.getAttribute('data-cat-id') || '';
-        const action = actionBtn.getAttribute('data-gfy-cat-action');
-        if (!catId) return;
-        if (action === 'edit' && typeof window.openEditCatModal === 'function') {
-          window.openEditCatModal(catId);
-        } else if (action === 'delete' && typeof window.deleteCategory === 'function') {
-          window.deleteCategory(catId);
-        }
-      });
-    }
 
     const overlay = document.getElementById('manage-cats-modal-overlay');
     if (overlay) overlay.classList.add('open');
@@ -8597,6 +8590,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     }
     container.dataset.loading = isLoading ? 'true' : 'false';
   }
+
 
   function startCategoriesSync(firebaseDB) {
     console.log('[FirestoreSync] Initializing realtime categories sync listener...');
@@ -11783,326 +11777,213 @@ document.addEventListener('click', function(e) {
 </script>
 
 
-
 <script>
-/* GFY MINIMAL CATEGORY CLICK FIX
-   Restores original menu loading/prices. Only overrides customer/admin menu tab rendering
-   to avoid inline onclick strings breaking when category IDs contain apostrophe, &, / etc. */
+/* GFY FIX: Safe category IDs for names like "Chapati's & Curry's".
+   Prevents inline onclick/category filter breakage from apostrophes, &, /, brackets, etc.
+   Keeps default categories unchanged and normalizes existing Firestore category IDs on render. */
 (function(){
-  function gfyEscapeHtml(v){
-    return String(v == null ? '' : v)
-      .replace(/&/g,'&amp;')
-      .replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;')
-      .replace(/"/g,'&quot;')
-      .replace(/'/g,'&#39;');
+  if (window.__GFY_SAFE_CATEGORY_ID_FIX__) return;
+  window.__GFY_SAFE_CATEGORY_ID_FIX__ = true;
+
+  function safeCatId(value) {
+    var raw = String(value || '').trim().toLowerCase();
+    raw = raw.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return raw || 'grocery';
   }
-  function gfyGetCategories(){
-    try { return Array.isArray(categories) ? categories : (Array.isArray(window.categories) ? window.categories : []); }
-    catch(e){ return Array.isArray(window.categories) ? window.categories : []; }
-  }
-  function gfyGetItems(){
-    try { return Array.isArray(items) ? items : (Array.isArray(window.items) ? window.items : []); }
-    catch(e){ return Array.isArray(window.items) ? window.items : []; }
-  }
-  function gfyRole(){
-    try { return currentRole || window.currentRole || 'customer'; }
-    catch(e){ return window.currentRole || 'customer'; }
-  }
-  function gfyItemCategory(item){
-    return String((item && (item.category || item.catId || item.categoryId)) || '');
-  }
-  function gfySetCurrentFilter(filter){
-    try { _currentMenuFilter = filter; } catch(e) {}
-    window._currentMenuFilter = filter;
-  }
-  function gfyRefreshCardSafe(itemId){
-    if (typeof window.refreshCard === 'function') {
-      try { window.refreshCard(itemId); } catch(e) {}
-    } else if (typeof refreshCard === 'function') {
-      try { refreshCard(itemId); } catch(e) {}
-    }
-  }
-  function gfyQBlock(itemId){
-    try {
-      if (typeof qBlock === 'function') return qBlock(itemId);
-      if (typeof window.qBlock === 'function') return window.qBlock(itemId);
-    } catch(e) {}
-    return '';
-  }
-  function gfyRenderCatGrid(catId){
-    var grid = document.getElementById('grid-' + catId);
-    if (!grid) return;
-    var list = gfyGetItems().filter(function(item){ return gfyItemCategory(item) === String(catId); });
-    var visible = gfyRole() === 'admin' ? list : list.filter(function(item){ return item && item.inStock !== false; });
-    grid.innerHTML = '';
-    if (!visible.length) {
-      if (gfyRole() === 'admin') {
-        grid.innerHTML = '<div class="empty-cat-msg"><div class="big">📭</div><div>No items in this category</div></div>';
-      }
-      return;
-    }
-    visible.forEach(function(item){
-      var card = document.createElement('div');
-      card.className = 'menu-card' + (item.inStock !== false ? '' : ' out-of-stock');
-      card.id = 'mcard-' + item.id;
-      var rating = (typeof item.rating === 'number') ? item.rating : 4;
-      var ratingCount = (typeof item.ratingCount === 'number') ? item.ratingCount : 0;
-      var rounded = Math.max(0, Math.min(5, Math.round(rating)));
-      var stars = '⭐'.repeat(rounded) + '<span style="opacity:.3">' + '⭐'.repeat(5 - rounded) + '</span>';
-      var stockPill;
-      if (gfyRole() === 'admin') {
-        stockPill = '<span class="stock-pill '+(item.inStock !== false ? 'in-stock' : 'out-stock')+'" onclick="toggleStock(\''+String(item.id).replace(/'/g,"\\'")+'\')"><span class="stock-dot"></span>'+(item.inStock !== false ? 'In Stock' : 'Out of Stock')+'</span>';
-      } else {
-        stockPill = '<span class="stock-pill '+(item.inStock !== false ? 'in-stock' : 'out-stock')+'"><span class="stock-dot"></span>'+(item.inStock !== false ? 'In Stock' : 'Out of Stock')+'</span>';
-      }
-      card.innerHTML =
-        '<div class="card-header">' +
-          '<div>' +
-            '<div class="card-name">' + gfyEscapeHtml(item.emoji || '') + (item.emoji ? ' ' : '') + gfyEscapeHtml(item.name || '') + '</div>' +
-            '<div class="card-type">' + gfyEscapeHtml(item.type || item.description || '') + '</div>' +
-            '<div class="item-rating"><span class="stars">' + stars + '</span> <span>' + Number(rating).toFixed(1) + ' (' + ratingCount + ')</span></div>' +
-          '</div>' +
-          '<div class="card-price">₹' + gfyEscapeHtml(item.price || 0) + '</div>' +
-        '</div>' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' + stockPill + '<div id="q-' + gfyEscapeHtml(item.id) + '">' + gfyQBlock(item.id) + '</div></div>';
-      grid.appendChild(card);
+
+  function normalizeMenuArrays() {
+    var cats = Array.isArray(window.categories) ? window.categories : [];
+    var idMap = {};
+    cats.forEach(function(cat) {
+      if (!cat) return;
+      var oldId = String(cat.id || '');
+      var newId = safeCatId(oldId || cat.name || 'category');
+      if (oldId && oldId !== newId) idMap[oldId] = newId;
+      cat.id = newId;
     });
-  }
-  function gfyRenderMenuPage(filter){
-    filter = filter || 'all';
-    gfySetCurrentFilter(filter);
-    var cats = gfyGetCategories();
-    var allItems = gfyGetItems();
-    var bar = document.getElementById('menu-filter-bar');
-    var container = document.getElementById('menu-sections-container');
-    if (!bar || !container) return;
-    bar.innerHTML = '';
-    var allBtn = document.createElement('button');
-    allBtn.className = 'mfb-tab' + (filter === 'all' ? ' active' : '');
-    allBtn.type = 'button';
-    allBtn.textContent = 'All';
-    allBtn.addEventListener('click', function(){ gfyRenderMenuPage('all'); });
-    bar.appendChild(allBtn);
-    cats.forEach(function(cat){
-      var count = allItems.filter(function(item){ return gfyItemCategory(item) === String(cat.id) && item.inStock !== false; }).length;
-      var btn = document.createElement('button');
-      btn.className = 'mfb-tab' + (String(filter) === String(cat.id) ? ' active' : '');
-      btn.type = 'button';
-      btn.dataset.catId = String(cat.id);
-      btn.innerHTML = gfyEscapeHtml(cat.emoji || '') + (cat.emoji ? ' ' : '') + gfyEscapeHtml(cat.name || cat.id) + ' <span style="opacity:.6;font-size:.72rem">(' + count + ')</span>';
-      btn.addEventListener('click', function(){ gfyRenderMenuPage(cat.id); });
-      bar.appendChild(btn);
+
+    var items = Array.isArray(window.items) ? window.items : [];
+    items.forEach(function(item) {
+      if (!item) return;
+      var oldCat = String(item.category || item.catId || 'grocery');
+      var newCat = idMap[oldCat] || safeCatId(oldCat);
+      item.category = newCat;
+      item.catId = newCat;
     });
-    container.innerHTML = '';
-    var showCats = filter === 'all' ? cats : cats.filter(function(cat){ return String(cat.id) === String(filter); });
-    showCats.forEach(function(cat){
-      var catItems = allItems.filter(function(item){ return gfyItemCategory(item) === String(cat.id); });
-      if (!catItems.length) return;
-      if (gfyRole() !== 'admin' && !catItems.some(function(item){ return item.inStock !== false; })) return;
-      var section = document.createElement('div');
-      section.className = 'menu-section';
-      section.id = 'catsec-' + cat.id;
-      section.innerHTML = '<div class="section-title">' + gfyEscapeHtml(cat.emoji || '') + (cat.emoji ? ' ' : '') + gfyEscapeHtml(cat.name || cat.id) + '</div><div class="menu-grid" id="grid-' + gfyEscapeHtml(cat.id) + '"></div>';
-      container.appendChild(section);
-      gfyRenderCatGrid(cat.id);
-    });
+
+    window.gfySafeCategoryId = safeCatId;
   }
-  window.renderMenuPage = gfyRenderMenuPage;
-  window.renderCatGrid = gfyRenderCatGrid;
+
+  function patchRender() {
+    if (typeof window.renderMenuPage !== 'function' || window.renderMenuPage.__gfySafeCatPatched) return;
+    var originalRender = window.renderMenuPage;
+    window.renderMenuPage = function(filter) {
+      normalizeMenuArrays();
+      var safeFilter = filter && filter !== 'all' ? safeCatId(filter) : filter;
+      return originalRender.call(this, safeFilter || 'all');
+    };
+    window.renderMenuPage.__gfySafeCatPatched = true;
+  }
+
+  normalizeMenuArrays();
+  patchRender();
   document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(function(){
-      var container = document.getElementById('menu-sections-container');
-      if (container && container.dataset.loading !== 'true') {
-        gfyRenderMenuPage(window._currentMenuFilter || 'all');
-      }
-    }, 250);
+    normalizeMenuArrays();
+    patchRender();
   });
+  setInterval(function(){
+    normalizeMenuArrays();
+    patchRender();
+  }, 1200);
 })();
 </script>
 
 
 
 <script>
-/* GFY TARGETED FIX: Admin can add/manage items in categories with apostrophes (&),
-   especially "Chapati's & Curry's". This does not change menu loading, prices,
-   orders, or Firestore listeners. It only resolves category IDs before admin
-   manage filtering and add-item save. */
+/* GFY FIX v2: Reconcile customer menu item categories with admin category IDs.
+   Some existing items were saved with category name / old unsafe ID, while the
+   category document uses cat-<safe-name>. This normalizes both before rendering. */
 (function(){
-  'use strict';
+  if (window.__GFY_SAFE_CATEGORY_CUSTOMER_VIEW_FIX__) return;
+  window.__GFY_SAFE_CATEGORY_CUSTOMER_VIEW_FIX__ = true;
 
-  function decodeHtml(value){
-    var div = document.createElement('div');
-    div.innerHTML = String(value == null ? '' : value);
-    return div.textContent || div.innerText || '';
+  var DEFAULT_IDS = { vegetables:1, fruits:1, dairy:1, grocery:1, leafy:1, snacks:1, beverages:1 };
+
+  function slug(value){
+    var raw = String(value || '').trim().toLowerCase();
+    raw = raw.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return raw || 'grocery';
   }
 
-  function key(value){
-    return decodeHtml(value)
-      .toLowerCase()
-      .replace(/^cat[-_\s]*/,'')
-      .replace(/&/g,' and ')
-      .replace(/[^a-z0-9]+/g,'-')
-      .replace(/^-+|-+$/g,'');
-  }
-
-  function isChapatiCurry(value){
-    var k = key(value);
-    return k.indexOf('chapati') !== -1 && k.indexOf('curry') !== -1;
-  }
-
-  function cats(){
-    try { if (Array.isArray(window.categories)) return window.categories; } catch(e) {}
-    try { if (Array.isArray(categories)) return categories; } catch(e) {}
-    return [];
-  }
-
-  function items(){
-    try { if (Array.isArray(window.items)) return window.items; } catch(e) {}
-    try { if (Array.isArray(items)) return items; } catch(e) {}
-    return [];
-  }
-
-  function resolveCatId(value){
-    var raw = decodeHtml(value);
-    var all = cats();
-    if (!raw && all.length) return '';
-
-    var exact = all.find(function(c){ return String(c.id) === raw; });
-    if (exact) return exact.id;
-
-    var k = key(raw);
-    var matched = all.find(function(c){
-      return key(c.id) === k || key(c.name) === k || key((c.emoji || '') + ' ' + (c.name || '')) === k;
+  function buildCategoryMap(){
+    var map = {};
+    var cats = Array.isArray(window.categories) ? window.categories : [];
+    cats.forEach(function(cat){
+      if (!cat) return;
+      var id = slug(cat.id || cat.name || 'grocery');
+      var nameSlug = slug(cat.name || id);
+      var idNoCat = id.replace(/^cat-/, '');
+      cat.id = id;
+      map[id] = id;
+      map[idNoCat] = id;
+      map[nameSlug] = id;
+      map['cat-' + nameSlug] = id;
     });
-    if (matched) return matched.id;
+    Object.keys(DEFAULT_IDS).forEach(function(id){ map[id] = id; });
+    return map;
+  }
 
-    if (isChapatiCurry(raw)) {
-      var chapati = all.find(function(c){ return isChapatiCurry(c.id) || isChapatiCurry(c.name); });
-      if (chapati) return chapati.id;
-    }
+  function normalizeCustomerItems(){
+    try{
+      var map = buildCategoryMap();
+      var items = Array.isArray(window.items) ? window.items : [];
+      items.forEach(function(item){
+        if (!item) return;
+        var raw = item.category || item.catId || 'grocery';
+        var s = slug(raw);
+        var noCat = s.replace(/^cat-/, '');
+        var resolved = map[s] || map[noCat] || map['cat-' + noCat] || s;
+        item.category = resolved;
+        item.catId = resolved;
+      });
+    }catch(e){ console.warn('[GFY category customer fix]', e); }
+  }
 
+  function normalizeFilter(filter){
+    if (!filter || filter === 'all') return 'all';
+    var map = buildCategoryMap();
+    var s = slug(filter);
+    var noCat = s.replace(/^cat-/, '');
+    return map[s] || map[noCat] || map['cat-' + noCat] || s;
+  }
+
+  function patchRenderMenuPage(){
+    if (typeof window.renderMenuPage !== 'function' || window.renderMenuPage.__gfyCustomerCategoryFixV2) return;
+    var original = window.renderMenuPage;
+    window.renderMenuPage = function(filter){
+      normalizeCustomerItems();
+      var fixedFilter = normalizeFilter(filter || window._currentMenuFilter || 'all');
+      window._currentMenuFilter = fixedFilter;
+      return original.call(this, fixedFilter);
+    };
+    window.renderMenuPage.__gfyCustomerCategoryFixV2 = true;
+  }
+
+  normalizeCustomerItems();
+  patchRenderMenuPage();
+  document.addEventListener('DOMContentLoaded', function(){
+    normalizeCustomerItems();
+    patchRenderMenuPage();
+    if (typeof window.renderMenuPage === 'function') window.renderMenuPage(window._currentMenuFilter || 'all');
+  });
+  setInterval(function(){
+    normalizeCustomerItems();
+    patchRenderMenuPage();
+  }, 800);
+})();
+</script>
+
+
+<script>
+/* GFY FINAL FIX: Customer category filter reconciliation.
+   Ensures category IDs and item catId/category stay identical for custom categories
+   such as "Chapati's & Curry's", including legacy Firestore values. */
+(function(){
+  if (window.__GFY_CUSTOMER_CATEGORY_FINAL_FIX__) return;
+  window.__GFY_CUSTOMER_CATEGORY_FINAL_FIX__ = true;
+  var defaults = {vegetables:1, fruits:1, dairy:1, grocery:1, leafy:1, snacks:1, beverages:1};
+  function slug(v){
+    var raw = String(v || '').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+    if (!raw) raw = 'grocery';
+    if (raw.indexOf('cat-') !== 0 && !defaults[raw]) raw = 'cat-' + raw;
     return raw;
   }
-
-  function normalizeLocalChapatiItems(){
-    var allCats = cats();
-    var chapati = allCats.find(function(c){ return isChapatiCurry(c.id) || isChapatiCurry(c.name); });
-    if (!chapati) return;
-    items().forEach(function(item){
-      if (!item) return;
-      var itemCat = item.category || item.catId || item.categoryId || item.categoryName || '';
-      if (String(itemCat) === String(chapati.id)) return;
-      if (isChapatiCurry(itemCat)) {
-        item.category = chapati.id;
-        item.catId = chapati.id;
-        item.categoryId = chapati.id;
-      }
-    });
+  function noCat(v){ return slug(v).replace(/^cat-/,''); }
+  function reconcile(){
+    try{
+      var cats = Array.isArray(window.categories) ? window.categories : [];
+      var map = {};
+      cats.forEach(function(c){
+        if (!c) return;
+        var id = slug(c.id || c.name || 'grocery');
+        var n = noCat(c.name || id);
+        var old = String(c.id || '').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+        c.id = id;
+        map[id] = id;
+        map[noCat(id)] = id;
+        map[n] = id;
+        if (old) { map[old] = id; map[old.replace(/^cat-/,'')] = id; }
+      });
+      Object.keys(defaults).forEach(function(d){ map[d] = d; });
+      var items = Array.isArray(window.items) ? window.items : [];
+      items.forEach(function(it){
+        if (!it) return;
+        var raw = it.catId || it.category || 'grocery';
+        var s = slug(raw), n = noCat(raw);
+        var fixed = map[s] || map[n] || s;
+        it.catId = fixed;
+        it.category = fixed;
+      });
+    }catch(e){ console.warn('[GFY final category reconcile]', e); }
   }
-
-  function patchAddItemCategorySelect(preferredValue){
-    var select = document.getElementById('aip-cat');
-    if (!select) return '';
-    var allCats = cats();
-    if (!allCats.length) return select.value || '';
-
-    var current = preferredValue || select.value || '';
-    var resolved = resolveCatId(current);
-
-    // Fix existing option values if they were rendered with escaped/unsafe variants.
-    Array.prototype.slice.call(select.options || []).forEach(function(opt){
-      var optResolved = resolveCatId(opt.value || opt.textContent || '');
-      if (optResolved) opt.value = optResolved;
-    });
-
-    // Ensure every current category exists in the Add Item dropdown.
-    allCats.forEach(function(cat){
-      if (!cat || !cat.id) return;
-      var exists = Array.prototype.slice.call(select.options || []).some(function(opt){ return String(opt.value) === String(cat.id); });
-      if (!exists) {
-        var option = new Option(((cat.emoji || '') + ' ' + (cat.name || cat.id)).trim(), cat.id);
-        select.add(option);
-      }
-    });
-
-    resolved = resolveCatId(resolved || current);
-    if (resolved) select.value = resolved;
-    return select.value || resolved || '';
+  var oldRender = window.renderMenuPage;
+  if (typeof oldRender === 'function' && !oldRender.__gfyFinalCustomerCatFix) {
+    window.renderMenuPage = function(filter){
+      reconcile();
+      var f = (!filter || filter === 'all') ? 'all' : slug(filter);
+      window._currentMenuFilter = f;
+      return oldRender.call(this, f);
+    };
+    window.renderMenuPage.__gfyFinalCustomerCatFix = true;
   }
-
-  function selectedCatFromClickedTab(tab){
-    if (!tab) return '';
-    var direct = tab.getAttribute('data-cat-id') || tab.dataset && tab.dataset.catId || '';
-    if (direct) return resolveCatId(direct);
-    var onclick = tab.getAttribute('onclick') || '';
-    var m = onclick.match(/['"]([^'"]+)['"]/);
-    if (m && m[1]) return resolveCatId(m[1]);
-    return resolveCatId((tab.textContent || '').replace(/\([^)]*\)/g,'').trim());
-  }
-
-  // Intercept admin/manage category tabs before broken inline onclick strings can run.
   document.addEventListener('click', function(e){
-    var tab = e.target && e.target.closest ? e.target.closest('.cat-tab,.mfb-tab') : null;
-    if (!tab) return;
-    var id = selectedCatFromClickedTab(tab);
-    if (!id || id === 'all') return;
-    if (!isChapatiCurry(id) && !isChapatiCurry(tab.textContent || '')) return;
-
-    patchAddItemCategorySelect(id);
-    normalizeLocalChapatiItems();
-
-    if (typeof window.renderManagePage === 'function' && tab.classList.contains('cat-tab')) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      try { window.renderManagePage(id); } catch(err) { console.warn('[GFY Chapati category] renderManagePage skipped:', err); }
-      setTimeout(function(){ patchAddItemCategorySelect(id); normalizeLocalChapatiItems(); }, 0);
-    }
+    var btn = e.target && e.target.closest ? e.target.closest('#menu-filter-bar .mfb-tab') : null;
+    if (!btn) return;
+    setTimeout(function(){ reconcile(); }, 0);
   }, true);
-
-  // Wrap renderManagePage only to resolve the category argument and sync the Add Item dropdown.
-  function wrapRenderManagePage(){
-    var old = window.renderManagePage;
-    if (typeof old !== 'function' || old.__gfyChapatiAddWrapped) return;
-    window.renderManagePage = function(filter){
-      var resolved = resolveCatId(filter || '');
-      normalizeLocalChapatiItems();
-      var result = old.apply(this, [resolved || filter]);
-      setTimeout(function(){ patchAddItemCategorySelect(resolved); normalizeLocalChapatiItems(); }, 0);
-      return result;
-    };
-    window.renderManagePage.__gfyChapatiAddWrapped = true;
-  }
-
-  // Wrap saveNewItem. It still calls your original save function; it only fixes #aip-cat first.
-  function wrapSaveNewItem(){
-    var old = window.saveNewItem;
-    if (typeof old !== 'function' || old.__gfyChapatiAddWrapped) return;
-    window.saveNewItem = async function(){
-      normalizeLocalChapatiItems();
-      patchAddItemCategorySelect();
-      var select = document.getElementById('aip-cat');
-      if (select) {
-        var resolved = resolveCatId(select.value || select.options[select.selectedIndex]?.textContent || '');
-        if (resolved) select.value = resolved;
-      }
-      return old.apply(this, arguments);
-    };
-    window.saveNewItem.__gfyChapatiAddWrapped = true;
-  }
-
-  function install(){
-    wrapRenderManagePage();
-    wrapSaveNewItem();
-    normalizeLocalChapatiItems();
-    patchAddItemCategorySelect();
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(install, 0); });
-  else setTimeout(install, 0);
-
-  // Re-apply after Firestore/category listeners replace arrays or dropdown HTML.
-  setInterval(install, 1000);
+  document.addEventListener('DOMContentLoaded', function(){ reconcile(); });
+  setInterval(function(){ reconcile(); }, 700);
 })();
 </script>
 

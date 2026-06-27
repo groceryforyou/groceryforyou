@@ -1986,9 +1986,7 @@ window.setMenuLoadingState = window.setMenuLoadingState || function(isLoading, m
     if (!container) return;
     if (isLoading) {
       container.dataset.loading = 'true';
-      if (!container.innerHTML.trim()) {
-        container.innerHTML = '<div class="empty-cat-msg"><div class="big">⏳</div><div>' + (message || 'Loading...') + '</div></div>';
-      }
+      // GFY FIX: do not inject a second inline menu loading message.
     } else {
       if (container.dataset.loading === 'true') container.innerHTML = '';
       container.dataset.loading = 'false';
@@ -8740,15 +8738,9 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     if (!isLoading && window.gfyHideStartupLoader) window.gfyHideStartupLoader();
     const container = document.getElementById('menu-sections-container');
     if (!container) return;
-    if (isLoading) {
-      // GFY FIX: Restore the previous visible latest-prices loading screen.
-      container.innerHTML = `
-        <div class="empty-cat-msg" style="min-height:260px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
-          <div class="big">⏳</div>
-          <div style="font-size:.95rem;color:#555;text-align:center;max-width:320px;">${message}</div>
-        </div>`;
-    } else if (container.dataset.loading === 'true') {
-      // Clear only the loading placeholder before rendering menu items.
+    // GFY FIX: keep only the startup/latest-prices loader.
+    // Do not inject a second inline "Loading latest prices..." block inside the menu page.
+    if (!isLoading && container.dataset.loading === 'true') {
       const hasRenderedMenu = !!container.querySelector('.menu-section,.menu-card');
       if (!hasRenderedMenu) container.innerHTML = '';
     }
@@ -9077,97 +9069,6 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     setTimeout(init, 100);
   }
 
-})();
-</script>
-
-
-<!-- GFY FIX: prevent old cached/static menu flash before fresh Firestore menu arrives -->
-<script>
-(function(){
-  'use strict';
-  if (window.__GFY_NO_OLD_MENU_CACHE_GATE__) return;
-  window.__GFY_NO_OLD_MENU_CACHE_GATE__ = true;
-  window._gfyFreshMenuReady = false;
-
-  function showFreshLoading(){
-    try {
-      if (typeof window.setMenuLoadingState === 'function') window.setMenuLoadingState(true, 'Loading latest prices...');
-      if (window.gfyShowStartupLoader && !window._gfyStartupClosed) window.gfyShowStartupLoader('Loading latest prices...');
-    } catch(e) {}
-  }
-
-  function wrapRender(){
-    if (typeof window.renderMenuPage !== 'function' || window.renderMenuPage.__gfyNoOldCacheGate) return;
-    var original = window.renderMenuPage;
-    window.renderMenuPage = function(filter){
-      if (!window._gfyFreshMenuReady) {
-        showFreshLoading();
-        return;
-      }
-      return original.apply(this, arguments);
-    };
-    window.renderMenuPage.__gfyNoOldCacheGate = true;
-  }
-
-  wrapRender();
-  var gateTimer = setInterval(function(){
-    wrapRender();
-    if (window._gfyFreshMenuReady) clearInterval(gateTimer);
-  }, 120);
-  showFreshLoading();
-})();
-</script>
-
-<!-- GFY FIX: fast page reveal without stale menu cache -->
-<script>
-(function(){
-  'use strict';
-  if (window.__GFY_FAST_PAGE_REVEAL_NO_STALE__) return;
-  window.__GFY_FAST_PAGE_REVEAL_NO_STALE__ = true;
-
-  function clearPossibleStaleMenuArrays(){
-    try {
-      ['items','menuItems','allItems','products','menuData'].forEach(function(k){
-        if (Array.isArray(window[k]) && !window._gfyFreshMenuReady) window[k].length = 0;
-      });
-    } catch(e) {}
-  }
-
-  function stopFullScreenOnly(){
-    try { if (window.gfyHideStartupLoader) window.gfyHideStartupLoader(); } catch(e) {}
-  }
-
-  function showInlineMenuWait(){
-    try {
-      var container = document.getElementById('menu-sections-container');
-      if (container && !window._gfyFreshMenuReady) {
-        container.dataset.loading = 'false';
-        container.innerHTML = '<div class="empty-cat-msg"><div class="big">🛒</div><div>Loading latest prices...</div></div>';
-      }
-    } catch(e) {}
-  }
-
-  // Hard cap for the full-page loader. After this, page is visible; Firestore still refreshes menu when ready.
-  setTimeout(function(){
-    if (!window._gfyFreshMenuReady) {
-      clearPossibleStaleMenuArrays();
-      stopFullScreenOnly();
-      showInlineMenuWait();
-    }
-  }, 1200);
-
-  // If fresh data arrives, remove inline wait and render immediately.
-  var t = setInterval(function(){
-    if (window._gfyFreshMenuReady) {
-      clearInterval(t);
-      stopFullScreenOnly();
-      try {
-        if (typeof window.renderMenuPage === 'function') window.renderMenuPage(window._currentMenuFilter || 'all');
-        if (typeof window.refreshManageList === 'function') window.refreshManageList();
-        if (typeof window.updateCart === 'function') window.updateCart();
-      } catch(e) {}
-    }
-  }, 150);
 })();
 </script>
 

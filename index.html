@@ -1999,7 +1999,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
     }, 320);
   };
   window.gfyShowStartupLoader('Loading latest prices...');
-  window.addEventListener('load', function(){ setTimeout(window.gfyHideStartupLoader, 4200); }, {once:true});
+  window.addEventListener('load', function(){ setTimeout(window.gfyHideStartupLoader, 3000); }, {once:true});
 })();
 </script>
 
@@ -6382,6 +6382,15 @@ function waitFor(check,cb,n){if(n===undefined)n=0;if(check())return cb();if(n<40
 function gfyDB(){return(typeof firebase!=='undefined'&&firebase.apps&&firebase.apps.length)?firebase.firestore():null;}
 
 // ── 1. CLEAR LEGACY STATIC ARRAYS & OVERRIDE CATEGORIES ─────────────────
+// GFY FIX: keep a safe copy of the built-in menu before Firestore replaces it.
+// If Firestore is slow/empty, customer menu must not stay loading or show 0 items.
+try {
+  window.__GFY_STATIC_ITEMS_BACKUP__ = (typeof items !== 'undefined' && Array.isArray(items)) ? items.slice() : (Array.isArray(window.items) ? window.items.slice() : []);
+  window.__GFY_STATIC_CATEGORIES_BACKUP__ = (typeof categories !== 'undefined' && Array.isArray(categories)) ? categories.slice() : (Array.isArray(window.categories) ? window.categories.slice() : []);
+} catch(e) {
+  window.__GFY_STATIC_ITEMS_BACKUP__ = window.__GFY_STATIC_ITEMS_BACKUP__ || [];
+  window.__GFY_STATIC_CATEGORIES_BACKUP__ = window.__GFY_STATIC_CATEGORIES_BACKUP__ || [];
+}
 if (typeof items !== 'undefined') {
   items.length = 0;
 }
@@ -8789,6 +8798,39 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     });
   }
 
+  function gfyRestoreStaticMenuIfNeeded() {
+    try {
+      const backupItems = Array.isArray(window.__GFY_STATIC_ITEMS_BACKUP__) ? window.__GFY_STATIC_ITEMS_BACKUP__ : [];
+      const backupCats = Array.isArray(window.__GFY_STATIC_CATEGORIES_BACKUP__) ? window.__GFY_STATIC_CATEGORIES_BACKUP__ : [];
+      if (backupCats.length) {
+        if (typeof categories !== 'undefined' && Array.isArray(categories)) {
+          categories.length = 0;
+          backupCats.forEach(c => categories.push(c));
+        }
+        if (Array.isArray(window.categories)) {
+          window.categories.length = 0;
+          backupCats.forEach(c => window.categories.push(c));
+        } else {
+          window.categories = backupCats.slice();
+        }
+      }
+      if (backupItems.length) {
+        const targets = [window.items, window.menuItems, window.allItems, window.products, window.menuData];
+        targets.forEach(function(arr){
+          if (Array.isArray(arr)) {
+            arr.length = 0;
+            backupItems.forEach(item => arr.push(item));
+          }
+        });
+        if (!Array.isArray(window.items)) window.items = backupItems.slice();
+      }
+      return backupItems.length > 0;
+    } catch (e) {
+      console.warn('[FirestoreSync] Static menu restore failed:', e);
+      return false;
+    }
+  }
+
   function startRealtimeSync() {
     const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
                        (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
@@ -8800,12 +8842,14 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     if (!window._menuLoadTimeout) {
       window._menuLoadTimeout = setTimeout(() => {
         if (!window._firestoreMenuSynced) {
-          console.warn('[FirestoreSync] Menu data timeout. Falling back to hardcoded menu.');
+          console.warn('[FirestoreSync] Menu data timeout. Falling back to saved/static menu.');
+          gfyRestoreStaticMenuIfNeeded();
+          window._firestoreMenuSynced = true;
           setMenuLoadingState(false);
           if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
           if (typeof updateCart === 'function') updateCart();
         }
-      }, 3500);
+      }, 2200);
     }
 
     setMenuLoadingState(true, 'Loading latest prices...');
@@ -8872,6 +8916,17 @@ window.updateOrderCardStatus = updateOrderCardStatus;
           if (ao !== bo) return ao - bo;
           return String(a.name || '').localeCompare(String(b.name || ''));
         });
+
+        // GFY FIX: if Firestore returns empty/slow menu data, do not wipe the customer menu.
+        // Keep the visible menu fast by restoring the saved static menu instead of showing 0 items.
+        if (!firestoreItems.length) {
+          console.warn('[FirestoreSync] menuItems snapshot is empty. Keeping saved/static menu.');
+          gfyRestoreStaticMenuIfNeeded();
+          setMenuLoadingState(false);
+          if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
+          if (typeof updateCart === 'function') updateCart();
+          return;
+        }
 
         // Update items arrays in-place to preserve application references
         if (Array.isArray(window.items)) {

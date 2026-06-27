@@ -7716,7 +7716,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const customInput = document.getElementById('edit-item-emoji-custom');
     if (!picker) return;
     const itemEmojis = ['🍎','🍌','🥭','🍇','🍉','🥥','🥦','🥬','🥕','🍅','🧅','🥔','🫘','🍚','🌾','🥛','🧀','🧈','☕','🍯','🍪','🥤','🛒','📦'];
-    const activeEmoji = (selectedEmoji || '🍎').trim();
+    const activeEmoji = (selectedEmoji == null ? '' : String(selectedEmoji)).trim();
     picker.innerHTML = itemEmojis.map(function(emoji) {
       const isSelected = emoji === activeEmoji ? ' selected' : '';
       return '<span class="emoji-opt' + isSelected + '" data-edit-item-emoji="' + gfyEscapeAttr(emoji) + '" role="button" tabindex="0">' + gfyEscapeAttr(emoji) + '</span>';
@@ -7725,7 +7725,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   }
 
   function selectEditItemEmoji(emoji) {
-    const cleanEmoji = String(emoji || '').trim() || '🍎';
+    const cleanEmoji = String(emoji == null ? '' : emoji).trim();
     const customInput = document.getElementById('edit-item-emoji-custom');
     if (customInput) customInput.value = cleanEmoji;
     document.querySelectorAll('#edit-item-emoji-picker .emoji-opt').forEach(function(opt) {
@@ -7736,7 +7736,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   document.addEventListener('click', function(e) {
     const opt = e.target && e.target.closest ? e.target.closest('#edit-item-emoji-picker .emoji-opt') : null;
     if (!opt) return;
-    selectEditItemEmoji(opt.getAttribute('data-edit-item-emoji') || opt.textContent || '🍎');
+    selectEditItemEmoji(opt.getAttribute('data-edit-item-emoji') || opt.textContent || '');
   });
 
   window.openEditItemModal = function(itemId) {
@@ -7755,7 +7755,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     if (editItemType) editItemType.value = item.type || item.description || '';
     document.getElementById('edit-item-stock').value = item.inStock ? '1' : '0';
     document.getElementById('edit-item-id').value = itemId;
-    renderEditItemEmojiPicker(item.emoji || '🍎');
+    renderEditItemEmojiPicker(item.hasOwnProperty('emoji') ? item.emoji : '');
 
     // Dynamically prefill choices for current categories list
     const editItemCat = document.getElementById('edit-item-cat');
@@ -7800,7 +7800,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const category = catSelect ? catSelect.value : '';
     const type = typeInput ? typeInput.value.trim() : '';
     const emojiCustomVal = (emojiCustom && emojiCustom.value.trim()) || '';
-    const emoji = emojiCustomVal || (window.selectedEmoji ? String(window.selectedEmoji).trim() : '') || '🍎';
+    let emoji = emojiCustomVal || (window.selectedEmoji ? String(window.selectedEmoji).trim() : '') || '🍎';
     console.log('[AddItem] Emoji saved:', emoji);
     try { emoji = String(emoji).normalize('NFC'); } catch (e) {}
     const inStock = stockSelect ? stockSelect.value === '1' : true;
@@ -7905,7 +7905,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const typeInput = document.getElementById('edit-item-type');
     const type = typeInput ? typeInput.value.trim() : '';
     const emojiInput = document.getElementById('edit-item-emoji-custom');
-    const emoji = emojiInput && emojiInput.value.trim() ? emojiInput.value.trim() : '🍎';
+    const emoji = emojiInput ? emojiInput.value.trim() : '';
     const inStock = document.getElementById('edit-item-stock').value === '1';
 
     if (!name) {
@@ -8179,6 +8179,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     let startY = 0;
 
     listContainer.addEventListener('pointerdown', function(e) {
+      if (e.target && e.target.closest && e.target.closest('input, textarea, select, button')) return;
       const handle = e.target.closest && e.target.closest('.gfy-cat-drag-handle, .gfy-manage-cat-row');
       if (!handle) return;
       const row = rowFromEventTarget(handle);
@@ -8237,64 +8238,6 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     });
   }
 
-  window.saveManageCategoryInline = async function(catId) {
-    if (currentRole !== 'admin') {
-      if (typeof showToast === 'function') showToast('⚠️ Only admin can edit categories');
-      return;
-    }
-
-    const row = document.querySelector('[data-cat-id="' + CSS.escape(catId) + '"]');
-    if (!row) return;
-
-    const nameInput = row.querySelector('[data-gfy-cat-field="name"]');
-    const subInput = row.querySelector('[data-gfy-cat-field="subLabel"]');
-    const emojiInput = row.querySelector('[data-gfy-cat-field="emoji"]');
-
-    const name = nameInput ? nameInput.value.trim() : '';
-    const subLabel = subInput ? subInput.value.trim() : '';
-    const emoji = emojiInput && emojiInput.value.trim() ? emojiInput.value.trim() : '📂';
-
-    if (!name) {
-      if (nameInput) nameInput.focus();
-      if (typeof showToast === 'function') showToast('⚠️ Category name is required');
-      return;
-    }
-
-    const firebaseDB = (typeof db !== 'undefined' && db) ? db :
-      (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
-
-    if (!firebaseDB) {
-      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
-      return;
-    }
-
-    try {
-      const allCats = (typeof window.categories !== 'undefined' && Array.isArray(window.categories)) ? window.categories : [];
-      const existingCat = allCats.find(c => c.id === catId) || {};
-      const existingIndex = allCats.findIndex(c => c.id === catId);
-      await firebaseDB.collection('categories').doc(catId).set({
-        id: catId,
-        name: name,
-        emoji: emoji,
-        subLabel: subLabel,
-        sortOrder: (Number.isFinite(Number(existingCat.sortOrder)) ? Number(existingCat.sortOrder) : (existingIndex >= 0 ? existingIndex * 10 + 10 : getNextCategorySortOrder())),
-        deleted: false,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-
-      const index = allCats.findIndex(c => c.id === catId);
-      if (index >= 0) {
-        allCats[index] = Object.assign({}, allCats[index], { name, emoji, subLabel, deleted: false });
-      }
-
-      if (typeof showToast === 'function') showToast('✅ Category updated', 1800);
-      window.openManageCatsModal();
-    } catch (err) {
-      console.error('[InlineCategoryEdit] Firestore write failed:', err);
-      if (typeof showToast === 'function') showToast('⚠️ Update failed: ' + (err.message || err), 5000);
-    }
-  };
-
   window.openManageCatsModal = function() {
     const listContainer = document.getElementById('manage-cats-list');
     if (!listContainer) return;
@@ -8305,29 +8248,23 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       const sub = cat.subLabel || cat.subtitle || cat.description || '';
       return `
       <div class="gfy-manage-cat-row" data-cat-id="${gfyEscapeAttr(cat.id)}" draggable="true" style="display:flex; align-items:flex-start; justify-content:space-between; padding:12px; background:var(--cream); border:1.5px solid var(--border); border-radius:12px; gap:10px; cursor:grab; touch-action:none;">
-        <div style="display:flex; align-items:flex-start; gap:9px; min-width:0; flex:1;">
-          <span class="gfy-cat-drag-handle" style="font-size:1.05rem; color:#777; cursor:grab; user-select:none; padding-top:8px;" title="Drag to move">☰</span>
-          <input data-gfy-cat-field="emoji" value="${gfyEscapeAttr(cat.emoji || '📂')}" maxlength="4" style="width:42px; min-width:42px; height:38px; text-align:center!important; border:1.5px solid var(--border); border-radius:10px; background:#fff; font-size:1.2rem; padding:4px;" title="Category emoji" />
-          <span style="display:flex; flex-direction:column; gap:6px; min-width:0; flex:1;">
-            <input data-gfy-cat-field="name" value="${gfyEscapeAttr(cat.name || '')}" placeholder="Category name" style="width:100%; border:1.5px solid var(--border); border-radius:10px; background:#fff; padding:8px 10px; font-weight:800; color:var(--brown); font-size:.9rem;" />
-            <input data-gfy-cat-field="subLabel" value="${gfyEscapeAttr(sub)}" placeholder="Sub-label" style="width:100%; border:1.5px solid var(--border); border-radius:10px; background:#fff; padding:7px 10px; color:#666; font-size:.78rem;" />
-          </span>
+        <div style="display:grid; grid-template-columns:26px 58px 1fr; gap:8px; min-width:0; flex:1; align-items:start;">
+          <span class="gfy-cat-drag-handle" style="font-size:1.05rem; color:#777; cursor:grab; user-select:none; padding-top:7px;" title="Drag to move">☰</span>
+          <input class="aip-input gfy-cat-inline-emoji" type="text" value="${gfyEscapeAttr(cat.emoji || '')}" maxlength="8" placeholder="Emoji" style="width:58px; min-width:58px; padding:8px 7px; text-align:center!important;" />
+          <div style="display:grid; gap:6px; min-width:0;">
+            <input class="aip-input gfy-cat-inline-name" type="text" value="${gfyEscapeAttr(cat.name || '')}" placeholder="Category name" style="width:100%; padding:8px 10px; font-weight:800; color:var(--brown);" />
+            <input class="aip-input gfy-cat-inline-sub" type="text" value="${gfyEscapeAttr(sub || '')}" placeholder="Sub-label" style="width:100%; padding:8px 10px; font-size:.78rem!important;" />
+          </div>
         </div>
-        <div style="display:flex; gap:6px; flex-shrink:0; align-items:center; padding-top:3px;">
+        <div style="display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; max-width:144px;">
           <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="up" title="Move up">↑</button>
           <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="down" title="Move down">↓</button>
-          <button type="button" onclick="saveManageCategoryInline('${gfyEscapeAttr(cat.id)}')" style="background:#e8f5e9; border:1.5px solid #a5d6a7; color:var(--green); min-width:56px; height:32px; border-radius:8px; cursor:pointer; font-size:.8rem; font-weight:900; display:flex; align-items:center; justify-content:center;" title="Save Category">Save</button>
-          <button type="button" onclick="openEditCatModal('${gfyEscapeAttr(cat.id)}')" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Full Edit">✏️</button>
-          <button type="button" onclick="deleteCategory('${gfyEscapeAttr(cat.id)}')" style="background:#ffebee; border:1.5px solid #ffcdd2; color:#c62828; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Delete Category">🗑️</button>
+          <button type="button" onclick="saveInlineManagedCategory('${gfyEscapeAttr(cat.id)}')" style="background:#e8f5e9; border:1.5px solid #a5d6a7; color:var(--green); min-width:64px; height:32px; border-radius:8px; cursor:pointer; font-size:.78rem; font-weight:900; display:flex; align-items:center; justify-content:center;" title="Save Category">Save</button>
+          <button onclick="openEditCatModal('${gfyEscapeAttr(cat.id)}')" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Edit Category">✏️</button>
+          <button onclick="deleteCategory('${gfyEscapeAttr(cat.id)}')" style="background:#ffebee; border:1.5px solid #ffcdd2; color:#c62828; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Delete Category">🗑️</button>
         </div>
       </div>`;
     }).join('');
-
-    listContainer.querySelectorAll('input').forEach(function(input) {
-      input.addEventListener('pointerdown', function(e) { e.stopPropagation(); });
-      input.addEventListener('mousedown', function(e) { e.stopPropagation(); });
-      input.addEventListener('touchstart', function(e) { e.stopPropagation(); }, { passive: true });
-    });
 
     enableCategoryDragOrdering(listContainer);
 
@@ -8341,6 +8278,50 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     if (overlay) {
       overlay.classList.remove('open');
       if (typeof window.unlockBodyScroll === 'function') window.unlockBodyScroll();
+    }
+  };
+
+  window.saveInlineManagedCategory = async function(catId) {
+    if (currentRole !== 'admin') {
+      if (typeof showToast === 'function') showToast('⚠️ Only admin can edit categories');
+      return;
+    }
+    const row = document.querySelector('#manage-cats-list [data-cat-id="' + String(catId).replace(/"/g, '\"') + '"]');
+    if (!row) return;
+    const nameInput = row.querySelector('.gfy-cat-inline-name');
+    const emojiInput = row.querySelector('.gfy-cat-inline-emoji');
+    const subInput = row.querySelector('.gfy-cat-inline-sub');
+    const name = nameInput ? nameInput.value.trim() : '';
+    const emoji = emojiInput ? emojiInput.value.trim() : '';
+    const subLabel = subInput ? subInput.value.trim() : '';
+    if (!name) {
+      if (nameInput) nameInput.focus();
+      if (typeof showToast === 'function') showToast('⚠️ Category name is required');
+      return;
+    }
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db :
+      (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+    if (!firebaseDB) {
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
+      return;
+    }
+    try {
+      const allCats = (typeof window.categories !== 'undefined' && Array.isArray(window.categories)) ? window.categories : [];
+      const existingCat = allCats.find(c => c.id === catId) || {};
+      const existingIndex = allCats.findIndex(c => c.id === catId);
+      await firebaseDB.collection('categories').doc(catId).set({
+        id: catId,
+        name: name,
+        emoji: emoji,
+        subLabel: subLabel,
+        sortOrder: (Number.isFinite(Number(existingCat.sortOrder)) ? Number(existingCat.sortOrder) : (existingIndex >= 0 ? existingIndex * 10 + 10 : getNextCategorySortOrder())),
+        deleted: false,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      if (typeof showToast === 'function') showToast('✅ Category saved', 1800);
+    } catch (err) {
+      console.error('[InlineCategoryEdit] Firestore write failed:', err);
+      if (typeof showToast === 'function') showToast('⚠️ Category save failed: ' + (err.message || err), 5000);
     }
   };
  
@@ -8404,7 +8385,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const subLabelInput = document.getElementById('edit-cat-sublabel');
 
     const name = nameInput ? nameInput.value.trim() : '';
-    const emoji = (emojiInput && emojiInput.value.trim()) || window.selectedEditCatEmoji || '📂';
+    const emoji = emojiInput ? emojiInput.value.trim() : '';
     const subLabel = subLabelInput ? subLabelInput.value.trim() : '';
 
     if (!name) {
@@ -9302,7 +9283,7 @@ window.addEventListener('load', function() {
     if (itemsListEl) {
       itemsListEl.innerHTML = cartKeys.map(key => {
         const item = cart[key];
-        return `<div class="om-item-row"><span>${item.emoji || '🍽'} ${item.name} × ${item.qty}</span><span>₹${item.price * item.qty}</span></div>`;
+        return `<div class="om-item-row"><span>${item.emoji ? item.emoji + ' ' : ''}${item.name} × ${item.qty}</span><span>₹${item.price * item.qty}</span></div>`;
       }).join('');
     }
 

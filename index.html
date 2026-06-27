@@ -11845,5 +11845,91 @@ document.addEventListener('click', function(e) {
 })();
 </script>
 
+
+
+<script>
+/* GFY FIX v2: Reconcile customer menu item categories with admin category IDs.
+   Some existing items were saved with category name / old unsafe ID, while the
+   category document uses cat-<safe-name>. This normalizes both before rendering. */
+(function(){
+  if (window.__GFY_SAFE_CATEGORY_CUSTOMER_VIEW_FIX__) return;
+  window.__GFY_SAFE_CATEGORY_CUSTOMER_VIEW_FIX__ = true;
+
+  var DEFAULT_IDS = { vegetables:1, fruits:1, dairy:1, grocery:1, leafy:1, snacks:1, beverages:1 };
+
+  function slug(value){
+    var raw = String(value || '').trim().toLowerCase();
+    raw = raw.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return raw || 'grocery';
+  }
+
+  function buildCategoryMap(){
+    var map = {};
+    var cats = Array.isArray(window.categories) ? window.categories : [];
+    cats.forEach(function(cat){
+      if (!cat) return;
+      var id = slug(cat.id || cat.name || 'grocery');
+      var nameSlug = slug(cat.name || id);
+      var idNoCat = id.replace(/^cat-/, '');
+      cat.id = id;
+      map[id] = id;
+      map[idNoCat] = id;
+      map[nameSlug] = id;
+      map['cat-' + nameSlug] = id;
+    });
+    Object.keys(DEFAULT_IDS).forEach(function(id){ map[id] = id; });
+    return map;
+  }
+
+  function normalizeCustomerItems(){
+    try{
+      var map = buildCategoryMap();
+      var items = Array.isArray(window.items) ? window.items : [];
+      items.forEach(function(item){
+        if (!item) return;
+        var raw = item.category || item.catId || 'grocery';
+        var s = slug(raw);
+        var noCat = s.replace(/^cat-/, '');
+        var resolved = map[s] || map[noCat] || map['cat-' + noCat] || s;
+        item.category = resolved;
+        item.catId = resolved;
+      });
+    }catch(e){ console.warn('[GFY category customer fix]', e); }
+  }
+
+  function normalizeFilter(filter){
+    if (!filter || filter === 'all') return 'all';
+    var map = buildCategoryMap();
+    var s = slug(filter);
+    var noCat = s.replace(/^cat-/, '');
+    return map[s] || map[noCat] || map['cat-' + noCat] || s;
+  }
+
+  function patchRenderMenuPage(){
+    if (typeof window.renderMenuPage !== 'function' || window.renderMenuPage.__gfyCustomerCategoryFixV2) return;
+    var original = window.renderMenuPage;
+    window.renderMenuPage = function(filter){
+      normalizeCustomerItems();
+      var fixedFilter = normalizeFilter(filter || window._currentMenuFilter || 'all');
+      window._currentMenuFilter = fixedFilter;
+      return original.call(this, fixedFilter);
+    };
+    window.renderMenuPage.__gfyCustomerCategoryFixV2 = true;
+  }
+
+  normalizeCustomerItems();
+  patchRenderMenuPage();
+  document.addEventListener('DOMContentLoaded', function(){
+    normalizeCustomerItems();
+    patchRenderMenuPage();
+    if (typeof window.renderMenuPage === 'function') window.renderMenuPage(window._currentMenuFilter || 'all');
+  });
+  setInterval(function(){
+    normalizeCustomerItems();
+    patchRenderMenuPage();
+  }, 800);
+})();
+</script>
+
 </body>
 </html>

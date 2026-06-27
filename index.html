@@ -11746,14 +11746,14 @@ document.addEventListener('click', function(e) {
 (function(){
   function cleanAutoItemEmoji(){
     try{
-      var fallback = /^(?:🍽️|🍽|🍴|🍎|🍏|🍓|🍅)\s*/u;
+      var fallback = /^(?:🍽️|🍽|🍴|🫑)\s*/u;
       document.querySelectorAll('.card-name,.mng-name,.sri-name').forEach(function(el){
         if (!el || !el.firstChild || el.firstChild.nodeType !== 3) return;
         el.firstChild.nodeValue = el.firstChild.nodeValue.replace(fallback, '');
       });
       document.querySelectorAll('.sri-emoji').forEach(function(el){
         var t = (el.textContent || '').trim();
-        if (/^(?:🍽️|🍽|🍴|🍎|🍏|🍓|🍅)$/.test(t)) el.textContent = '';
+        if (/^(?:🍽️|🍽|🍴|🫑)$/.test(t)) el.textContent = '';
       });
     }catch(e){}
   }

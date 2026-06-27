@@ -1733,14 +1733,19 @@ body.support-create-ticket-mode #support-form-section{
 
 
 
-/* FIX: Do not show auth checking splash on refresh.
-   Keep login hidden until Firebase confirms signed-out; app/auth logic will activate login when needed. */
-#page-auth-loading,
-#page-auth-loading.active{
+/* GFY FIX: Show startup loading while Firebase/auth is resolving.
+   Login still stays hidden until Firebase confirms signed-out. */
+#page-auth-loading:not(.active){
   display:none!important;
   opacity:0!important;
   pointer-events:none!important;
   visibility:hidden!important;
+}
+#page-auth-loading.active{
+  display:flex!important;
+  opacity:1!important;
+  pointer-events:auto!important;
+  visibility:visible!important;
 }
 
 
@@ -6252,14 +6257,17 @@ function toggleSidebar() {
   }
   
   function route() {
+    if (!window.authStateReady && typeof showPage === 'function') {
+      showPage('auth-loading');
+    }
+
     if (typeof auth === 'undefined' || !auth || typeof auth.onAuthStateChanged !== 'function') {
       setTimeout(route, 300);
       return;
     }
-    
-    // Do not show Login/Auth-loading while Firebase is still resolving.
-    // Keep the current visible app UI stable to avoid blank screen and mobile renderer crash.
-    
+
+    // Show loading while Firebase is still resolving; login appears only after confirmed signed-out.
+
     auth.onAuthStateChanged(function(user) {
       window.authStateReady = true;
       if (user) {
@@ -8705,12 +8713,6 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     if (typeof window._firestoreMenuSynced === 'undefined') {
       window._firestoreMenuSynced = false;
     }
-    if (typeof window._menuInitialLoadDone === 'undefined') {
-      window._menuInitialLoadDone = false;
-    }
-    if (!window._menuLoadingStartedAt || window._menuInitialLoadDone === false) {
-      window._menuLoadingStartedAt = Date.now();
-    }
 
     if (!window._menuLoadTimeout) {
       window._menuLoadTimeout = setTimeout(() => {
@@ -8746,6 +8748,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
           clearTimeout(window._menuLoadTimeout);
           window._menuLoadTimeout = null;
         }
+        setMenuLoadingState(false);
 
         const firestoreItems = [];
         snapshot.forEach(doc => {
@@ -8824,33 +8827,16 @@ window.updateOrderCardStatus = updateOrderCardStatus;
           });
         }
 
-        // GFY FIX: Restore visible latest-prices loader on first menu load.
-        // First Firestore snapshot can arrive very fast; keep the previous loading screen
-        // visible briefly, then render the latest prices. Later realtime updates stay instant.
-        const applyLatestMenuUI = () => {
-          setMenuLoadingState(false);
-          if (typeof window.refreshInventoryUI === 'function') {
-            window.refreshInventoryUI();
-          } else {
-            if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
-            if (typeof refreshManageList === 'function') refreshManageList();
-            if (typeof updateCart === 'function') updateCart();
-          }
-          window._menuInitialLoadDone = true;
-          console.log('[FirestoreSync] Customer & Admin UI updated with latest prices');
-        };
-
-        if (!window._menuInitialLoadDone) {
-          const elapsed = Date.now() - (window._menuLoadingStartedAt || Date.now());
-          const remaining = Math.max(0, 3500 - elapsed);
-          if (window._menuInitialRenderTimer) clearTimeout(window._menuInitialRenderTimer);
-          window._menuInitialRenderTimer = setTimeout(() => {
-            window._menuInitialRenderTimer = null;
-            applyLatestMenuUI();
-          }, remaining);
+        // Instantly refresh UI components
+        if (typeof window.refreshInventoryUI === 'function') {
+          window.refreshInventoryUI();
         } else {
-          applyLatestMenuUI();
+          if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
+          if (typeof refreshManageList === 'function') refreshManageList();
+          if (typeof updateCart === 'function') updateCart();
         }
+
+        console.log('[FirestoreSync] Customer & Admin UI updated instantly');
 
       } catch (err) {
         console.error('[FirestoreSync] Realtime sync apply error:', err);
@@ -9301,10 +9287,7 @@ window.addEventListener('load', function() {
     // Prevent login page from showing until auth state has been resolved.
     // Do NOT redirect to auth-loading because that splash is intentionally disabled on refresh.
     if (page === 'login' && !window.authStateReady) {
-      return;
-    }
-    if (page === 'auth-loading') {
-      return;
+      page = 'auth-loading';
     }
 
     // 3. Try original chained wrappers first (if any are left)

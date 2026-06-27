@@ -1719,6 +1719,42 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
   display:flex!important;
 }
 
+/* AUTH BOOT: hide normal app chrome until Firebase decides signed-in vs signed-out. */
+body.gfy-auth-booting header,
+body.gfy-auth-booting .hero,
+body.gfy-auth-booting .main,
+body.gfy-auth-booting .mob-bottom-nav,
+body.gfy-auth-booting footer,
+body.gfy-auth-booting .float-order-bar,
+body.gfy-auth-booting .scroll-top-btn{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+body.gfy-auth-booting #page-login.active,
+body.gfy-auth-booting #page-auth-loading.active{
+  display:flex!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+}
+#page-login{
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  min-height:100dvh!important;
+  margin:0!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+  transform:none!important;
+}
+#page-login.active{display:flex!important;}
+#page-login .login-card{
+  margin:0 auto!important;
+  transform:none!important;
+}
+
+
 
 
 /* FIX: while creating a support ticket, never show previous/raised tickets. */
@@ -1731,56 +1767,6 @@ body.support-create-ticket-mode #support-form-section{
   visibility:visible!important;
 }
 
-
-
-/* GFY FIX: Show startup loading while Firebase/auth is resolving.
-   Login still stays hidden until Firebase confirms signed-out. */
-#page-auth-loading:not(.active){
-  display:none!important;
-  opacity:0!important;
-  pointer-events:none!important;
-  visibility:hidden!important;
-}
-#page-auth-loading.active{
-  display:flex!important;
-  opacity:1!important;
-  pointer-events:auto!important;
-  visibility:visible!important;
-}
-
-
-/* GFY FIX: Stable sign-in page position. Prevent login card flicker/vertical shift while auth/menu scripts run. */
-#page-login{
-  position:fixed!important;
-  top:0!important;
-  right:0!important;
-  bottom:0!important;
-  left:0!important;
-  width:100vw!important;
-  height:100dvh!important;
-  min-height:100dvh!important;
-  padding:20px!important;
-  margin:0!important;
-  align-items:center!important;
-  justify-content:center!important;
-  overflow:hidden!important;
-  transform:none!important;
-  will-change:auto!important;
-}
-#page-login.active{display:flex!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important;}
-#page-login .login-card{
-  position:relative!important;
-  margin:0 auto!important;
-  transform:none!important;
-  flex:0 0 auto!important;
-  max-height:calc(100dvh - 40px)!important;
-  overflow-y:auto!important;
-  -webkit-overflow-scrolling:touch!important;
-}
-@media(max-width:480px){
-  #page-login{padding:16px!important;}
-  #page-login .login-card{padding:70px 28px!important;max-width:390px!important;}
-}
 
 
 /* GFY SUB-LABEL FIX */
@@ -1974,25 +1960,6 @@ body.support-create-ticket-mode #support-form-section{
 }
 
 
-
-/* GFY FIX: prevent menu/header flash before Firebase decides login vs menu.
-   This hides only the app chrome during auth boot; login page can still appear normally. */
-body.gfy-auth-booting header,
-body.gfy-auth-booting .hero,
-body.gfy-auth-booting .main,
-body.gfy-auth-booting .mob-bottom-nav,
-body.gfy-auth-booting footer,
-body.gfy-auth-booting .float-order-bar,
-body.gfy-auth-booting .scroll-top-btn {
-  display:none!important;
-  visibility:hidden!important;
-  pointer-events:none!important;
-}
-body.gfy-auth-booting #page-login.active {
-  display:flex!important;
-  visibility:visible!important;
-  pointer-events:auto!important;
-}
 
 </style>
 </head>
@@ -2606,7 +2573,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 
 
   <!-- MENU PAGE -->
-  <div class="page active" id="page-menu">
+  <div class="page" id="page-menu">
     <div class="menu-filter-bar" id="menu-filter-bar"></div>
     <div id="menu-sections-container"></div>
 
@@ -6434,91 +6401,39 @@ function toggleSidebar() {
 <script>
 (function initLoginRouting() {
   window.authStateReady = false;
-  
-  // Check if user is cached in sessionStorage to avoid showing auth-loading screen on refresh
-  function getCachedAuthState() {
-    try {
-      const cached = sessionStorage.getItem('_gfy_auth_cached');
-      return cached ? JSON.parse(cached) : null;
-    } catch (e) {
-      return null;
-    }
-  }
-  
-  // Cache auth state to speed up next navigation
-  function setCachedAuthState(isLoggedIn) {
-    try {
-      sessionStorage.setItem('_gfy_auth_cached', JSON.stringify({ isLoggedIn, ts: Date.now() }));
-    } catch (e) {}
-  }
-  
-  function route() {
-    if (!window.authStateReady && typeof showPage === 'function') {
-      const cached = getCachedAuthState();
-      // Show full-page loading only when the last session was signed in.
-      // Signed-out/guest openings go straight to the stable login page to avoid flicker.
-      if (cached && cached.isLoggedIn) {
-        window.gfyStartupExpectSignedIn = true;
-        showPage('auth-loading');
-      } else {
-        window.gfyStartupExpectSignedIn = false;
-        window.gfyAllowLoginBeforeAuth = true;
-        document.body.classList.remove('gfy-auth-booting');
-        showPage('login');
-      }
-    }
+  window.gfyAllowLoginBeforeAuth = false;
 
+  function waitForAuth() {
     if (typeof auth === 'undefined' || !auth || typeof auth.onAuthStateChanged !== 'function') {
-      setTimeout(route, 300);
+      setTimeout(waitForAuth, 100);
       return;
     }
 
-    // Show loading while Firebase is still resolving; login appears only after confirmed signed-out.
-
     auth.onAuthStateChanged(function(user) {
       window.authStateReady = true;
+      window.gfyAllowLoginBeforeAuth = !!user;
+
       if (user) {
-        window.gfyAllowLoginBeforeAuth = false;
-        setCachedAuthState(true);
-        const activePage = document.querySelector('.page.active');
-        if (!activePage || activePage.id === 'page-login' || activePage.id === 'page-auth-loading') {
-          if (typeof showPage === 'function') {
-            document.body.classList.remove('gfy-auth-booting');
-            showPage('menu');
-          }
-        }
+        if (typeof showPage === 'function') showPage('menu');
+        document.body.classList.remove('gfy-auth-booting');
       } else {
-        setCachedAuthState(false);
-        window.gfyStartupExpectSignedIn = false;
         window.gfyAllowLoginBeforeAuth = true;
-        if (typeof showPage === 'function') {
-          document.body.classList.remove('gfy-auth-booting');
-          showPage('login');
-        }
+        if (typeof showPage === 'function') showPage('login');
+        document.body.classList.remove('gfy-auth-booting');
       }
     });
   }
+
+  if (document.body) document.body.classList.add('gfy-auth-booting');
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', route);
+    document.addEventListener('DOMContentLoaded', waitForAuth);
   } else {
-    route();
+    waitForAuth();
   }
 })();
 </script>
 
-<script>
-/* GFY FIX: auth boot fallback - never show the menu as a temporary signed-out screen. */
-(function(){
-  setTimeout(function(){
-    try {
-      if (!window.authStateReady && window.gfyAllowLoginBeforeAuth && typeof showPage === 'function') {
-        document.body.classList.remove('gfy-auth-booting');
-        showPage('login');
-      }
-    } catch(e) {}
-  }, 1200);
-})();
-</script>
+
 
 <script>
 // ===== GFY ENHANCED FIRESTORE INTEGRATION =====

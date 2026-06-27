@@ -1741,17 +1741,46 @@ body.gfy-auth-booting #page-auth-loading.active{
   position:fixed!important;
   inset:0!important;
   width:100vw!important;
+  height:100dvh!important;
   min-height:100dvh!important;
   margin:0!important;
+  padding:clamp(12px,3vh,20px)!important;
   align-items:center!important;
   justify-content:center!important;
   overflow:hidden!important;
   transform:none!important;
+  z-index:2147482000!important;
 }
 #page-login.active{display:flex!important;}
 #page-login .login-card{
   margin:0 auto!important;
   transform:none!important;
+  max-height:calc(100dvh - 24px)!important;
+  overflow:hidden!important;
+}
+body.gfy-login-active{
+  padding-top:0!important;
+  overflow:hidden!important;
+}
+body.gfy-login-active header,
+body.gfy-login-active .hero,
+body.gfy-login-active .main,
+body.gfy-login-active .mob-bottom-nav,
+body.gfy-login-active footer,
+body.gfy-login-active .float-order-bar,
+body.gfy-login-active .scroll-top-btn{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+@media(max-width:768px){
+  body.gfy-login-active .mob-bottom-nav{display:none!important;}
+  #page-login .login-card{
+    width:min(90vw,420px)!important;
+    padding:clamp(44px,9vh,78px) 28px!important;
+    border-radius:28px!important;
+  }
+  #page-login .login-logo{width:min(56vw,210px)!important;}
 }
 
 
@@ -6484,10 +6513,12 @@ function toggleSidebar() {
       window.gfyAllowLoginBeforeAuth = !!user;
 
       if (user) {
+        if (document.body) document.body.classList.remove('gfy-login-active');
         if (typeof showPage === 'function') showPage('menu');
         document.body.classList.remove('gfy-auth-booting');
       } else {
         window.gfyAllowLoginBeforeAuth = true;
+        if (document.body) document.body.classList.add('gfy-login-active');
         if (typeof showPage === 'function') showPage('login');
         document.body.classList.remove('gfy-auth-booting');
       }
@@ -9588,6 +9619,9 @@ window.addEventListener('load', function() {
     }
 
     // 4. Force/Fallback switch to prevent blank screens
+    if (document.body) {
+      document.body.classList.toggle('gfy-login-active', page === 'login' || page === 'auth-loading');
+    }
     ALL_PAGE_IDS.forEach(function (id) {
       var el = document.getElementById(id);
       if (el) {

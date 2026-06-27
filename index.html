@@ -8580,22 +8580,18 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const container = document.getElementById('menu-sections-container');
     if (!container) return;
     if (isLoading) {
-      // GFY FIX: Restore the visible latest-prices loading screen.
-      window._gfyLatestPricesLoadingStartedAt = Date.now();
-      container.dataset.loading = 'true';
+      // GFY FIX: Restore the previous visible latest-prices loading screen.
       container.innerHTML = `
         <div class="empty-cat-msg" style="min-height:260px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
           <div class="big">⏳</div>
           <div style="font-size:.95rem;color:#555;text-align:center;max-width:320px;">${message}</div>
         </div>`;
-      return;
-    }
-    if (container.dataset.loading === 'true') {
+    } else if (container.dataset.loading === 'true') {
       // Clear only the loading placeholder before rendering menu items.
       const hasRenderedMenu = !!container.querySelector('.menu-section,.menu-card');
       if (!hasRenderedMenu) container.innerHTML = '';
     }
-    container.dataset.loading = 'false';
+    container.dataset.loading = isLoading ? 'true' : 'false';
   }
 
 
@@ -8708,6 +8704,12 @@ window.updateOrderCardStatus = updateOrderCardStatus;
 
     if (typeof window._firestoreMenuSynced === 'undefined') {
       window._firestoreMenuSynced = false;
+    }
+    if (typeof window._menuInitialLoadDone === 'undefined') {
+      window._menuInitialLoadDone = false;
+    }
+    if (!window._menuLoadingStartedAt || window._menuInitialLoadDone === false) {
+      window._menuLoadingStartedAt = Date.now();
     }
 
     if (!window._menuLoadTimeout) {
@@ -8822,11 +8824,10 @@ window.updateOrderCardStatus = updateOrderCardStatus;
           });
         }
 
-        // Restore previous latest-prices loading behavior: keep the loader visible briefly,
-        // then render the freshly synced Firestore menu.
-        const gfyElapsed = Date.now() - (window._gfyLatestPricesLoadingStartedAt || Date.now());
-        const gfyDelay = Math.max(0, 3500 - gfyElapsed);
-        const gfyApplySyncedMenuUI = function() {
+        // GFY FIX: Restore visible latest-prices loader on first menu load.
+        // First Firestore snapshot can arrive very fast; keep the previous loading screen
+        // visible briefly, then render the latest prices. Later realtime updates stay instant.
+        const applyLatestMenuUI = () => {
           setMenuLoadingState(false);
           if (typeof window.refreshInventoryUI === 'function') {
             window.refreshInventoryUI();
@@ -8835,10 +8836,21 @@ window.updateOrderCardStatus = updateOrderCardStatus;
             if (typeof refreshManageList === 'function') refreshManageList();
             if (typeof updateCart === 'function') updateCart();
           }
-          console.log('[FirestoreSync] Customer & Admin UI updated after latest-prices loading');
+          window._menuInitialLoadDone = true;
+          console.log('[FirestoreSync] Customer & Admin UI updated with latest prices');
         };
-        if (gfyDelay > 0) setTimeout(gfyApplySyncedMenuUI, gfyDelay);
-        else gfyApplySyncedMenuUI();
+
+        if (!window._menuInitialLoadDone) {
+          const elapsed = Date.now() - (window._menuLoadingStartedAt || Date.now());
+          const remaining = Math.max(0, 3500 - elapsed);
+          if (window._menuInitialRenderTimer) clearTimeout(window._menuInitialRenderTimer);
+          window._menuInitialRenderTimer = setTimeout(() => {
+            window._menuInitialRenderTimer = null;
+            applyLatestMenuUI();
+          }, remaining);
+        } else {
+          applyLatestMenuUI();
+        }
 
       } catch (err) {
         console.error('[FirestoreSync] Realtime sync apply error:', err);

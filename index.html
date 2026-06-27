@@ -2013,7 +2013,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
   };
   window.gfyShowStartupLoader = function(message){
     if (window._gfyStartupClosed) return;
-    /* GFY FIX: full-page latest-prices loader is shown only for already signed-in users. */
+    /* GFY FIX: full-page latest-prices loader is controlled by Firebase auth resolution. */
     if (!window.gfyStartupLoaderAllowed || !window.gfyStartupLoaderAllowed()) {
       if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
       return;
@@ -2041,9 +2041,10 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 
   /* GFY FIX: Do not block the whole page for slow Firestore/menu data.
      The full-screen loader is only a startup splash; menu data continues loading in the page. */
-  var maxStartupMs = 1200;
+  var maxStartupMs = 1800;
   var startupStartedAt = Date.now();
   var startupDone = false;
+  var startupAuthResolved = false;
   function finishStartup(){
     if (startupDone) return;
     startupDone = true;
@@ -2051,16 +2052,20 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
   }
   window.gfyFinishStartupLoader = finishStartup;
 
-  /* GFY FIX: attach after Firebase loads; if a saved signed-in session exists, show loader briefly. */
+  /* GFY FIX: show latest-prices loader for signed-in customers/admins only after Firebase resolves.
+     Do not close it before auth resolves, otherwise customers never see it on slow WebView loads. */
   (function waitForSignedInLoaderAuth(){
     try {
       if (window.firebase && firebase.auth && typeof firebase.auth === 'function') {
         firebase.auth().onAuthStateChanged(function(user){
+          startupAuthResolved = true;
+          startupStartedAt = Date.now();
           if (user && !window._gfyFreshMenuReady && !window._gfyStartupClosed) {
             window.gfyShowStartupLoader('Loading latest prices...');
             setTimeout(finishStartup, maxStartupMs);
           } else if (!user) {
             if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
+            finishStartup();
           }
         });
         return;
@@ -2069,6 +2074,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
     setTimeout(waitForSignedInLoaderAuth, 80);
   })();
   var readyPoll = setInterval(function(){
+    if (!startupAuthResolved) return;
     if (window._gfyFreshMenuReady) {
       clearInterval(readyPoll);
       finishStartup();
@@ -2078,7 +2084,9 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
     }
   }, 120);
   window.addEventListener('load', function(){
-    setTimeout(finishStartup, maxStartupMs);
+    setTimeout(function(){
+      if (startupAuthResolved) finishStartup();
+    }, maxStartupMs);
   }, {once:true});
 })();
 </script>

@@ -8580,22 +8580,14 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const container = document.getElementById('menu-sections-container');
     if (!container) return;
     if (isLoading) {
-      // GFY FIX: Do not replace an already-rendered menu with the loading page.
-      // Keep current/hardcoded items clickable while Firestore latest prices load.
-      const hasRenderedMenu = !!container.querySelector('.menu-section,.menu-card');
-      const hasItemsReady = (Array.isArray(window.items) && window.items.length > 0) ||
-                            (typeof items !== 'undefined' && Array.isArray(items) && items.length > 0);
-      if (hasRenderedMenu || hasItemsReady) {
-        container.dataset.loading = 'true';
-        return;
-      }
+      // GFY FIX: Restore the previous visible latest-prices loading screen.
       container.innerHTML = `
         <div class="empty-cat-msg" style="min-height:260px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
           <div class="big">⏳</div>
           <div style="font-size:.95rem;color:#555;text-align:center;max-width:320px;">${message}</div>
         </div>`;
     } else if (container.dataset.loading === 'true') {
-      // Clear only the loading placeholder, never a rendered menu.
+      // Clear only the loading placeholder before rendering menu items.
       const hasRenderedMenu = !!container.querySelector('.menu-section,.menu-card');
       if (!hasRenderedMenu) container.innerHTML = '';
     }
@@ -8722,10 +8714,10 @@ window.updateOrderCardStatus = updateOrderCardStatus;
           if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
           if (typeof updateCart === 'function') updateCart();
         }
-      }, 3000);
+      }, 3500);
     }
 
-    setMenuLoadingState(true);
+    setMenuLoadingState(true, 'Loading latest prices...');
 
     if (!firebaseDB) {
       setTimeout(startRealtimeSync, 500);

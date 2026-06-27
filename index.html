@@ -1961,6 +1961,42 @@ body.support-create-ticket-mode #support-form-section{
 
 
 
+
+/* GFY FIX: Items-page loader while latest prices/menu items are loading.
+   Keeps the menu area height stable so the page does not jump/shake. */
+body.gfy-menu-loading #menu-filter-bar{
+  display:none!important;
+}
+.gfy-items-page-loader{
+  min-height:min(52vh,460px)!important;
+  width:100%!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:14px!important;
+  padding:54px 18px!important;
+  color:#4b4b4b!important;
+  text-align:center!important;
+  background:transparent!important;
+}
+.gfy-items-loader-icon{
+  font-size:3rem!important;
+  line-height:1!important;
+}
+.gfy-items-loader-text{
+  font-family:var(--site-font)!important;
+  font-size:1.1rem!important;
+  font-weight:700!important;
+  color:#4b4b4b!important;
+}
+@media(max-width:768px){
+  .gfy-items-page-loader{
+    min-height:430px!important;
+    padding:52px 16px!important;
+  }
+}
+
 </style>
 </head>
 <body class="gfy-auth-booting">
@@ -1977,18 +2013,25 @@ body.support-create-ticket-mode #support-form-section{
 /* GFY FIX: On refresh, never show Sign In until Firebase auth state is resolved. */
 window.authStateReady = false;
 
+window.gfyItemsInlineLoaderHtml = function(message) {
+  return '<div class="gfy-items-page-loader" role="status" aria-live="polite">' +
+    '<div class="gfy-items-loader-icon">⏳</div>' +
+    '<div class="gfy-items-loader-text">' + (message || 'Loading latest prices...') + '</div>' +
+  '</div>';
+};
+
 /* GFY SAFE STARTUP GUARDS: prevent old missing helper calls from breaking page render. */
 window.setMenuLoadingState = window.setMenuLoadingState || function(isLoading, message) {
   try {
-    if (isLoading && window.gfyShowStartupLoader && !window._gfyStartupClosed) window.gfyShowStartupLoader(message || 'Loading latest prices...');
-    if (!isLoading && window.gfyFinishStartupLoader) window.gfyFinishStartupLoader();
     var container = document.getElementById('menu-sections-container');
     if (!container) return;
+    document.body && document.body.classList.toggle('gfy-menu-loading', !!isLoading);
     if (isLoading) {
       container.dataset.loading = 'true';
-      // GFY FIX: do not inject a second inline menu loading message.
+      container.innerHTML = (window.gfyItemsInlineLoaderHtml ? window.gfyItemsInlineLoaderHtml(message || 'Loading latest prices...') : '<div class="empty-cat-msg"><div class="big">⏳</div><div>Loading latest prices...</div></div>');
     } else {
-      if (container.dataset.loading === 'true') container.innerHTML = '';
+      document.body && document.body.classList.remove('gfy-menu-loading');
+      if (container.dataset.loading === 'true' && !container.querySelector('.menu-section,.menu-card')) container.innerHTML = '';
       container.dataset.loading = 'false';
     }
   } catch (e) {}
@@ -2016,7 +2059,11 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
   };
   window.gfyShowStartupLoader = function(message){
     if (window._gfyStartupClosed) return;
-    /* GFY FIX: full-page latest-prices loader is controlled by Firebase auth resolution. */
+    /* GFY FIX: after auth resolves, keep loading UI inside the items page only. */
+    if (!(document.body && document.body.classList.contains('gfy-auth-booting'))) {
+      if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
+      return;
+    }
     if (!window.gfyStartupLoaderAllowed || !window.gfyStartupLoaderAllowed()) {
       if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
       return;
@@ -2082,7 +2129,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
           startupAuthResolved = true;
           startupStartedAt = Date.now();
           if (user && !window._gfyFreshMenuReady && !window._gfyStartupClosed) {
-            window.gfyShowStartupLoader('Loading latest prices...');
+            if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
             setTimeout(function(){ finishStartup(true); }, hardStartupFallbackMs);
           } else if (!user) {
             if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
@@ -8763,18 +8810,26 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   ];
 
   function setMenuLoadingState(isLoading, message = 'Loading latest prices...') {
-    if (isLoading && window.gfyShowStartupLoader && !window._gfyStartupClosed) window.gfyShowStartupLoader(message || 'Loading latest prices...');
-    if (!isLoading && window.gfyFinishStartupLoader) window.gfyFinishStartupLoader();
     const container = document.getElementById('menu-sections-container');
     if (!container) return;
-    // GFY FIX: keep only the startup/latest-prices loader.
-    // Do not inject a second inline "Loading latest prices..." block inside the menu page.
-    if (!isLoading && container.dataset.loading === 'true') {
-      const hasRenderedMenu = !!container.querySelector('.menu-section,.menu-card');
-      if (!hasRenderedMenu) container.innerHTML = '';
+    document.body && document.body.classList.toggle('gfy-menu-loading', !!isLoading);
+
+    if (isLoading) {
+      container.dataset.loading = 'true';
+      container.innerHTML = (window.gfyItemsInlineLoaderHtml
+        ? window.gfyItemsInlineLoaderHtml(message || 'Loading latest prices...')
+        : '<div class="empty-cat-msg"><div class="big">⏳</div><div>Loading latest prices...</div></div>');
+      return;
     }
-    container.dataset.loading = isLoading ? 'true' : 'false';
+
+    document.body && document.body.classList.remove('gfy-menu-loading');
+    if (window.gfyFinishStartupLoader) window.gfyFinishStartupLoader(true);
+    if (container.dataset.loading === 'true' && !container.querySelector('.menu-section,.menu-card')) {
+      container.innerHTML = '';
+    }
+    container.dataset.loading = 'false';
   }
+
 
 
   function gfySafeSyncedCategoryId(value) {

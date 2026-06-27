@@ -1965,7 +1965,7 @@ body.support-create-ticket-mode #support-form-section{
 </head>
 <body class="gfy-auth-booting">
 <!-- GFY visible startup/latest-prices loader -->
-<div id="gfy-startup-loader" class="gfy-hide" role="status" aria-live="polite">
+<div id="gfy-startup-loader" role="status" aria-live="polite">
   <div class="gfy-startup-card">
     <div class="gfy-startup-icon">🛒</div>
     <div class="gfy-startup-text" id="gfy-startup-loader-text">Loading latest prices...</div>
@@ -2001,6 +2001,9 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 (function(){
   window.gfyStartupLoaderAllowed = function(){
     try {
+      /* Allow the startup loader during auth boot so customers do not see a blank screen.
+         Once Firebase confirms signed-out, onAuthStateChanged hides it and shows login. */
+      if (document.body && document.body.classList.contains('gfy-auth-booting')) return true;
       return !!(window.firebase && firebase.auth && firebase.auth().currentUser);
     } catch (e) { return false; }
   };
@@ -2037,8 +2040,6 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
       if (el.classList.contains('gfy-hide')) el.style.setProperty('display','none','important');
     }, 320);
   };
-  if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
-
   /* GFY FIX: Do not block the whole page for slow Firestore/menu data.
      The full-screen loader is only a startup splash; menu data continues loading in the page. */
   var maxStartupMs = 1800;

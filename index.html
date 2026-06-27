@@ -1657,6 +1657,10 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
 
 
 /* ===== PROFILE EXACT SUPPLIED BOY AVATAR ===== */
+/* GFY FIX: smoother profile avatar.
+   The old version animated the large PNG itself, kept an infinite idle animation,
+   and used drop-shadow while transforming. On Android WebView this can stutter.
+   This version animates only the lightweight wrapper, runs once, then stops. */
 .gfy-profile-avatar-wrap{
   width:min(56vw,260px);
   aspect-ratio:490/305;
@@ -1669,48 +1673,46 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
   background:transparent!important;
   border-radius:0!important;
   box-shadow:none!important;
-  isolation:isolate;
-  transform:translateZ(0);
+  contain:layout paint;
+  transform:translate3d(0,0,0) scale(1);
+  transform-origin:50% 92%;
   backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+  will-change:auto;
+}
+.gfy-profile-avatar-wrap.gfy-say-hi{
   will-change:transform;
+  animation:gfyExactAvatarGetUp .72s cubic-bezier(.22,.9,.28,1) both;
 }
 .gfy-exact-profile-avatar-img{
   width:100%;
   height:auto;
   display:block;
   object-fit:contain;
-  filter:drop-shadow(0 12px 18px rgba(0,0,0,.12));
-  transform-origin:50% 92%;
-  transform:translate3d(0,0,0) scale(1);
-  animation:gfyExactAvatarIdle 4.2s ease-in-out infinite;
+  transform:none!important;
+  animation:none!important;
   user-select:none;
   -webkit-user-drag:none;
   pointer-events:none;
   backface-visibility:hidden;
-  will-change:transform;
+  -webkit-backface-visibility:hidden;
   opacity:1!important;
   background:transparent!important;
   mix-blend-mode:normal!important;
-}
-.gfy-profile-avatar-wrap.gfy-say-hi .gfy-exact-profile-avatar-img{
-  animation:gfyExactAvatarGetUp .78s cubic-bezier(.22,.9,.28,1) both, gfyExactAvatarIdle 4.2s ease-in-out .78s infinite;
+  filter:none!important;
 }
 .gfy-hi-bubble{display:none!important}
 @keyframes gfyExactAvatarGetUp{
-  0%{transform:translate3d(0,18px,0) scale(.94)}
-  62%{transform:translate3d(0,-5px,0) scale(1.015)}
+  0%{transform:translate3d(0,18px,0) scale(.96)}
+  55%{transform:translate3d(0,-4px,0) scale(1.01)}
   100%{transform:translate3d(0,0,0) scale(1)}
-}
-@keyframes gfyExactAvatarIdle{
-  0%,100%{transform:translate3d(0,0,0) scale(1)}
-  50%{transform:translate3d(0,-2px,0) scale(1.003)}
 }
 @media(max-width:480px){
   .gfy-profile-avatar-wrap{width:min(64vw,240px);margin:-8px auto 8px}
 }
 @media(prefers-reduced-motion:reduce){
-  .gfy-exact-profile-avatar-img,
-  .gfy-profile-avatar-wrap.gfy-say-hi .gfy-exact-profile-avatar-img{
+  .gfy-profile-avatar-wrap,
+  .gfy-profile-avatar-wrap.gfy-say-hi{
     animation:none!important;
     transform:translate3d(0,0,0) scale(1)!important;
   }
@@ -11449,7 +11451,8 @@ document.addEventListener('click', function(e) {
     if (!wrap) return;
 
     var now = Date.now();
-    if (now - lastRun < 900) return; /* prevents double blink when Profile opens twice */
+    if (wrap.dataset.gfyAnimating === '1') return;
+    if (now - lastRun < 850) return; /* prevents duplicate profile-open triggers */
     lastRun = now;
 
     if (bubble) bubble.textContent = 'Hi, ' + getCleanName() + '!';
@@ -11459,16 +11462,22 @@ document.addEventListener('click', function(e) {
       runningTimer = null;
     }
 
+    wrap.dataset.gfyAnimating = '1';
     wrap.classList.remove('gfy-say-hi');
-    requestAnimationFrame(function(){
-      requestAnimationFrame(function(){
-        wrap.classList.add('gfy-say-hi');
-        runningTimer = setTimeout(function(){
-          wrap.classList.remove('gfy-say-hi');
-          runningTimer = null;
-        }, 980);
-      });
-    });
+    /* force a clean single restart without stacking two animations */
+    void wrap.offsetWidth;
+    wrap.classList.add('gfy-say-hi');
+
+    var finish = function(){
+      wrap.classList.remove('gfy-say-hi');
+      wrap.style.transform = 'translate3d(0,0,0) scale(1)';
+      wrap.style.willChange = 'auto';
+      wrap.dataset.gfyAnimating = '0';
+      runningTimer = null;
+    };
+
+    wrap.addEventListener('animationend', finish, {once:true});
+    runningTimer = setTimeout(finish, 900);
   }
 
   window.gfyPlayProfileBoyHi = playProfileBoyHi;

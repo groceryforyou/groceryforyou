@@ -1958,7 +1958,7 @@ window.authStateReady = false;
 /* GFY SAFE STARTUP GUARDS: prevent old missing helper calls from breaking page render. */
 window.setMenuLoadingState = window.setMenuLoadingState || function(isLoading, message) {
   try {
-    if (isLoading && window.gfyShowStartupLoader) window.gfyShowStartupLoader(message || 'Loading latest prices...');
+    if (isLoading && window.gfyShowStartupLoader && !window._gfyStartupClosed) window.gfyShowStartupLoader(message || 'Loading latest prices...');
     if (!isLoading && window.gfyHideStartupLoader) window.gfyHideStartupLoader();
     var container = document.getElementById('menu-sections-container');
     if (!container) return;
@@ -1980,6 +1980,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 /* GFY FIX: keep a real visible loading symbol on open; do not use hidden auth splash. */
 (function(){
   window.gfyShowStartupLoader = function(message){
+    if (window._gfyStartupClosed) return;
     var el = document.getElementById('gfy-startup-loader');
     var txt = document.getElementById('gfy-startup-loader-text');
     if (txt && message) txt.textContent = message;
@@ -1990,6 +1991,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
     }
   };
   window.gfyHideStartupLoader = function(){
+    window._gfyStartupClosed = true;
     var el = document.getElementById('gfy-startup-loader');
     if (!el) return;
     el.classList.add('gfy-hide');
@@ -2002,7 +2004,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 
   /* GFY FIX: Do not block the whole page for slow Firestore/menu data.
      The full-screen loader is only a startup splash; menu data continues loading in the page. */
-  var maxStartupMs = 3200;
+  var maxStartupMs = 1200;
   var startupStartedAt = Date.now();
   var startupDone = false;
   function finishStartup(){
@@ -8698,7 +8700,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   ];
 
   function setMenuLoadingState(isLoading, message = 'Loading latest prices...') {
-    if (isLoading && window.gfyShowStartupLoader) window.gfyShowStartupLoader(message || 'Loading latest prices...');
+    if (isLoading && window.gfyShowStartupLoader && !window._gfyStartupClosed) window.gfyShowStartupLoader(message || 'Loading latest prices...');
     if (!isLoading && window.gfyHideStartupLoader) window.gfyHideStartupLoader();
     const container = document.getElementById('menu-sections-container');
     if (!container) return;
@@ -8867,7 +8869,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         if (!window._firestoreMenuSynced) {
           console.warn('[FirestoreSync] Menu data timeout. Waiting for fresh Firestore menu; not showing old cached/static menu.');
           if (typeof setMenuLoadingState === 'function') setMenuLoadingState(true, 'Loading latest prices...');
-          if (window.gfyShowStartupLoader) window.gfyShowStartupLoader('Loading latest prices...');
+          if (window.gfyShowStartupLoader && !window._gfyStartupClosed) window.gfyShowStartupLoader('Loading latest prices...');
         }
       }, 2200);
     }
@@ -8884,9 +8886,17 @@ window.updateOrderCardStatus = updateOrderCardStatus;
 
     console.log('[FirestoreSync] Initializing realtime menuItems sync listener...');
 
-    onSnapshot(collection(firebaseDB, "menuItems"), (snapshot) => {
+    onSnapshot(collection(firebaseDB, "menuItems"), { includeMetadataChanges: true }, (snapshot) => {
       try {
         if (!snapshot) return;
+
+        // GFY FIX: Do not render old IndexedDB/cache data first.
+        // Wait for the server snapshot, then render the current menu once.
+        if (snapshot.metadata && snapshot.metadata.fromCache && !window._gfyFreshMenuReady) {
+          console.log('[FirestoreSync] Ignoring cached menu snapshot; waiting for server data.');
+          if (typeof setMenuLoadingState === 'function') setMenuLoadingState(true, 'Loading latest prices...');
+          return;
+        }
 
         console.log('[FirestoreSync] Realtime menu update received. Documents count:', snapshot.size);
 
@@ -9013,7 +9023,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       }
       // Keep the loading state instead of rendering stale cached/static menu on listener error.
       setMenuLoadingState(true, 'Loading latest prices...');
-      if (window.gfyShowStartupLoader) window.gfyShowStartupLoader('Loading latest prices...');
+      if (window.gfyShowStartupLoader && !window._gfyStartupClosed) window.gfyShowStartupLoader('Loading latest prices...');
       if (typeof updateCart === 'function') updateCart();
     });
   }
@@ -9046,7 +9056,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   function showFreshLoading(){
     try {
       if (typeof window.setMenuLoadingState === 'function') window.setMenuLoadingState(true, 'Loading latest prices...');
-      if (window.gfyShowStartupLoader) window.gfyShowStartupLoader('Loading latest prices...');
+      if (window.gfyShowStartupLoader && !window._gfyStartupClosed) window.gfyShowStartupLoader('Loading latest prices...');
     } catch(e) {}
   }
 
@@ -9096,7 +9106,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       var container = document.getElementById('menu-sections-container');
       if (container && !window._gfyFreshMenuReady) {
         container.dataset.loading = 'false';
-        container.innerHTML = '<div class="empty-cat-msg"><div class="big">🛒</div><div>Updating latest prices...</div></div>';
+        container.innerHTML = '<div class="empty-cat-msg"><div class="big">🛒</div><div>Loading latest prices...</div></div>';
       }
     } catch(e) {}
   }
@@ -9108,7 +9118,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       stopFullScreenOnly();
       showInlineMenuWait();
     }
-  }, 3200);
+  }, 1200);
 
   // If fresh data arrives, remove inline wait and render immediately.
   var t = setInterval(function(){

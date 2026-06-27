@@ -1904,16 +1904,23 @@ body.support-create-ticket-mode #support-form-section{
   position:fixed!important;
   inset:0!important;
   z-index:2147483000!important;
-  display:flex!important;
+  display:none!important;
   align-items:center!important;
   justify-content:center!important;
   background:linear-gradient(180deg,#f4fff6,#e8f7ed)!important;
+  opacity:0!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+  transition:opacity .25s ease, visibility .25s ease!important;
+}
+#gfy-startup-loader.gfy-active{
+  display:flex!important;
   opacity:1!important;
   visibility:visible!important;
   pointer-events:auto!important;
-  transition:opacity .25s ease, visibility .25s ease!important;
 }
 #gfy-startup-loader.gfy-hide{
+  display:none!important;
   opacity:0!important;
   visibility:hidden!important;
   pointer-events:none!important;
@@ -1977,54 +1984,90 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 </script>
 
 <script>
-/* GFY FIX: keep a real visible loading symbol on open; do not use hidden auth splash. */
+/* GFY FIX: latest-prices loader is only for signed-in users.
+   Signed-out users must see the login page directly, without this loader. */
 (function(){
+  var startupTimer = null;
+  var readyPoll = null;
+
+  window.gfyAllowStartupLoader = false;
+  window._gfyStartupClosed = false;
+
   window.gfyShowStartupLoader = function(message){
-    if (window._gfyStartupClosed) return;
+    if (!window.gfyAllowStartupLoader) return;
     var el = document.getElementById('gfy-startup-loader');
     var txt = document.getElementById('gfy-startup-loader-text');
     if (txt && message) txt.textContent = message;
     if (el) {
       el.classList.remove('gfy-hide');
-      el.style.setProperty('display','flex','important');
+      el.classList.add('gfy-active');
       el.setAttribute('aria-hidden','false');
     }
   };
+
   window.gfyHideStartupLoader = function(){
-    window._gfyStartupClosed = true;
     var el = document.getElementById('gfy-startup-loader');
     if (!el) return;
+    el.classList.remove('gfy-active');
     el.classList.add('gfy-hide');
     el.setAttribute('aria-hidden','true');
-    setTimeout(function(){
-      if (el.classList.contains('gfy-hide')) el.style.setProperty('display','none','important');
-    }, 320);
   };
-  window.gfyShowStartupLoader('Loading latest prices...');
 
-  /* GFY FIX: Do not block the whole page for slow Firestore/menu data.
-     The full-screen loader is only a startup splash; menu data continues loading in the page. */
-  var maxStartupMs = 1200;
-  var startupStartedAt = Date.now();
-  var startupDone = false;
+  function clearStartupTimers(){
+    if (startupTimer) { clearTimeout(startupTimer); startupTimer = null; }
+    if (readyPoll) { clearInterval(readyPoll); readyPoll = null; }
+  }
+
   function finishStartup(){
-    if (startupDone) return;
-    startupDone = true;
+    clearStartupTimers();
     if (window.gfyHideStartupLoader) window.gfyHideStartupLoader();
   }
   window.gfyFinishStartupLoader = finishStartup;
-  var readyPoll = setInterval(function(){
-    if (window._gfyFreshMenuReady) {
-      clearInterval(readyPoll);
-      finishStartup();
-    } else if (Date.now() - startupStartedAt >= maxStartupMs) {
-      clearInterval(readyPoll);
+
+  function beginSignedInStartupLoader(){
+    clearStartupTimers();
+    window.gfyAllowStartupLoader = true;
+    window._gfyStartupClosed = false;
+    window.gfyShowStartupLoader('Loading latest prices...');
+
+    var startedAt = Date.now();
+    var maxStartupMs = 1200;
+    readyPoll = setInterval(function(){
+      if (window._gfyFreshMenuReady || Date.now() - startedAt >= maxStartupMs) {
+        finishStartup();
+      }
+    }, 120);
+    startupTimer = setTimeout(finishStartup, maxStartupMs + 80);
+  }
+
+  window.gfyBeginSignedInStartupLoader = beginSignedInStartupLoader;
+
+  function hookAuthForStartupLoader(){
+    if (typeof firebase === 'undefined' || !firebase.auth) {
+      setTimeout(hookAuthForStartupLoader, 100);
+      return;
+    }
+    try {
+      firebase.auth().onAuthStateChanged(function(user){
+        window.authStateReady = true;
+        if (user) {
+          beginSignedInStartupLoader();
+        } else {
+          window.gfyAllowStartupLoader = false;
+          finishStartup();
+        }
+      });
+    } catch(e) {
+      window.gfyAllowStartupLoader = false;
       finishStartup();
     }
-  }, 120);
-  window.addEventListener('load', function(){
-    setTimeout(finishStartup, maxStartupMs);
-  }, {once:true});
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', hookAuthForStartupLoader, {once:true});
+  } else {
+    hookAuthForStartupLoader();
+  }
 })();
 </script>
 

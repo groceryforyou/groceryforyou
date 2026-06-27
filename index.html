@@ -1997,11 +1997,24 @@ body.gfy-menu-loading #menu-filter-bar{
   }
 }
 
+
+
+/* GFY FIX: remove full-screen startup popup loader. Loading now happens only inside the items/menu area. */
+#gfy-startup-loader{
+  display:none!important;
+  visibility:hidden!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}
+body.gfy-menu-loading .gfy-seo-content{
+  display:none!important;
+}
+
 </style>
 </head>
-<body class="gfy-auth-booting">
+<body class="gfy-auth-booting gfy-menu-loading">
 <!-- GFY visible startup/latest-prices loader -->
-<div id="gfy-startup-loader" role="status" aria-live="polite">
+<div id="gfy-startup-loader" class="gfy-hide" aria-hidden="true" role="status" aria-live="polite">
   <div class="gfy-startup-card">
     <div class="gfy-startup-icon">🛒</div>
     <div class="gfy-startup-text" id="gfy-startup-loader-text">Loading latest prices...</div>
@@ -2058,24 +2071,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
     el.style.setProperty('display','none','important');
   };
   window.gfyShowStartupLoader = function(message){
-    if (window._gfyStartupClosed) return;
-    /* GFY FIX: after auth resolves, keep loading UI inside the items page only. */
-    if (!(document.body && document.body.classList.contains('gfy-auth-booting'))) {
-      if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
-      return;
-    }
-    if (!window.gfyStartupLoaderAllowed || !window.gfyStartupLoaderAllowed()) {
-      if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
-      return;
-    }
-    var el = document.getElementById('gfy-startup-loader');
-    var txt = document.getElementById('gfy-startup-loader-text');
-    if (txt && message) txt.textContent = message;
-    if (el) {
-      el.classList.remove('gfy-hide');
-      el.style.setProperty('display','flex','important');
-      el.setAttribute('aria-hidden','false');
-    }
+    if (window.setMenuLoadingState) window.setMenuLoadingState(true, message || 'Loading latest prices...');
   };
   window.gfyHideStartupLoader = function(){
     window._gfyStartupClosed = true;
@@ -2649,10 +2645,10 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
   <!-- MENU PAGE -->
   <div class="page" id="page-menu">
     <div class="menu-filter-bar" id="menu-filter-bar"></div>
-    <div id="menu-sections-container"></div>
+    <div id="menu-sections-container" data-loading="true"><div class="gfy-items-page-loader" role="status" aria-live="polite"><div class="gfy-items-loader-icon">⏳</div><div class="gfy-items-loader-text">Loading latest prices...</div></div></div>
 
     <!-- SEO CONTENT SECTION: keyword-rich, visible to Google -->
-    <section aria-label="About GroceryForYou Sircilla" style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:28px 24px;margin-top:40px;box-shadow:var(--shadow)">
+    <section class="gfy-seo-content" aria-label="About GroceryForYou Sircilla" style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:28px 24px;margin-top:40px;box-shadow:var(--shadow)">
       <h2 style="font-family:'Yeseva One',serif;font-size:1.4rem;color:var(--brown);margin-bottom:12px;border-left:4px solid var(--saffron);padding-left:12px">🛒 GroceryForYou — Best Grocery Delivery in Sircilla</h2>
       <p style="color:#444;font-size:.92rem;line-height:1.8;margin-bottom:14px">
         <strong>Grocery For You Sircilla</strong> is your trusted online grocery store for <strong>grocery delivery in Sircilla</strong>. Based at <strong>Town Center, Sircilla</strong> (Rajanna Sircilla District, Telangana — PIN 505301), we deliver fresh vegetables, fruits, dairy products and daily staples right to your doorstep.

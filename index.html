@@ -8091,6 +8091,37 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     });
   }
 
+
+
+  function gfyNormalizeCategoryKey(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/&/g, ' and ')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  function gfyIsProtectedCategory(catOrId) {
+    const id = typeof catOrId === 'object' && catOrId ? catOrId.id : catOrId;
+    const name = typeof catOrId === 'object' && catOrId ? catOrId.name : '';
+    const idKey = gfyNormalizeCategoryKey(id);
+    const nameKey = gfyNormalizeCategoryKey(name);
+    const protectedKeys = {
+      'cat-chapati-s-curry-s': true,
+      'chapati-s-curry-s': true,
+      'cat-chapati-and-curry-s': true,
+      'chapati-and-curry-s': true,
+      'cat-chapati-s-and-curry-s': true,
+      'chapati-s-and-curry-s': true,
+      'cat-chaptis-and-cuury-s': true,
+      'chaptis-and-cuury-s': true,
+      'cat-chapti-s-and-cuury-s': true,
+      'chapti-s-and-cuury-s': true
+    };
+    return !!(protectedKeys[idKey] || protectedKeys[nameKey]);
+  }
+
   function getNextCategorySortOrder() {
     const allCats = (typeof window.categories !== 'undefined' && Array.isArray(window.categories)) ? window.categories : [];
     if (!allCats.length) return 1000;
@@ -8270,6 +8301,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const allCats = (typeof window.categories !== 'undefined' && Array.isArray(window.categories)) ? window.categories : [];
 
     listContainer.innerHTML = allCats.map(cat => {
+      const deleteButtonHtml = gfyIsProtectedCategory(cat) ? '' : `
+          <button onclick="deleteCategory('${gfyEscapeAttr(cat.id)}')" style="background:#ffebee; border:1.5px solid #ffcdd2; color:#c62828; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Delete Category">🗑️</button>`;
       return `
       <div class="gfy-manage-cat-row" data-cat-id="${gfyEscapeAttr(cat.id)}" draggable="true" style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:var(--cream); border:1.5px solid var(--border); border-radius:12px; gap:10px; cursor:grab; touch-action:none; min-height:52px;">
         <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
@@ -8283,7 +8316,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
           <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="up" title="Move up">↑</button>
           <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="down" title="Move down">↓</button>
           <button onclick="openEditCatModal('${gfyEscapeAttr(cat.id)}')" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Edit Category">✏️</button>
-          <button onclick="deleteCategory('${gfyEscapeAttr(cat.id)}')" style="background:#ffebee; border:1.5px solid #ffcdd2; color:#c62828; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Delete Category">🗑️</button>
+          ${deleteButtonHtml}
         </div>
       </div>`;
     }).join('');
@@ -8453,10 +8486,14 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     }
 
     const allCats = (typeof window.categories !== 'undefined') ? window.categories : [];
-    const cat = allCats.find(c => c.id === catId);
-    if (!cat) return;
+    const cat = allCats.find(c => c.id === catId) || { id: catId, name: '' };
 
-    if (!confirm(`⚠️ Are you sure you want to delete the category "${cat.name}"?\nItems in this category will remain, but won't belong to any category on the menu.`)) {
+    if (gfyIsProtectedCategory(cat)) {
+      if (typeof showToast === 'function') showToast('⚠️ Chapati\'s & Curry\'s category cannot be deleted');
+      return;
+    }
+
+    if (!confirm(`⚠️ Are you sure you want to delete the category "${cat.name || catId}"?\nItems in this category will remain, but won't belong to any category on the menu.`)) {
       return;
     }
 

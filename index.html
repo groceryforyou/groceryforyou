@@ -1943,7 +1943,7 @@ body.support-create-ticket-mode #support-form-section{
 </head>
 <body>
 <!-- GFY visible startup/latest-prices loader -->
-<div id="gfy-startup-loader" role="status" aria-live="polite">
+<div id="gfy-startup-loader" class="gfy-hide" role="status" aria-live="polite">
   <div class="gfy-startup-card">
     <div class="gfy-startup-icon">🛒</div>
     <div class="gfy-startup-text" id="gfy-startup-loader-text">Loading latest prices...</div>
@@ -1979,8 +1979,25 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 <script>
 /* GFY FIX: keep a real visible loading symbol on open; do not use hidden auth splash. */
 (function(){
+  window.gfyStartupLoaderAllowed = function(){
+    try {
+      return !!(window.firebase && firebase.auth && firebase.auth().currentUser);
+    } catch (e) { return false; }
+  };
+  window.gfySoftHideStartupLoader = function(){
+    var el = document.getElementById('gfy-startup-loader');
+    if (!el) return;
+    el.classList.add('gfy-hide');
+    el.setAttribute('aria-hidden','true');
+    el.style.setProperty('display','none','important');
+  };
   window.gfyShowStartupLoader = function(message){
     if (window._gfyStartupClosed) return;
+    /* GFY FIX: full-page latest-prices loader is shown only for already signed-in users. */
+    if (!window.gfyStartupLoaderAllowed || !window.gfyStartupLoaderAllowed()) {
+      if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
+      return;
+    }
     var el = document.getElementById('gfy-startup-loader');
     var txt = document.getElementById('gfy-startup-loader-text');
     if (txt && message) txt.textContent = message;
@@ -2000,7 +2017,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
       if (el.classList.contains('gfy-hide')) el.style.setProperty('display','none','important');
     }, 320);
   };
-  window.gfyShowStartupLoader('Loading latest prices...');
+  if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
 
   /* GFY FIX: Do not block the whole page for slow Firestore/menu data.
      The full-screen loader is only a startup splash; menu data continues loading in the page. */
@@ -2013,6 +2030,24 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
     if (window.gfyHideStartupLoader) window.gfyHideStartupLoader();
   }
   window.gfyFinishStartupLoader = finishStartup;
+
+  /* GFY FIX: attach after Firebase loads; if a saved signed-in session exists, show loader briefly. */
+  (function waitForSignedInLoaderAuth(){
+    try {
+      if (window.firebase && firebase.auth && typeof firebase.auth === 'function') {
+        firebase.auth().onAuthStateChanged(function(user){
+          if (user && !window._gfyFreshMenuReady && !window._gfyStartupClosed) {
+            window.gfyShowStartupLoader('Loading latest prices...');
+            setTimeout(finishStartup, maxStartupMs);
+          } else if (!user) {
+            if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
+          }
+        });
+        return;
+      }
+    } catch (e) {}
+    setTimeout(waitForSignedInLoaderAuth, 80);
+  })();
   var readyPoll = setInterval(function(){
     if (window._gfyFreshMenuReady) {
       clearInterval(readyPoll);

@@ -8282,13 +8282,31 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         <div style="display:flex; gap:6px; flex-shrink:0; align-items:center; justify-content:flex-end;">
           <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="up" title="Move up">↑</button>
           <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="down" title="Move down">↓</button>
-          <button onclick="openEditCatModal('${gfyEscapeAttr(cat.id)}')" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Edit Category">✏️</button>
-          <button onclick="deleteCategory('${gfyEscapeAttr(cat.id)}')" style="background:#ffebee; border:1.5px solid #ffcdd2; color:#c62828; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Delete Category">🗑️</button>
+          <button type="button" data-gfy-cat-action="edit" data-cat-id="${gfyEscapeAttr(cat.id)}" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Edit Category">✏️</button>
+          <button type="button" data-gfy-cat-action="delete" data-cat-id="${gfyEscapeAttr(cat.id)}" style="background:#ffebee; border:1.5px solid #ffcdd2; color:#c62828; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Delete Category">🗑️</button>
         </div>
       </div>`;
     }).join('');
 
     enableCategoryDragOrdering(listContainer);
+
+    if (listContainer.dataset.gfyCatActionReady !== 'true') {
+      listContainer.dataset.gfyCatActionReady = 'true';
+      listContainer.addEventListener('click', function(e) {
+        const actionBtn = e.target.closest && e.target.closest('[data-gfy-cat-action]');
+        if (!actionBtn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const catId = actionBtn.getAttribute('data-cat-id') || '';
+        const action = actionBtn.getAttribute('data-gfy-cat-action');
+        if (!catId) return;
+        if (action === 'edit' && typeof window.openEditCatModal === 'function') {
+          window.openEditCatModal(catId);
+        } else if (action === 'delete' && typeof window.deleteCategory === 'function') {
+          window.deleteCategory(catId);
+        }
+      });
+    }
 
     const overlay = document.getElementById('manage-cats-modal-overlay');
     if (overlay) overlay.classList.add('open');

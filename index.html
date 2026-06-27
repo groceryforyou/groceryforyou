@@ -1749,6 +1749,40 @@ body.support-create-ticket-mode #support-form-section{
 }
 
 
+/* GFY FIX: Stable sign-in page position. Prevent login card flicker/vertical shift while auth/menu scripts run. */
+#page-login{
+  position:fixed!important;
+  top:0!important;
+  right:0!important;
+  bottom:0!important;
+  left:0!important;
+  width:100vw!important;
+  height:100dvh!important;
+  min-height:100dvh!important;
+  padding:20px!important;
+  margin:0!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+  transform:none!important;
+  will-change:auto!important;
+}
+#page-login.active{display:flex!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important;}
+#page-login .login-card{
+  position:relative!important;
+  margin:0 auto!important;
+  transform:none!important;
+  flex:0 0 auto!important;
+  max-height:calc(100dvh - 40px)!important;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+@media(max-width:480px){
+  #page-login{padding:16px!important;}
+  #page-login .login-card{padding:70px 28px!important;max-width:390px!important;}
+}
+
+
 /* GFY SUB-LABEL FIX */
 .card-type,
 .gfy-item-sub-label{
@@ -6399,7 +6433,17 @@ function toggleSidebar() {
   
   function route() {
     if (!window.authStateReady && typeof showPage === 'function') {
-      showPage('auth-loading');
+      const cached = getCachedAuthState();
+      // Show full-page loading only when the last session was signed in.
+      // Signed-out/guest openings go straight to the stable login page to avoid flicker.
+      if (cached && cached.isLoggedIn) {
+        window.gfyStartupExpectSignedIn = true;
+        showPage('auth-loading');
+      } else {
+        window.gfyStartupExpectSignedIn = false;
+        window.gfyAllowLoginBeforeAuth = true;
+        showPage('login');
+      }
     }
 
     if (typeof auth === 'undefined' || !auth || typeof auth.onAuthStateChanged !== 'function') {
@@ -6412,6 +6456,7 @@ function toggleSidebar() {
     auth.onAuthStateChanged(function(user) {
       window.authStateReady = true;
       if (user) {
+        window.gfyAllowLoginBeforeAuth = false;
         setCachedAuthState(true);
         const activePage = document.querySelector('.page.active');
         if (!activePage || activePage.id === 'page-login' || activePage.id === 'page-auth-loading') {
@@ -6421,6 +6466,8 @@ function toggleSidebar() {
         }
       } else {
         setCachedAuthState(false);
+        window.gfyStartupExpectSignedIn = false;
+        window.gfyAllowLoginBeforeAuth = true;
         if (typeof showPage === 'function') {
           showPage('login');
         }
@@ -9586,7 +9633,7 @@ window.addEventListener('load', function() {
 
     // Prevent login page from showing until auth state has been resolved.
     // Do NOT redirect to auth-loading because that splash is intentionally disabled on refresh.
-    if (page === 'login' && !window.authStateReady) {
+    if (page === 'login' && !window.authStateReady && !window.gfyAllowLoginBeforeAuth) {
       page = 'auth-loading';
     }
 

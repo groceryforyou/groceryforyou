@@ -11921,5 +11921,190 @@ document.addEventListener('click', function(e) {
 })();
 </script>
 
+
+
+<script>
+/* GFY TARGETED FIX: Admin can add/manage items in categories with apostrophes (&),
+   especially "Chapati's & Curry's". This does not change menu loading, prices,
+   orders, or Firestore listeners. It only resolves category IDs before admin
+   manage filtering and add-item save. */
+(function(){
+  'use strict';
+
+  function decodeHtml(value){
+    var div = document.createElement('div');
+    div.innerHTML = String(value == null ? '' : value);
+    return div.textContent || div.innerText || '';
+  }
+
+  function key(value){
+    return decodeHtml(value)
+      .toLowerCase()
+      .replace(/^cat[-_\s]*/,'')
+      .replace(/&/g,' and ')
+      .replace(/[^a-z0-9]+/g,'-')
+      .replace(/^-+|-+$/g,'');
+  }
+
+  function isChapatiCurry(value){
+    var k = key(value);
+    return k.indexOf('chapati') !== -1 && k.indexOf('curry') !== -1;
+  }
+
+  function cats(){
+    try { if (Array.isArray(window.categories)) return window.categories; } catch(e) {}
+    try { if (Array.isArray(categories)) return categories; } catch(e) {}
+    return [];
+  }
+
+  function items(){
+    try { if (Array.isArray(window.items)) return window.items; } catch(e) {}
+    try { if (Array.isArray(items)) return items; } catch(e) {}
+    return [];
+  }
+
+  function resolveCatId(value){
+    var raw = decodeHtml(value);
+    var all = cats();
+    if (!raw && all.length) return '';
+
+    var exact = all.find(function(c){ return String(c.id) === raw; });
+    if (exact) return exact.id;
+
+    var k = key(raw);
+    var matched = all.find(function(c){
+      return key(c.id) === k || key(c.name) === k || key((c.emoji || '') + ' ' + (c.name || '')) === k;
+    });
+    if (matched) return matched.id;
+
+    if (isChapatiCurry(raw)) {
+      var chapati = all.find(function(c){ return isChapatiCurry(c.id) || isChapatiCurry(c.name); });
+      if (chapati) return chapati.id;
+    }
+
+    return raw;
+  }
+
+  function normalizeLocalChapatiItems(){
+    var allCats = cats();
+    var chapati = allCats.find(function(c){ return isChapatiCurry(c.id) || isChapatiCurry(c.name); });
+    if (!chapati) return;
+    items().forEach(function(item){
+      if (!item) return;
+      var itemCat = item.category || item.catId || item.categoryId || item.categoryName || '';
+      if (String(itemCat) === String(chapati.id)) return;
+      if (isChapatiCurry(itemCat)) {
+        item.category = chapati.id;
+        item.catId = chapati.id;
+        item.categoryId = chapati.id;
+      }
+    });
+  }
+
+  function patchAddItemCategorySelect(preferredValue){
+    var select = document.getElementById('aip-cat');
+    if (!select) return '';
+    var allCats = cats();
+    if (!allCats.length) return select.value || '';
+
+    var current = preferredValue || select.value || '';
+    var resolved = resolveCatId(current);
+
+    // Fix existing option values if they were rendered with escaped/unsafe variants.
+    Array.prototype.slice.call(select.options || []).forEach(function(opt){
+      var optResolved = resolveCatId(opt.value || opt.textContent || '');
+      if (optResolved) opt.value = optResolved;
+    });
+
+    // Ensure every current category exists in the Add Item dropdown.
+    allCats.forEach(function(cat){
+      if (!cat || !cat.id) return;
+      var exists = Array.prototype.slice.call(select.options || []).some(function(opt){ return String(opt.value) === String(cat.id); });
+      if (!exists) {
+        var option = new Option(((cat.emoji || '') + ' ' + (cat.name || cat.id)).trim(), cat.id);
+        select.add(option);
+      }
+    });
+
+    resolved = resolveCatId(resolved || current);
+    if (resolved) select.value = resolved;
+    return select.value || resolved || '';
+  }
+
+  function selectedCatFromClickedTab(tab){
+    if (!tab) return '';
+    var direct = tab.getAttribute('data-cat-id') || tab.dataset && tab.dataset.catId || '';
+    if (direct) return resolveCatId(direct);
+    var onclick = tab.getAttribute('onclick') || '';
+    var m = onclick.match(/['"]([^'"]+)['"]/);
+    if (m && m[1]) return resolveCatId(m[1]);
+    return resolveCatId((tab.textContent || '').replace(/\([^)]*\)/g,'').trim());
+  }
+
+  // Intercept admin/manage category tabs before broken inline onclick strings can run.
+  document.addEventListener('click', function(e){
+    var tab = e.target && e.target.closest ? e.target.closest('.cat-tab,.mfb-tab') : null;
+    if (!tab) return;
+    var id = selectedCatFromClickedTab(tab);
+    if (!id || id === 'all') return;
+    if (!isChapatiCurry(id) && !isChapatiCurry(tab.textContent || '')) return;
+
+    patchAddItemCategorySelect(id);
+    normalizeLocalChapatiItems();
+
+    if (typeof window.renderManagePage === 'function' && tab.classList.contains('cat-tab')) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      try { window.renderManagePage(id); } catch(err) { console.warn('[GFY Chapati category] renderManagePage skipped:', err); }
+      setTimeout(function(){ patchAddItemCategorySelect(id); normalizeLocalChapatiItems(); }, 0);
+    }
+  }, true);
+
+  // Wrap renderManagePage only to resolve the category argument and sync the Add Item dropdown.
+  function wrapRenderManagePage(){
+    var old = window.renderManagePage;
+    if (typeof old !== 'function' || old.__gfyChapatiAddWrapped) return;
+    window.renderManagePage = function(filter){
+      var resolved = resolveCatId(filter || '');
+      normalizeLocalChapatiItems();
+      var result = old.apply(this, [resolved || filter]);
+      setTimeout(function(){ patchAddItemCategorySelect(resolved); normalizeLocalChapatiItems(); }, 0);
+      return result;
+    };
+    window.renderManagePage.__gfyChapatiAddWrapped = true;
+  }
+
+  // Wrap saveNewItem. It still calls your original save function; it only fixes #aip-cat first.
+  function wrapSaveNewItem(){
+    var old = window.saveNewItem;
+    if (typeof old !== 'function' || old.__gfyChapatiAddWrapped) return;
+    window.saveNewItem = async function(){
+      normalizeLocalChapatiItems();
+      patchAddItemCategorySelect();
+      var select = document.getElementById('aip-cat');
+      if (select) {
+        var resolved = resolveCatId(select.value || select.options[select.selectedIndex]?.textContent || '');
+        if (resolved) select.value = resolved;
+      }
+      return old.apply(this, arguments);
+    };
+    window.saveNewItem.__gfyChapatiAddWrapped = true;
+  }
+
+  function install(){
+    wrapRenderManagePage();
+    wrapSaveNewItem();
+    normalizeLocalChapatiItems();
+    patchAddItemCategorySelect();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(install, 0); });
+  else setTimeout(install, 0);
+
+  // Re-apply after Firestore/category listeners replace arrays or dropdown HTML.
+  setInterval(install, 1000);
+})();
+</script>
+
 </body>
 </html>

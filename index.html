@@ -8237,6 +8237,64 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     });
   }
 
+  window.saveManageCategoryInline = async function(catId) {
+    if (currentRole !== 'admin') {
+      if (typeof showToast === 'function') showToast('⚠️ Only admin can edit categories');
+      return;
+    }
+
+    const row = document.querySelector('[data-cat-id="' + CSS.escape(catId) + '"]');
+    if (!row) return;
+
+    const nameInput = row.querySelector('[data-gfy-cat-field="name"]');
+    const subInput = row.querySelector('[data-gfy-cat-field="subLabel"]');
+    const emojiInput = row.querySelector('[data-gfy-cat-field="emoji"]');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    const subLabel = subInput ? subInput.value.trim() : '';
+    const emoji = emojiInput && emojiInput.value.trim() ? emojiInput.value.trim() : '📂';
+
+    if (!name) {
+      if (nameInput) nameInput.focus();
+      if (typeof showToast === 'function') showToast('⚠️ Category name is required');
+      return;
+    }
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db :
+      (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
+
+    if (!firebaseDB) {
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
+      return;
+    }
+
+    try {
+      const allCats = (typeof window.categories !== 'undefined' && Array.isArray(window.categories)) ? window.categories : [];
+      const existingCat = allCats.find(c => c.id === catId) || {};
+      const existingIndex = allCats.findIndex(c => c.id === catId);
+      await firebaseDB.collection('categories').doc(catId).set({
+        id: catId,
+        name: name,
+        emoji: emoji,
+        subLabel: subLabel,
+        sortOrder: (Number.isFinite(Number(existingCat.sortOrder)) ? Number(existingCat.sortOrder) : (existingIndex >= 0 ? existingIndex * 10 + 10 : getNextCategorySortOrder())),
+        deleted: false,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      const index = allCats.findIndex(c => c.id === catId);
+      if (index >= 0) {
+        allCats[index] = Object.assign({}, allCats[index], { name, emoji, subLabel, deleted: false });
+      }
+
+      if (typeof showToast === 'function') showToast('✅ Category updated', 1800);
+      window.openManageCatsModal();
+    } catch (err) {
+      console.error('[InlineCategoryEdit] Firestore write failed:', err);
+      if (typeof showToast === 'function') showToast('⚠️ Update failed: ' + (err.message || err), 5000);
+    }
+  };
+
   window.openManageCatsModal = function() {
     const listContainer = document.getElementById('manage-cats-list');
     if (!listContainer) return;
@@ -8246,23 +8304,30 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     listContainer.innerHTML = allCats.map(cat => {
       const sub = cat.subLabel || cat.subtitle || cat.description || '';
       return `
-      <div class="gfy-manage-cat-row" data-cat-id="${gfyEscapeAttr(cat.id)}" draggable="true" style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--cream); border:1.5px solid var(--border); border-radius:12px; gap:10px; cursor:grab; touch-action:none;">
-        <div style="display:flex; align-items:center; gap:9px; min-width:0; flex:1;">
-          <span class="gfy-cat-drag-handle" style="font-size:1.05rem; color:#777; cursor:grab; user-select:none;" title="Drag to move">☰</span>
-          <span style="font-size:1.3rem; flex-shrink:0;">${gfyEscapeAttr(cat.emoji || '📂')}</span>
-          <span style="display:flex; flex-direction:column; min-width:0;">
-            <span style="font-weight:700; color:var(--brown); font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${gfyEscapeAttr(cat.name || '')}</span>
-            ${sub ? `<span style="font-size:.72rem;color:#777;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${gfyEscapeAttr(sub)}</span>` : ``}
+      <div class="gfy-manage-cat-row" data-cat-id="${gfyEscapeAttr(cat.id)}" draggable="true" style="display:flex; align-items:flex-start; justify-content:space-between; padding:12px; background:var(--cream); border:1.5px solid var(--border); border-radius:12px; gap:10px; cursor:grab; touch-action:none;">
+        <div style="display:flex; align-items:flex-start; gap:9px; min-width:0; flex:1;">
+          <span class="gfy-cat-drag-handle" style="font-size:1.05rem; color:#777; cursor:grab; user-select:none; padding-top:8px;" title="Drag to move">☰</span>
+          <input data-gfy-cat-field="emoji" value="${gfyEscapeAttr(cat.emoji || '📂')}" maxlength="4" style="width:42px; min-width:42px; height:38px; text-align:center!important; border:1.5px solid var(--border); border-radius:10px; background:#fff; font-size:1.2rem; padding:4px;" title="Category emoji" />
+          <span style="display:flex; flex-direction:column; gap:6px; min-width:0; flex:1;">
+            <input data-gfy-cat-field="name" value="${gfyEscapeAttr(cat.name || '')}" placeholder="Category name" style="width:100%; border:1.5px solid var(--border); border-radius:10px; background:#fff; padding:8px 10px; font-weight:800; color:var(--brown); font-size:.9rem;" />
+            <input data-gfy-cat-field="subLabel" value="${gfyEscapeAttr(sub)}" placeholder="Sub-label" style="width:100%; border:1.5px solid var(--border); border-radius:10px; background:#fff; padding:7px 10px; color:#666; font-size:.78rem;" />
           </span>
         </div>
-        <div style="display:flex; gap:6px; flex-shrink:0;">
+        <div style="display:flex; gap:6px; flex-shrink:0; align-items:center; padding-top:3px;">
           <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="up" title="Move up">↑</button>
           <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="down" title="Move down">↓</button>
-          <button onclick="openEditCatModal('${gfyEscapeAttr(cat.id)}')" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Edit Category">✏️</button>
-          <button onclick="deleteCategory('${gfyEscapeAttr(cat.id)}')" style="background:#ffebee; border:1.5px solid #ffcdd2; color:#c62828; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Delete Category">🗑️</button>
+          <button type="button" onclick="saveManageCategoryInline('${gfyEscapeAttr(cat.id)}')" style="background:#e8f5e9; border:1.5px solid #a5d6a7; color:var(--green); min-width:56px; height:32px; border-radius:8px; cursor:pointer; font-size:.8rem; font-weight:900; display:flex; align-items:center; justify-content:center;" title="Save Category">Save</button>
+          <button type="button" onclick="openEditCatModal('${gfyEscapeAttr(cat.id)}')" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Full Edit">✏️</button>
+          <button type="button" onclick="deleteCategory('${gfyEscapeAttr(cat.id)}')" style="background:#ffebee; border:1.5px solid #ffcdd2; color:#c62828; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Delete Category">🗑️</button>
         </div>
       </div>`;
     }).join('');
+
+    listContainer.querySelectorAll('input').forEach(function(input) {
+      input.addEventListener('pointerdown', function(e) { e.stopPropagation(); });
+      input.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+      input.addEventListener('touchstart', function(e) { e.stopPropagation(); }, { passive: true });
+    });
 
     enableCategoryDragOrdering(listContainer);
 

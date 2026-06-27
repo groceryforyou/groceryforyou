@@ -1749,6 +1749,40 @@ body.support-create-ticket-mode #support-form-section{
 }
 
 
+/* GFY FIX: Stable sign-in page position. Prevent login card flicker/vertical shift while auth/menu scripts run. */
+#page-login{
+  position:fixed!important;
+  top:0!important;
+  right:0!important;
+  bottom:0!important;
+  left:0!important;
+  width:100vw!important;
+  height:100dvh!important;
+  min-height:100dvh!important;
+  padding:20px!important;
+  margin:0!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+  transform:none!important;
+  will-change:auto!important;
+}
+#page-login.active{display:flex!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important;}
+#page-login .login-card{
+  position:relative!important;
+  margin:0 auto!important;
+  transform:none!important;
+  flex:0 0 auto!important;
+  max-height:calc(100dvh - 40px)!important;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+@media(max-width:480px){
+  #page-login{padding:16px!important;}
+  #page-login .login-card{padding:70px 28px!important;max-width:390px!important;}
+}
+
+
 /* GFY SUB-LABEL FIX */
 .card-type,
 .gfy-item-sub-label{
@@ -1904,23 +1938,16 @@ body.support-create-ticket-mode #support-form-section{
   position:fixed!important;
   inset:0!important;
   z-index:2147483000!important;
-  display:none!important;
+  display:flex!important;
   align-items:center!important;
   justify-content:center!important;
   background:linear-gradient(180deg,#f4fff6,#e8f7ed)!important;
-  opacity:0!important;
-  visibility:hidden!important;
-  pointer-events:none!important;
-  transition:opacity .25s ease, visibility .25s ease!important;
-}
-#gfy-startup-loader.gfy-active{
-  display:flex!important;
   opacity:1!important;
   visibility:visible!important;
   pointer-events:auto!important;
+  transition:opacity .25s ease, visibility .25s ease!important;
 }
 #gfy-startup-loader.gfy-hide{
-  display:none!important;
   opacity:0!important;
   visibility:hidden!important;
   pointer-events:none!important;
@@ -1946,11 +1973,32 @@ body.support-create-ticket-mode #support-form-section{
   animation:spin .8s linear infinite;
 }
 
+
+
+/* GFY FIX: prevent menu/header flash before Firebase decides login vs menu.
+   This hides only the app chrome during auth boot; login page can still appear normally. */
+body.gfy-auth-booting header,
+body.gfy-auth-booting .hero,
+body.gfy-auth-booting .main,
+body.gfy-auth-booting .mob-bottom-nav,
+body.gfy-auth-booting footer,
+body.gfy-auth-booting .float-order-bar,
+body.gfy-auth-booting .scroll-top-btn {
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+body.gfy-auth-booting #page-login.active {
+  display:flex!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+}
+
 </style>
 </head>
-<body>
+<body class="gfy-auth-booting">
 <!-- GFY visible startup/latest-prices loader -->
-<div id="gfy-startup-loader" role="status" aria-live="polite">
+<div id="gfy-startup-loader" class="gfy-hide" role="status" aria-live="polite">
   <div class="gfy-startup-card">
     <div class="gfy-startup-icon">🛒</div>
     <div class="gfy-startup-text" id="gfy-startup-loader-text">Loading latest prices...</div>
@@ -1984,90 +2032,89 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 </script>
 
 <script>
-/* GFY FIX: latest-prices loader is only for signed-in users.
-   Signed-out users must see the login page directly, without this loader. */
+/* GFY FIX: keep a real visible loading symbol on open; do not use hidden auth splash. */
 (function(){
-  var startupTimer = null;
-  var readyPoll = null;
-
-  window.gfyAllowStartupLoader = false;
-  window._gfyStartupClosed = false;
-
+  window.gfyStartupLoaderAllowed = function(){
+    try {
+      return !!(window.firebase && firebase.auth && firebase.auth().currentUser);
+    } catch (e) { return false; }
+  };
+  window.gfySoftHideStartupLoader = function(){
+    var el = document.getElementById('gfy-startup-loader');
+    if (!el) return;
+    el.classList.add('gfy-hide');
+    el.setAttribute('aria-hidden','true');
+    el.style.setProperty('display','none','important');
+  };
   window.gfyShowStartupLoader = function(message){
-    if (!window.gfyAllowStartupLoader) return;
+    if (window._gfyStartupClosed) return;
+    /* GFY FIX: full-page latest-prices loader is shown only for already signed-in users. */
+    if (!window.gfyStartupLoaderAllowed || !window.gfyStartupLoaderAllowed()) {
+      if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
+      return;
+    }
     var el = document.getElementById('gfy-startup-loader');
     var txt = document.getElementById('gfy-startup-loader-text');
     if (txt && message) txt.textContent = message;
     if (el) {
       el.classList.remove('gfy-hide');
-      el.classList.add('gfy-active');
+      el.style.setProperty('display','flex','important');
       el.setAttribute('aria-hidden','false');
     }
   };
-
   window.gfyHideStartupLoader = function(){
+    window._gfyStartupClosed = true;
     var el = document.getElementById('gfy-startup-loader');
     if (!el) return;
-    el.classList.remove('gfy-active');
     el.classList.add('gfy-hide');
     el.setAttribute('aria-hidden','true');
+    setTimeout(function(){
+      if (el.classList.contains('gfy-hide')) el.style.setProperty('display','none','important');
+    }, 320);
   };
+  if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
 
-  function clearStartupTimers(){
-    if (startupTimer) { clearTimeout(startupTimer); startupTimer = null; }
-    if (readyPoll) { clearInterval(readyPoll); readyPoll = null; }
-  }
-
+  /* GFY FIX: Do not block the whole page for slow Firestore/menu data.
+     The full-screen loader is only a startup splash; menu data continues loading in the page. */
+  var maxStartupMs = 1200;
+  var startupStartedAt = Date.now();
+  var startupDone = false;
   function finishStartup(){
-    clearStartupTimers();
+    if (startupDone) return;
+    startupDone = true;
     if (window.gfyHideStartupLoader) window.gfyHideStartupLoader();
   }
   window.gfyFinishStartupLoader = finishStartup;
 
-  function beginSignedInStartupLoader(){
-    clearStartupTimers();
-    window.gfyAllowStartupLoader = true;
-    window._gfyStartupClosed = false;
-    window.gfyShowStartupLoader('Loading latest prices...');
-
-    var startedAt = Date.now();
-    var maxStartupMs = 1200;
-    readyPoll = setInterval(function(){
-      if (window._gfyFreshMenuReady || Date.now() - startedAt >= maxStartupMs) {
-        finishStartup();
-      }
-    }, 120);
-    startupTimer = setTimeout(finishStartup, maxStartupMs + 80);
-  }
-
-  window.gfyBeginSignedInStartupLoader = beginSignedInStartupLoader;
-
-  function hookAuthForStartupLoader(){
-    if (typeof firebase === 'undefined' || !firebase.auth) {
-      setTimeout(hookAuthForStartupLoader, 100);
-      return;
-    }
+  /* GFY FIX: attach after Firebase loads; if a saved signed-in session exists, show loader briefly. */
+  (function waitForSignedInLoaderAuth(){
     try {
-      firebase.auth().onAuthStateChanged(function(user){
-        window.authStateReady = true;
-        if (user) {
-          beginSignedInStartupLoader();
-        } else {
-          window.gfyAllowStartupLoader = false;
-          finishStartup();
-        }
-      });
-    } catch(e) {
-      window.gfyAllowStartupLoader = false;
+      if (window.firebase && firebase.auth && typeof firebase.auth === 'function') {
+        firebase.auth().onAuthStateChanged(function(user){
+          if (user && !window._gfyFreshMenuReady && !window._gfyStartupClosed) {
+            window.gfyShowStartupLoader('Loading latest prices...');
+            setTimeout(finishStartup, maxStartupMs);
+          } else if (!user) {
+            if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
+          }
+        });
+        return;
+      }
+    } catch (e) {}
+    setTimeout(waitForSignedInLoaderAuth, 80);
+  })();
+  var readyPoll = setInterval(function(){
+    if (window._gfyFreshMenuReady) {
+      clearInterval(readyPoll);
+      finishStartup();
+    } else if (Date.now() - startupStartedAt >= maxStartupMs) {
+      clearInterval(readyPoll);
       finishStartup();
     }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', hookAuthForStartupLoader, {once:true});
-  } else {
-    hookAuthForStartupLoader();
-  }
+  }, 120);
+  window.addEventListener('load', function(){
+    setTimeout(finishStartup, maxStartupMs);
+  }, {once:true});
 })();
 </script>
 
@@ -6407,7 +6454,18 @@ function toggleSidebar() {
   
   function route() {
     if (!window.authStateReady && typeof showPage === 'function') {
-      showPage('auth-loading');
+      const cached = getCachedAuthState();
+      // Show full-page loading only when the last session was signed in.
+      // Signed-out/guest openings go straight to the stable login page to avoid flicker.
+      if (cached && cached.isLoggedIn) {
+        window.gfyStartupExpectSignedIn = true;
+        showPage('auth-loading');
+      } else {
+        window.gfyStartupExpectSignedIn = false;
+        window.gfyAllowLoginBeforeAuth = true;
+        document.body.classList.remove('gfy-auth-booting');
+        showPage('login');
+      }
     }
 
     if (typeof auth === 'undefined' || !auth || typeof auth.onAuthStateChanged !== 'function') {
@@ -6420,16 +6478,21 @@ function toggleSidebar() {
     auth.onAuthStateChanged(function(user) {
       window.authStateReady = true;
       if (user) {
+        window.gfyAllowLoginBeforeAuth = false;
         setCachedAuthState(true);
         const activePage = document.querySelector('.page.active');
         if (!activePage || activePage.id === 'page-login' || activePage.id === 'page-auth-loading') {
           if (typeof showPage === 'function') {
+            document.body.classList.remove('gfy-auth-booting');
             showPage('menu');
           }
         }
       } else {
         setCachedAuthState(false);
+        window.gfyStartupExpectSignedIn = false;
+        window.gfyAllowLoginBeforeAuth = true;
         if (typeof showPage === 'function') {
+          document.body.classList.remove('gfy-auth-booting');
           showPage('login');
         }
       }
@@ -6442,6 +6505,21 @@ function toggleSidebar() {
   }
 })();
 </script>
+
+<script>
+/* GFY FIX: auth boot fallback - never show the menu as a temporary signed-out screen. */
+(function(){
+  setTimeout(function(){
+    try {
+      if (!window.authStateReady && window.gfyAllowLoginBeforeAuth && typeof showPage === 'function') {
+        document.body.classList.remove('gfy-auth-booting');
+        showPage('login');
+      }
+    } catch(e) {}
+  }, 1200);
+})();
+</script>
+
 <script>
 // ===== GFY ENHANCED FIRESTORE INTEGRATION =====
 (function(){
@@ -9594,7 +9672,7 @@ window.addEventListener('load', function() {
 
     // Prevent login page from showing until auth state has been resolved.
     // Do NOT redirect to auth-loading because that splash is intentionally disabled on refresh.
-    if (page === 'login' && !window.authStateReady) {
+    if (page === 'login' && !window.authStateReady && !window.gfyAllowLoginBeforeAuth) {
       page = 'auth-loading';
     }
 

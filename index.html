@@ -1897,9 +1897,60 @@ body.support-create-ticket-mode #support-form-section{
   min-height:52px!important;
 }
 
+
+
+/* GFY FIX: Visible startup/latest-prices loader. Independent from auth splash. */
+#gfy-startup-loader{
+  position:fixed!important;
+  inset:0!important;
+  z-index:2147483000!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  background:linear-gradient(180deg,#f4fff6,#e8f7ed)!important;
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+  transition:opacity .25s ease, visibility .25s ease!important;
+}
+#gfy-startup-loader.gfy-hide{
+  opacity:0!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+.gfy-startup-card{
+  width:min(86vw,330px);
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:24px;
+  padding:28px 22px;
+  text-align:center;
+  box-shadow:0 22px 70px rgba(0,0,0,.12);
+}
+.gfy-startup-icon{font-size:2.2rem;margin-bottom:10px;}
+.gfy-startup-text{font-family:var(--site-font);font-weight:900;color:var(--brown);font-size:1rem;margin-bottom:16px;}
+.gfy-startup-spinner{
+  width:44px;
+  height:44px;
+  margin:0 auto;
+  border:5px solid rgba(0,176,78,.14);
+  border-top-color:var(--saffron);
+  border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+
 </style>
 </head>
 <body>
+<!-- GFY visible startup/latest-prices loader -->
+<div id="gfy-startup-loader" role="status" aria-live="polite">
+  <div class="gfy-startup-card">
+    <div class="gfy-startup-icon">🛒</div>
+    <div class="gfy-startup-text" id="gfy-startup-loader-text">Loading latest prices...</div>
+    <div class="gfy-startup-spinner" aria-hidden="true"></div>
+  </div>
+</div>
+
 <script>
 /* GFY FIX: On refresh, never show Sign In until Firebase auth state is resolved. */
 window.authStateReady = false;
@@ -1907,6 +1958,8 @@ window.authStateReady = false;
 /* GFY SAFE STARTUP GUARDS: prevent old missing helper calls from breaking page render. */
 window.setMenuLoadingState = window.setMenuLoadingState || function(isLoading, message) {
   try {
+    if (isLoading && window.gfyShowStartupLoader) window.gfyShowStartupLoader(message || 'Loading latest prices...');
+    if (!isLoading && window.gfyHideStartupLoader) window.gfyHideStartupLoader();
     var container = document.getElementById('menu-sections-container');
     if (!container) return;
     if (isLoading) {
@@ -1922,6 +1975,34 @@ window.setMenuLoadingState = window.setMenuLoadingState || function(isLoading, m
 };
 window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 </script>
+
+<script>
+/* GFY FIX: keep a real visible loading symbol on open; do not use hidden auth splash. */
+(function(){
+  window.gfyShowStartupLoader = function(message){
+    var el = document.getElementById('gfy-startup-loader');
+    var txt = document.getElementById('gfy-startup-loader-text');
+    if (txt && message) txt.textContent = message;
+    if (el) {
+      el.classList.remove('gfy-hide');
+      el.style.setProperty('display','flex','important');
+      el.setAttribute('aria-hidden','false');
+    }
+  };
+  window.gfyHideStartupLoader = function(){
+    var el = document.getElementById('gfy-startup-loader');
+    if (!el) return;
+    el.classList.add('gfy-hide');
+    el.setAttribute('aria-hidden','true');
+    setTimeout(function(){
+      if (el.classList.contains('gfy-hide')) el.style.setProperty('display','none','important');
+    }, 320);
+  };
+  window.gfyShowStartupLoader('Loading latest prices...');
+  window.addEventListener('load', function(){ setTimeout(window.gfyHideStartupLoader, 4200); }, {once:true});
+})();
+</script>
+
 <!-- Offline Banner -->
 <div id="offline-banner"><span class="ob-icon">📡</span> No internet connection. Please check your network.</div>
 
@@ -8585,6 +8666,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   ];
 
   function setMenuLoadingState(isLoading, message = 'Loading latest prices...') {
+    if (isLoading && window.gfyShowStartupLoader) window.gfyShowStartupLoader(message || 'Loading latest prices...');
+    if (!isLoading && window.gfyHideStartupLoader) window.gfyHideStartupLoader();
     const container = document.getElementById('menu-sections-container');
     if (!container) return;
     if (isLoading) {

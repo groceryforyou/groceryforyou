@@ -1981,7 +1981,7 @@ window.authStateReady = false;
 window.setMenuLoadingState = window.setMenuLoadingState || function(isLoading, message) {
   try {
     if (isLoading && window.gfyShowStartupLoader && !window._gfyStartupClosed) window.gfyShowStartupLoader(message || 'Loading latest prices...');
-    if (!isLoading && window.gfyHideStartupLoader) window.gfyHideStartupLoader();
+    if (!isLoading && window.gfyFinishStartupLoader) window.gfyFinishStartupLoader();
     var container = document.getElementById('menu-sections-container');
     if (!container) return;
     if (isLoading) {
@@ -2040,21 +2040,41 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
       if (el.classList.contains('gfy-hide')) el.style.setProperty('display','none','important');
     }, 320);
   };
-  /* GFY FIX: Do not block the whole page for slow Firestore/menu data.
-     The full-screen loader is only a startup splash; menu data continues loading in the page. */
-  var maxStartupMs = 1800;
+  /* GFY FIX: keep the startup loader until the fresh menu is actually visible.
+     This prevents the blank page, then 0-count category tabs, then real items flash. */
+  var hardStartupFallbackMs = 9000;
   var startupStartedAt = Date.now();
   var startupDone = false;
   var startupAuthResolved = false;
-  function finishStartup(){
+  function menuActuallyVisible(){
+    try {
+      var c = document.getElementById('menu-sections-container');
+      if (!window._gfyFreshMenuReady) return false;
+      if (window._gfyFreshMenuWasEmpty === true) return true;
+      if (c && c.querySelector('.menu-card')) return true;
+      var arr = Array.isArray(window.items) ? window.items : (Array.isArray(window.menuItems) ? window.menuItems : []);
+      return arr.length > 0;
+    } catch(e) { return false; }
+  }
+  function finishStartup(force){
     if (startupDone) return;
+    if (!force && !menuActuallyVisible()) return;
     startupDone = true;
     if (window.gfyHideStartupLoader) window.gfyHideStartupLoader();
   }
   window.gfyFinishStartupLoader = finishStartup;
 
-  /* GFY FIX: show latest-prices loader for signed-in customers/admins only after Firebase resolves.
-     Do not close it before auth resolves, otherwise customers never see it on slow WebView loads. */
+  function watchMenuPaint(){
+    try {
+      var c = document.getElementById('menu-sections-container');
+      if (!c) return setTimeout(watchMenuPaint, 80);
+      var obs = new MutationObserver(function(){ finishStartup(false); });
+      obs.observe(c, {childList:true, subtree:true});
+    } catch(e) {}
+  }
+  watchMenuPaint();
+
+  /* GFY FIX: show latest-prices loader for signed-in customers/admins only after Firebase resolves. */
   (function waitForSignedInLoaderAuth(){
     try {
       if (window.firebase && firebase.auth && typeof firebase.auth === 'function') {
@@ -2063,10 +2083,12 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
           startupStartedAt = Date.now();
           if (user && !window._gfyFreshMenuReady && !window._gfyStartupClosed) {
             window.gfyShowStartupLoader('Loading latest prices...');
-            setTimeout(finishStartup, maxStartupMs);
+            setTimeout(function(){ finishStartup(true); }, hardStartupFallbackMs);
           } else if (!user) {
             if (window.gfySoftHideStartupLoader) window.gfySoftHideStartupLoader();
-            finishStartup();
+            finishStartup(true);
+          } else {
+            finishStartup(false);
           }
         });
         return;
@@ -2076,18 +2098,16 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
   })();
   var readyPoll = setInterval(function(){
     if (!startupAuthResolved) return;
-    if (window._gfyFreshMenuReady) {
+    if (menuActuallyVisible()) {
       clearInterval(readyPoll);
-      finishStartup();
-    } else if (Date.now() - startupStartedAt >= maxStartupMs) {
+      finishStartup(false);
+    } else if (Date.now() - startupStartedAt >= hardStartupFallbackMs) {
       clearInterval(readyPoll);
-      finishStartup();
+      finishStartup(true);
     }
   }, 120);
   window.addEventListener('load', function(){
-    setTimeout(function(){
-      if (startupAuthResolved) finishStartup();
-    }, maxStartupMs);
+    setTimeout(function(){ finishStartup(false); }, 250);
   }, {once:true});
 })();
 </script>
@@ -8744,7 +8764,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
 
   function setMenuLoadingState(isLoading, message = 'Loading latest prices...') {
     if (isLoading && window.gfyShowStartupLoader && !window._gfyStartupClosed) window.gfyShowStartupLoader(message || 'Loading latest prices...');
-    if (!isLoading && window.gfyHideStartupLoader) window.gfyHideStartupLoader();
+    if (!isLoading && window.gfyFinishStartupLoader) window.gfyFinishStartupLoader();
     const container = document.getElementById('menu-sections-container');
     if (!container) return;
     // GFY FIX: keep only the startup/latest-prices loader.
@@ -8993,12 +9013,15 @@ window.updateOrderCardStatus = updateOrderCardStatus;
             if (Array.isArray(arr)) arr.length = 0;
           });
           window._gfyFreshMenuReady = true;
+          window._gfyFreshMenuWasEmpty = true;
           setMenuLoadingState(false);
           if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
           if (typeof refreshManageList === 'function') refreshManageList();
           if (typeof updateCart === 'function') updateCart();
           return;
         }
+
+        window._gfyFreshMenuWasEmpty = false;
 
         // Update items arrays in-place to preserve application references
         if (Array.isArray(window.items)) {
@@ -9046,6 +9069,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
           if (typeof updateCart === 'function') updateCart();
         }
 
+        if (window.gfyFinishStartupLoader) setTimeout(function(){ window.gfyFinishStartupLoader(false); }, 50);
         console.log('[FirestoreSync] Customer & Admin UI updated instantly');
 
       } catch (err) {

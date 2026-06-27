@@ -8595,7 +8595,15 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   function gfySafeSyncedCategoryId(value) {
     var raw = String(value || '').trim().toLowerCase();
     raw = raw.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    return raw || 'grocery';
+    if (!raw) raw = 'grocery';
+    // GFY FIX: custom category IDs must match the admin category document ID.
+    // Existing items may store "Chapati's & Curry's" or "chapati-s-curry-s",
+    // while the category is saved as "cat-chapati-s-curry-s".
+    // Prefix non-default custom categories so customer filtering finds the items.
+    if (raw.indexOf('cat-') !== 0 && !['vegetables','fruits','dairy','grocery','leafy','snacks','beverages'].includes(raw)) {
+      raw = 'cat-' + raw;
+    }
+    return raw;
   }
 
   function startCategoriesSync(firebaseDB) {
@@ -11928,6 +11936,69 @@ document.addEventListener('click', function(e) {
     normalizeCustomerItems();
     patchRenderMenuPage();
   }, 800);
+})();
+</script>
+
+
+<script>
+/* GFY FINAL FIX: Customer category filter reconciliation.
+   Ensures category IDs and item catId/category stay identical for custom categories
+   such as "Chapati's & Curry's", including legacy Firestore values. */
+(function(){
+  if (window.__GFY_CUSTOMER_CATEGORY_FINAL_FIX__) return;
+  window.__GFY_CUSTOMER_CATEGORY_FINAL_FIX__ = true;
+  var defaults = {vegetables:1, fruits:1, dairy:1, grocery:1, leafy:1, snacks:1, beverages:1};
+  function slug(v){
+    var raw = String(v || '').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+    if (!raw) raw = 'grocery';
+    if (raw.indexOf('cat-') !== 0 && !defaults[raw]) raw = 'cat-' + raw;
+    return raw;
+  }
+  function noCat(v){ return slug(v).replace(/^cat-/,''); }
+  function reconcile(){
+    try{
+      var cats = Array.isArray(window.categories) ? window.categories : [];
+      var map = {};
+      cats.forEach(function(c){
+        if (!c) return;
+        var id = slug(c.id || c.name || 'grocery');
+        var n = noCat(c.name || id);
+        var old = String(c.id || '').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+        c.id = id;
+        map[id] = id;
+        map[noCat(id)] = id;
+        map[n] = id;
+        if (old) { map[old] = id; map[old.replace(/^cat-/,'')] = id; }
+      });
+      Object.keys(defaults).forEach(function(d){ map[d] = d; });
+      var items = Array.isArray(window.items) ? window.items : [];
+      items.forEach(function(it){
+        if (!it) return;
+        var raw = it.catId || it.category || 'grocery';
+        var s = slug(raw), n = noCat(raw);
+        var fixed = map[s] || map[n] || s;
+        it.catId = fixed;
+        it.category = fixed;
+      });
+    }catch(e){ console.warn('[GFY final category reconcile]', e); }
+  }
+  var oldRender = window.renderMenuPage;
+  if (typeof oldRender === 'function' && !oldRender.__gfyFinalCustomerCatFix) {
+    window.renderMenuPage = function(filter){
+      reconcile();
+      var f = (!filter || filter === 'all') ? 'all' : slug(filter);
+      window._currentMenuFilter = f;
+      return oldRender.call(this, f);
+    };
+    window.renderMenuPage.__gfyFinalCustomerCatFix = true;
+  }
+  document.addEventListener('click', function(e){
+    var btn = e.target && e.target.closest ? e.target.closest('#menu-filter-bar .mfb-tab') : null;
+    if (!btn) return;
+    setTimeout(function(){ reconcile(); }, 0);
+  }, true);
+  document.addEventListener('DOMContentLoaded', function(){ reconcile(); });
+  setInterval(function(){ reconcile(); }, 700);
 })();
 </script>
 

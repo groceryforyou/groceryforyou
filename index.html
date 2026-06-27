@@ -8082,6 +8082,15 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     });
   }
 
+  // GFY FIX: Manage Categories was not opening because the compact-row renderer
+  // called gfyEscapeHtml(), but only gfyEscapeAttr() existed in this file.
+  // Keep this local helper instead of adding duplicate category rendering code.
+  function gfyEscapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, function(ch) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);
+    });
+  }
+
   function getNextCategorySortOrder() {
     const allCats = (typeof window.categories !== 'undefined' && Array.isArray(window.categories)) ? window.categories : [];
     if (!allCats.length) return 1000;

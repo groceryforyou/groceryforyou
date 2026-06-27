@@ -11767,97 +11767,139 @@ document.addEventListener('click', function(e) {
 
 
 <script>
-/* GFY FIX: Customer/admin category tab click without breaking latest prices.
-   Root cause: inline onclick breaks when category IDs contain apostrophes or &.
-   This patch does NOT change Firestore sync, item prices, or saved category/item IDs.
-   It only rebuilds category filter buttons using safe addEventListener clicks. */
+/* GFY MINIMAL CATEGORY CLICK FIX
+   Restores original menu loading/prices. Only overrides customer/admin menu tab rendering
+   to avoid inline onclick strings breaking when category IDs contain apostrophe, &, / etc. */
 (function(){
-  if (window.__GFY_CATEGORY_CLICK_NO_PRICE_BREAK__) return;
-  window.__GFY_CATEGORY_CLICK_NO_PRICE_BREAK__ = true;
-
-  function getItemCatId(item){
-    return item ? String(item.catId || item.category || '') : '';
+  function gfyEscapeHtml(v){
+    return String(v == null ? '' : v)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
   }
-
-  function htmlEscape(value){
-    return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch){
-      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
-    });
+  function gfyGetCategories(){
+    try { return Array.isArray(categories) ? categories : (Array.isArray(window.categories) ? window.categories : []); }
+    catch(e){ return Array.isArray(window.categories) ? window.categories : []; }
   }
-
-  function buildTab(label, active){
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'mfb-tab' + (active ? ' active' : '');
-    btn.innerHTML = label;
-    return btn;
+  function gfyGetItems(){
+    try { return Array.isArray(items) ? items : (Array.isArray(window.items) ? window.items : []); }
+    catch(e){ return Array.isArray(window.items) ? window.items : []; }
   }
-
-  function patchedRenderMenuPage(filter){
-    filter = filter || 'all';
+  function gfyRole(){
+    try { return currentRole || window.currentRole || 'customer'; }
+    catch(e){ return window.currentRole || 'customer'; }
+  }
+  function gfyItemCategory(item){
+    return String((item && (item.category || item.catId || item.categoryId)) || '');
+  }
+  function gfySetCurrentFilter(filter){
+    try { _currentMenuFilter = filter; } catch(e) {}
     window._currentMenuFilter = filter;
-
-    var filterBar = document.getElementById('menu-filter-bar');
-    var container = document.getElementById('menu-sections-container');
-    if (!filterBar || !container || !Array.isArray(window.categories) || !Array.isArray(window.items)) {
+  }
+  function gfyRefreshCardSafe(itemId){
+    if (typeof window.refreshCard === 'function') {
+      try { window.refreshCard(itemId); } catch(e) {}
+    } else if (typeof refreshCard === 'function') {
+      try { refreshCard(itemId); } catch(e) {}
+    }
+  }
+  function gfyQBlock(itemId){
+    try {
+      if (typeof qBlock === 'function') return qBlock(itemId);
+      if (typeof window.qBlock === 'function') return window.qBlock(itemId);
+    } catch(e) {}
+    return '';
+  }
+  function gfyRenderCatGrid(catId){
+    var grid = document.getElementById('grid-' + catId);
+    if (!grid) return;
+    var list = gfyGetItems().filter(function(item){ return gfyItemCategory(item) === String(catId); });
+    var visible = gfyRole() === 'admin' ? list : list.filter(function(item){ return item && item.inStock !== false; });
+    grid.innerHTML = '';
+    if (!visible.length) {
+      if (gfyRole() === 'admin') {
+        grid.innerHTML = '<div class="empty-cat-msg"><div class="big">📭</div><div>No items in this category</div></div>';
+      }
       return;
     }
-
-    filterBar.innerHTML = '';
-    var allBtn = buildTab('All', filter === 'all');
-    allBtn.addEventListener('click', function(){ patchedRenderMenuPage('all'); });
-    filterBar.appendChild(allBtn);
-
-    window.categories.forEach(function(cat){
-      if (!cat) return;
-      var catId = String(cat.id || '');
-      var count = window.items.filter(function(item){
-        return getItemCatId(item) === catId && item.inStock;
-      }).length;
-      var label = htmlEscape((cat.emoji || '') + ' ' + (cat.name || '')) +
-        ' <span style="opacity:.6;font-size:.72rem">(' + count + ')</span>';
-      var btn = buildTab(label, filter === catId);
-      btn.addEventListener('click', function(){ patchedRenderMenuPage(catId); });
-      filterBar.appendChild(btn);
+    visible.forEach(function(item){
+      var card = document.createElement('div');
+      card.className = 'menu-card' + (item.inStock !== false ? '' : ' out-of-stock');
+      card.id = 'mcard-' + item.id;
+      var rating = (typeof item.rating === 'number') ? item.rating : 4;
+      var ratingCount = (typeof item.ratingCount === 'number') ? item.ratingCount : 0;
+      var rounded = Math.max(0, Math.min(5, Math.round(rating)));
+      var stars = '⭐'.repeat(rounded) + '<span style="opacity:.3">' + '⭐'.repeat(5 - rounded) + '</span>';
+      var stockPill;
+      if (gfyRole() === 'admin') {
+        stockPill = '<span class="stock-pill '+(item.inStock !== false ? 'in-stock' : 'out-stock')+'" onclick="toggleStock(\''+String(item.id).replace(/'/g,"\\'")+'\')"><span class="stock-dot"></span>'+(item.inStock !== false ? 'In Stock' : 'Out of Stock')+'</span>';
+      } else {
+        stockPill = '<span class="stock-pill '+(item.inStock !== false ? 'in-stock' : 'out-stock')+'"><span class="stock-dot"></span>'+(item.inStock !== false ? 'In Stock' : 'Out of Stock')+'</span>';
+      }
+      card.innerHTML =
+        '<div class="card-header">' +
+          '<div>' +
+            '<div class="card-name">' + gfyEscapeHtml(item.emoji || '') + (item.emoji ? ' ' : '') + gfyEscapeHtml(item.name || '') + '</div>' +
+            '<div class="card-type">' + gfyEscapeHtml(item.type || item.description || '') + '</div>' +
+            '<div class="item-rating"><span class="stars">' + stars + '</span> <span>' + Number(rating).toFixed(1) + ' (' + ratingCount + ')</span></div>' +
+          '</div>' +
+          '<div class="card-price">₹' + gfyEscapeHtml(item.price || 0) + '</div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' + stockPill + '<div id="q-' + gfyEscapeHtml(item.id) + '">' + gfyQBlock(item.id) + '</div></div>';
+      grid.appendChild(card);
     });
-
+  }
+  function gfyRenderMenuPage(filter){
+    filter = filter || 'all';
+    gfySetCurrentFilter(filter);
+    var cats = gfyGetCategories();
+    var allItems = gfyGetItems();
+    var bar = document.getElementById('menu-filter-bar');
+    var container = document.getElementById('menu-sections-container');
+    if (!bar || !container) return;
+    bar.innerHTML = '';
+    var allBtn = document.createElement('button');
+    allBtn.className = 'mfb-tab' + (filter === 'all' ? ' active' : '');
+    allBtn.type = 'button';
+    allBtn.textContent = 'All';
+    allBtn.addEventListener('click', function(){ gfyRenderMenuPage('all'); });
+    bar.appendChild(allBtn);
+    cats.forEach(function(cat){
+      var count = allItems.filter(function(item){ return gfyItemCategory(item) === String(cat.id) && item.inStock !== false; }).length;
+      var btn = document.createElement('button');
+      btn.className = 'mfb-tab' + (String(filter) === String(cat.id) ? ' active' : '');
+      btn.type = 'button';
+      btn.dataset.catId = String(cat.id);
+      btn.innerHTML = gfyEscapeHtml(cat.emoji || '') + (cat.emoji ? ' ' : '') + gfyEscapeHtml(cat.name || cat.id) + ' <span style="opacity:.6;font-size:.72rem">(' + count + ')</span>';
+      btn.addEventListener('click', function(){ gfyRenderMenuPage(cat.id); });
+      bar.appendChild(btn);
+    });
     container.innerHTML = '';
-    var visibleCats = filter === 'all'
-      ? window.categories
-      : window.categories.filter(function(cat){ return String(cat && cat.id || '') === String(filter); });
-
-    visibleCats.forEach(function(cat){
-      if (!cat) return;
-      var catId = String(cat.id || '');
-      var catItems = window.items.filter(function(item){ return getItemCatId(item) === catId; });
+    var showCats = filter === 'all' ? cats : cats.filter(function(cat){ return String(cat.id) === String(filter); });
+    showCats.forEach(function(cat){
+      var catItems = allItems.filter(function(item){ return gfyItemCategory(item) === String(cat.id); });
       if (!catItems.length) return;
-      if (window.currentRole !== 'admin' && !catItems.some(function(item){ return item.inStock; })) return;
-
+      if (gfyRole() !== 'admin' && !catItems.some(function(item){ return item.inStock !== false; })) return;
       var section = document.createElement('div');
       section.className = 'menu-section';
-      section.id = 'section-' + catId;
-      section.innerHTML = '<h2 class="section-title">' + htmlEscape((cat.emoji || '') + ' ' + (cat.name || '')) + '</h2>' +
-        (cat.subLabel ? '<div class="gfy-category-sub-label">' + htmlEscape(cat.subLabel) + '</div>' : '') +
-        '<div class="menu-grid" id="grid-' + htmlEscape(catId) + '"></div>';
+      section.id = 'catsec-' + cat.id;
+      section.innerHTML = '<div class="section-title">' + gfyEscapeHtml(cat.emoji || '') + (cat.emoji ? ' ' : '') + gfyEscapeHtml(cat.name || cat.id) + '</div><div class="menu-grid" id="grid-' + gfyEscapeHtml(cat.id) + '"></div>';
       container.appendChild(section);
-      if (typeof window.renderCatGrid === 'function') window.renderCatGrid(catId);
+      gfyRenderCatGrid(cat.id);
     });
   }
-
-  function install(){
-    if (typeof window.renderMenuPage === 'function' && !window.renderMenuPage.__gfyNoPriceBreakPatch) {
-      window.renderMenuPage = patchedRenderMenuPage;
-      window.renderMenuPage.__gfyNoPriceBreakPatch = true;
-      patchedRenderMenuPage(window._currentMenuFilter || 'all');
-    }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', install);
-  } else {
-    install();
-  }
-  setTimeout(install, 500);
+  window.renderMenuPage = gfyRenderMenuPage;
+  window.renderCatGrid = gfyRenderCatGrid;
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(function(){
+      var container = document.getElementById('menu-sections-container');
+      if (container && container.dataset.loading !== 'true') {
+        gfyRenderMenuPage(window._currentMenuFilter || 'all');
+      }
+    }, 250);
+  });
 })();
 </script>
 

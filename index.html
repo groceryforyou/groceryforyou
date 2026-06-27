@@ -2051,9 +2051,9 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
       var c = document.getElementById('menu-sections-container');
       if (!window._gfyFreshMenuReady) return false;
       if (window._gfyFreshMenuWasEmpty === true) return true;
-      if (c && c.querySelector('.menu-card')) return true;
-      var arr = Array.isArray(window.items) ? window.items : (Array.isArray(window.menuItems) ? window.menuItems : []);
-      return arr.length > 0;
+      /* GFY FIX: Do not hide the loader just because item arrays are filled.
+         Keep it visible until the menu/item cards are actually painted on the page. */
+      return !!(c && c.querySelector('.menu-card'));
     } catch(e) { return false; }
   }
   function finishStartup(force){
@@ -8963,7 +8963,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
           clearTimeout(window._menuLoadTimeout);
           window._menuLoadTimeout = null;
         }
-        setMenuLoadingState(false);
+        /* GFY FIX: keep loader active while Firestore items are parsed and rendered. */
 
         const firestoreItems = [];
         snapshot.forEach(doc => {
@@ -9069,7 +9069,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
           if (typeof updateCart === 'function') updateCart();
         }
 
-        if (window.gfyFinishStartupLoader) setTimeout(function(){ window.gfyFinishStartupLoader(false); }, 50);
+        if (typeof setMenuLoadingState === 'function') setMenuLoadingState(false);
+        if (window.gfyFinishStartupLoader) setTimeout(function(){ window.gfyFinishStartupLoader(false); }, 80);
         console.log('[FirestoreSync] Customer & Admin UI updated instantly');
 
       } catch (err) {

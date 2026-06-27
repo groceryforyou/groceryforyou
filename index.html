@@ -1876,6 +1876,22 @@ body.support-create-ticket-mode #support-form-section{
   font-size:.76rem;color:#777;font-weight:800;margin:-8px 0 12px 4px;
 }
 
+
+/* GFY FIX: Manage Categories compact previous UI.
+   Category sub-label and Save are not shown on the front row; use ✏️ Edit to change them. */
+#manage-cats-list .gfy-cat-inline-sub,
+#manage-cats-list .gfy-cat-inline-name,
+#manage-cats-list .gfy-cat-inline-emoji{
+  display:none!important;
+}
+#manage-cats-list [title="Save Category"]{
+  display:none!important;
+}
+#manage-cats-list .gfy-manage-cat-row{
+  align-items:center!important;
+  min-height:52px!important;
+}
+
 </style>
 </head>
 <body>
@@ -8245,21 +8261,18 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const allCats = (typeof window.categories !== 'undefined' && Array.isArray(window.categories)) ? window.categories : [];
 
     listContainer.innerHTML = allCats.map(cat => {
-      const sub = cat.subLabel || cat.subtitle || cat.description || '';
       return `
-      <div class="gfy-manage-cat-row" data-cat-id="${gfyEscapeAttr(cat.id)}" draggable="true" style="display:flex; align-items:flex-start; justify-content:space-between; padding:12px; background:var(--cream); border:1.5px solid var(--border); border-radius:12px; gap:10px; cursor:grab; touch-action:none;">
-        <div style="display:grid; grid-template-columns:26px 58px 1fr; gap:8px; min-width:0; flex:1; align-items:start;">
-          <span class="gfy-cat-drag-handle" style="font-size:1.05rem; color:#777; cursor:grab; user-select:none; padding-top:7px;" title="Drag to move">☰</span>
-          <input class="aip-input gfy-cat-inline-emoji" type="text" value="${gfyEscapeAttr(cat.emoji || '')}" maxlength="8" placeholder="Emoji" style="width:58px; min-width:58px; padding:8px 7px; text-align:center!important;" />
-          <div style="display:grid; gap:6px; min-width:0;">
-            <input class="aip-input gfy-cat-inline-name" type="text" value="${gfyEscapeAttr(cat.name || '')}" placeholder="Category name" style="width:100%; padding:8px 10px; font-weight:800; color:var(--brown);" />
-            <input class="aip-input gfy-cat-inline-sub" type="text" value="${gfyEscapeAttr(sub || '')}" placeholder="Sub-label" style="width:100%; padding:8px 10px; font-size:.78rem!important;" />
+      <div class="gfy-manage-cat-row" data-cat-id="${gfyEscapeAttr(cat.id)}" draggable="true" style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:var(--cream); border:1.5px solid var(--border); border-radius:12px; gap:10px; cursor:grab; touch-action:none; min-height:52px;">
+        <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
+          <span class="gfy-cat-drag-handle" style="font-size:1.05rem; color:#777; cursor:grab; user-select:none; line-height:1;" title="Drag to move">☰</span>
+          <span style="width:34px; height:34px; border-radius:9px; background:#fff; border:1.5px solid var(--border); display:inline-flex; align-items:center; justify-content:center; font-size:1.05rem; flex-shrink:0;">${gfyEscapeHtml(cat.emoji || '')}</span>
+          <div style="min-width:0; flex:1;">
+            <div style="font-weight:900; color:var(--brown); font-size:.9rem; line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${gfyEscapeHtml(cat.name || 'Unnamed Category')}</div>
           </div>
         </div>
-        <div style="display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; max-width:144px;">
+        <div style="display:flex; gap:6px; flex-shrink:0; align-items:center; justify-content:flex-end;">
           <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="up" title="Move up">↑</button>
           <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="down" title="Move down">↓</button>
-          <button type="button" onclick="saveInlineManagedCategory('${gfyEscapeAttr(cat.id)}')" style="background:#e8f5e9; border:1.5px solid #a5d6a7; color:var(--green); min-width:64px; height:32px; border-radius:8px; cursor:pointer; font-size:.78rem; font-weight:900; display:flex; align-items:center; justify-content:center;" title="Save Category">Save</button>
           <button onclick="openEditCatModal('${gfyEscapeAttr(cat.id)}')" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Edit Category">✏️</button>
           <button onclick="deleteCategory('${gfyEscapeAttr(cat.id)}')" style="background:#ffebee; border:1.5px solid #ffcdd2; color:#c62828; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Delete Category">🗑️</button>
         </div>

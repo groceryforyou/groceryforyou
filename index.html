@@ -8021,6 +8021,17 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     }
   };
 
+
+  function gfySafeCategoryId(value, prefixIfName) {
+    var raw = String(value || '').trim().toLowerCase();
+    raw = raw.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    if (!raw) raw = 'category';
+    if (prefixIfName && raw.indexOf('cat-') !== 0 && !['vegetables','fruits','dairy','grocery','leafy','snacks','beverages'].includes(raw)) {
+      raw = 'cat-' + raw;
+    }
+    return raw;
+  }
+
   // Add New Category Function writing directly to Firestore
   window.saveNewCategory = async function() {
     if (currentRole !== 'admin') {
@@ -8041,7 +8052,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       return;
     }
 
-    const catId = 'cat-' + name.replace(/\s+/g, '-').toLowerCase();
+    const catId = gfySafeCategoryId(name, true);
 
     const firebaseDB = (typeof db !== 'undefined' && db) ? db : 
                        (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') ? firebase.firestore() : null;
@@ -8580,6 +8591,13 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     container.dataset.loading = isLoading ? 'true' : 'false';
   }
 
+
+  function gfySafeSyncedCategoryId(value) {
+    var raw = String(value || '').trim().toLowerCase();
+    raw = raw.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return raw || 'grocery';
+  }
+
   function startCategoriesSync(firebaseDB) {
     console.log('[FirestoreSync] Initializing realtime categories sync listener...');
 
@@ -8590,7 +8608,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
           snapshot.forEach(doc => {
             const data = doc.data();
             loadedCats.push({
-              id: doc.id,
+              id: gfySafeSyncedCategoryId(data.id || doc.id),
+              legacyId: doc.id,
               name: data.name || '',
               emoji: data.emoji || '📂',
               subLabel: data.subLabel || data.subtitle || data.description || '',
@@ -8715,7 +8734,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         const firestoreItems = [];
         snapshot.forEach(doc => {
           const data = doc.data();
-          const category = data.category || 'grocery';
+          const category = gfySafeSyncedCategoryId(data.category || data.catId || 'grocery');
           
           firestoreItems.push({
             id: doc.id,
@@ -11761,6 +11780,68 @@ document.addEventListener('click', function(e) {
     cleanAutoItemEmoji();
     setInterval(cleanAutoItemEmoji, 800);
   });
+})();
+</script>
+
+
+<script>
+/* GFY FIX: Safe category IDs for names like "Chapati's & Curry's".
+   Prevents inline onclick/category filter breakage from apostrophes, &, /, brackets, etc.
+   Keeps default categories unchanged and normalizes existing Firestore category IDs on render. */
+(function(){
+  if (window.__GFY_SAFE_CATEGORY_ID_FIX__) return;
+  window.__GFY_SAFE_CATEGORY_ID_FIX__ = true;
+
+  function safeCatId(value) {
+    var raw = String(value || '').trim().toLowerCase();
+    raw = raw.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return raw || 'grocery';
+  }
+
+  function normalizeMenuArrays() {
+    var cats = Array.isArray(window.categories) ? window.categories : [];
+    var idMap = {};
+    cats.forEach(function(cat) {
+      if (!cat) return;
+      var oldId = String(cat.id || '');
+      var newId = safeCatId(oldId || cat.name || 'category');
+      if (oldId && oldId !== newId) idMap[oldId] = newId;
+      cat.id = newId;
+    });
+
+    var items = Array.isArray(window.items) ? window.items : [];
+    items.forEach(function(item) {
+      if (!item) return;
+      var oldCat = String(item.category || item.catId || 'grocery');
+      var newCat = idMap[oldCat] || safeCatId(oldCat);
+      item.category = newCat;
+      item.catId = newCat;
+    });
+
+    window.gfySafeCategoryId = safeCatId;
+  }
+
+  function patchRender() {
+    if (typeof window.renderMenuPage !== 'function' || window.renderMenuPage.__gfySafeCatPatched) return;
+    var originalRender = window.renderMenuPage;
+    window.renderMenuPage = function(filter) {
+      normalizeMenuArrays();
+      var safeFilter = filter && filter !== 'all' ? safeCatId(filter) : filter;
+      return originalRender.call(this, safeFilter || 'all');
+    };
+    window.renderMenuPage.__gfySafeCatPatched = true;
+  }
+
+  normalizeMenuArrays();
+  patchRender();
+  document.addEventListener('DOMContentLoaded', function(){
+    normalizeMenuArrays();
+    patchRender();
+  });
+  setInterval(function(){
+    normalizeMenuArrays();
+    patchRender();
+  }, 1200);
 })();
 </script>
 

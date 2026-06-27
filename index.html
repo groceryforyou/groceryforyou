@@ -9481,7 +9481,7 @@ window.addEventListener('load', function() {
 
   // ── showStatusToast: for order status popups with X button ─────────────
   window.showStatusToast = function(orderId, title, body, icon) {
-    icon = icon || '';
+    icon = icon || '🛒';
     const wrap = document.createElement('div');
     wrap.className = 'gfy-status-toast';
     wrap.style.cssText = [
@@ -11663,61 +11663,104 @@ document.addEventListener('click', function(e) {
 </script>
 
 
-
 <script>
-/* GFY FINAL FIX: remove duplicate/default item emoji fallback.
-   Admin item emoji is optional. When empty, item title shows only the name. */
+/* GFY FIX: item emoji is optional.
+   If admin leaves/removes item emoji, show only the item name.
+   Do not display automatic plate/fork/bowl emojis beside item names. */
 (function(){
-  const FALLBACK_EMOJIS = /^(?:🍎|🍏|🍓|🍅|🥦|🥬|🛒|🍽️|🍽|🍴|🥣|🍲|🍛|🍱)\s*/u;
-  const TITLE_SELECTORS = '.card-name,.mng-name,.sri-name,.cart-item-name,.order-card-item-name';
+  const AUTO_ITEM_EMOJI_RE = /^[\s\u00a0]*(?:🍽️|🍽|🍴|🥣|🍲|🍛|🍱)\s*/u;
+  const ITEM_NAME_SELECTORS = [
+    '.card-name',
+    '.mng-name',
+    '.sri-name',
+    '.cart-item-name',
+    '.order-card-item-name'
+  ].join(',');
 
-  function cleanTitle(el){
-    if (!el) return;
-    for (const node of Array.from(el.childNodes || [])) {
-      if (node.nodeType === 3) node.nodeValue = (node.nodeValue || '').replace(FALLBACK_EMOJIS, '');
-      if (node.nodeType === 1) {
-        const txt = (node.textContent || '').trim();
-        if (/^(?:🍎|🍏|🍓|🍅|🥦|🥬|🛒|🍽️|🍽|🍴|🥣|🍲|🍛|🍱)$/.test(txt)) node.remove();
-      }
-    }
-    if (el.childNodes.length === 1 && el.firstChild && el.firstChild.nodeType === 3) {
-      el.firstChild.nodeValue = (el.firstChild.nodeValue || '').replace(FALLBACK_EMOJIS, '');
+  function stripAutoEmojiFromTextNode(node){
+    if (node && node.nodeType === 3 && AUTO_ITEM_EMOJI_RE.test(node.nodeValue || '')) {
+      node.nodeValue = (node.nodeValue || '').replace(AUTO_ITEM_EMOJI_RE, '');
     }
   }
 
-  function clean(){
+  function stripAutoEmojiFromElement(el){
+    if (!el) return;
+    Array.from(el.childNodes || []).forEach(stripAutoEmojiFromTextNode);
+    if (el.firstChild && el.firstChild.nodeType === 1) {
+      const t = (el.firstChild.textContent || '').trim();
+      if (/^(?:🍽️|🍽|🍴|🥣|🍲|🍛|🍱)$/.test(t)) el.firstChild.remove();
+    }
+  }
+
+  function removeAutoItemEmojiFallbacks(){
     try {
-      document.querySelectorAll(TITLE_SELECTORS).forEach(cleanTitle);
+      document.querySelectorAll(ITEM_NAME_SELECTORS).forEach(stripAutoEmojiFromElement);
       document.querySelectorAll('.sri-emoji').forEach(function(el){
-        const txt = (el.textContent || '').trim();
-        if (/^(?:🍎|🍏|🍓|🍅|🥦|🥬|🛒|🍽️|🍽|🍴|🥣|🍲|🍛|🍱)$/.test(txt)) el.textContent = '';
+        const t = (el.textContent || '').trim();
+        if (/^(?:🍽️|🍽|🍴|🥣|🍲|🍛|🍱)$/.test(t)) el.textContent = '';
       });
     } catch(e) {}
   }
 
-  window.gfyCleanAutoItemEmoji = clean;
-  const wrap = function(fnName){
-    const old = window[fnName];
-    if (typeof old === 'function' && !old.__gfyNoDefaultEmoji) {
-      window[fnName] = function(){
-        const res = old.apply(this, arguments);
-        setTimeout(clean, 0);
-        setTimeout(clean, 50);
-        return res;
-      };
-      window[fnName].__gfyNoDefaultEmoji = true;
-    }
-  };
-  wrap('renderMenu');
-  wrap('renderManageItems');
-  wrap('renderSearchResults');
+  const oldRenderMenu = window.renderMenu;
+  if (typeof oldRenderMenu === 'function' && !oldRenderMenu.__gfyNoAutoEmojiWrapped) {
+    window.renderMenu = function(){
+      const result = oldRenderMenu.apply(this, arguments);
+      setTimeout(removeAutoItemEmojiFallbacks, 0);
+      return result;
+    };
+    window.renderMenu.__gfyNoAutoEmojiWrapped = true;
+  }
+
+  const oldRenderManageItems = window.renderManageItems;
+  if (typeof oldRenderManageItems === 'function' && !oldRenderManageItems.__gfyNoAutoEmojiWrapped) {
+    window.renderManageItems = function(){
+      const result = oldRenderManageItems.apply(this, arguments);
+      setTimeout(removeAutoItemEmojiFallbacks, 0);
+      return result;
+    };
+    window.renderManageItems.__gfyNoAutoEmojiWrapped = true;
+  }
 
   function start(){
-    clean();
-    new MutationObserver(clean).observe(document.body, {childList:true, subtree:true, characterData:true});
+    removeAutoItemEmojiFallbacks();
+    new MutationObserver(removeAutoItemEmojiFallbacks).observe(document.body, {
+      childList:true,
+      subtree:true,
+      characterData:true
+    });
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
-  else start();
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+})();
+</script>
+
+
+<script>
+/* GFY SAFE FIX: optional item emoji.
+   Prevent default plate/apple emoji from appearing before item names when admin saved empty emoji. */
+(function(){
+  function cleanAutoItemEmoji(){
+    try{
+      var fallback = /^(?:🍽️|🍽|🍴|🍎|🍏|🍓|🍅)\s*/u;
+      document.querySelectorAll('.card-name,.mng-name,.sri-name').forEach(function(el){
+        if (!el || !el.firstChild || el.firstChild.nodeType !== 3) return;
+        el.firstChild.nodeValue = el.firstChild.nodeValue.replace(fallback, '');
+      });
+      document.querySelectorAll('.sri-emoji').forEach(function(el){
+        var t = (el.textContent || '').trim();
+        if (/^(?:🍽️|🍽|🍴|🍎|🍏|🍓|🍅)$/.test(t)) el.textContent = '';
+      });
+    }catch(e){}
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    cleanAutoItemEmoji();
+    setInterval(cleanAutoItemEmoji, 800);
+  });
 })();
 </script>
 

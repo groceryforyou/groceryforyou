@@ -1830,6 +1830,35 @@ body.support-create-ticket-mode #support-form-section{
   .admin-orders-search-clear{padding:6px 8px}
 }
 
+
+
+/* ===== GFY ADMIN ITEM DRAG REORDER ===== */
+#manage-items-list.gfy-item-reorder-ready .mng-card{
+  position:relative!important;
+  cursor:grab!important;
+  user-select:none!important;
+  -webkit-user-select:none!important;
+  touch-action:none!important;
+}
+#manage-items-list.gfy-item-reorder-ready .mng-card:active{cursor:grabbing!important;}
+.gfy-item-drag-handle{
+  width:30px;height:30px;border-radius:8px;border:1.5px solid var(--border);
+  background:#fff;color:var(--brown);display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:.9rem;cursor:grab;flex-shrink:0;touch-action:none;
+}
+.gfy-item-drag-handle:active{cursor:grabbing;background:var(--saffron);color:#fff;}
+.mng-card.gfy-item-dragging{
+  opacity:.55!important;
+  transform:scale(.98)!important;
+  border-color:var(--saffron)!important;
+  box-shadow:0 8px 24px rgba(0,176,78,.18)!important;
+}
+.mng-card.gfy-item-drop-before{box-shadow:0 -4px 0 var(--saffron), var(--shadow)!important;}
+.mng-card.gfy-item-drop-after{box-shadow:0 4px 0 var(--saffron), var(--shadow)!important;}
+.gfy-item-reorder-note{
+  font-size:.76rem;color:#777;font-weight:800;margin:-8px 0 12px 4px;
+}
+
 </style>
 </head>
 <body>
@@ -7649,6 +7678,11 @@ window.updateOrderCardStatus = updateOrderCardStatus;
               <option value="0">❌ Out Of Stock</option>
             </select>
           </div>
+          <div style="margin-bottom: 12px;">
+            <label class="aip-label" for="edit-item-emoji-custom" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Item Emoji</label>
+            <div class="emoji-picker" id="edit-item-emoji-picker" style="margin-bottom:8px"></div>
+            <input type="text" id="edit-item-emoji-custom" class="aip-input" placeholder="Type emoji: 🥗" maxlength="8" style="width: 180px; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff;" />
+          </div>
           <input type="hidden" id="edit-item-id" />
           <div class="cat-modal-actions" style="display: flex; gap: 8px; margin-top: 20px;">
             <button class="cat-cancel-btn" onclick="closeEditItemModal()" style="flex: 1; background: var(--cream); border: 1.5px solid var(--border); color: var(--brown); border-radius: 10px; padding: 11px; font-weight: 700; cursor: pointer;">Cancel</button>
@@ -7659,6 +7693,34 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     `;
     document.body.appendChild(overlay);
   }
+
+  function renderEditItemEmojiPicker(selectedEmoji) {
+    const picker = document.getElementById('edit-item-emoji-picker');
+    const customInput = document.getElementById('edit-item-emoji-custom');
+    if (!picker) return;
+    const itemEmojis = ['🍎','🍌','🥭','🍇','🍉','🥥','🥦','🥬','🥕','🍅','🧅','🥔','🫘','🍚','🌾','🥛','🧀','🧈','☕','🍯','🍪','🥤','🛒','📦'];
+    const activeEmoji = (selectedEmoji || '🍎').trim();
+    picker.innerHTML = itemEmojis.map(function(emoji) {
+      const isSelected = emoji === activeEmoji ? ' selected' : '';
+      return '<span class="emoji-opt' + isSelected + '" data-edit-item-emoji="' + gfyEscapeAttr(emoji) + '" role="button" tabindex="0">' + gfyEscapeAttr(emoji) + '</span>';
+    }).join('');
+    if (customInput) customInput.value = activeEmoji;
+  }
+
+  function selectEditItemEmoji(emoji) {
+    const cleanEmoji = String(emoji || '').trim() || '🍎';
+    const customInput = document.getElementById('edit-item-emoji-custom');
+    if (customInput) customInput.value = cleanEmoji;
+    document.querySelectorAll('#edit-item-emoji-picker .emoji-opt').forEach(function(opt) {
+      opt.classList.toggle('selected', (opt.textContent || '').trim() === cleanEmoji);
+    });
+  }
+
+  document.addEventListener('click', function(e) {
+    const opt = e.target && e.target.closest ? e.target.closest('#edit-item-emoji-picker .emoji-opt') : null;
+    if (!opt) return;
+    selectEditItemEmoji(opt.getAttribute('data-edit-item-emoji') || opt.textContent || '🍎');
+  });
 
   window.openEditItemModal = function(itemId) {
     const allItems = (typeof window.items !== 'undefined') ? window.items : [];
@@ -7676,6 +7738,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     if (editItemType) editItemType.value = item.type || item.description || '';
     document.getElementById('edit-item-stock').value = item.inStock ? '1' : '0';
     document.getElementById('edit-item-id').value = itemId;
+    renderEditItemEmojiPicker(item.emoji || '🍎');
 
     // Dynamically prefill choices for current categories list
     const editItemCat = document.getElementById('edit-item-cat');
@@ -7824,6 +7887,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const price = parseFloat(document.getElementById('edit-item-price').value);
     const typeInput = document.getElementById('edit-item-type');
     const type = typeInput ? typeInput.value.trim() : '';
+    const emojiInput = document.getElementById('edit-item-emoji-custom');
+    const emoji = emojiInput && emojiInput.value.trim() ? emojiInput.value.trim() : '🍎';
     const inStock = document.getElementById('edit-item-stock').value === '1';
 
     if (!name) {
@@ -7849,6 +7914,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         price,
         description: type,
         type: type,
+        emoji: emoji,
         inStock,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -8273,12 +8339,15 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     }
 
     try {
+      const allCats = (typeof window.categories !== 'undefined' && Array.isArray(window.categories)) ? window.categories : [];
+      const existingCat = allCats.find(c => c.id === catId) || {};
+      const existingIndex = allCats.findIndex(c => c.id === catId);
       await firebaseDB.collection('categories').doc(catId).set({
         id: catId,
         name: name,
         emoji: emoji,
         subLabel: subLabel,
-        sortOrder: (allCats.find(c => c.id === catId)?.sortOrder ?? allCats.findIndex(c => c.id === catId) * 10 + 10),
+        sortOrder: (Number.isFinite(Number(existingCat.sortOrder)) ? Number(existingCat.sortOrder) : (existingIndex >= 0 ? existingIndex * 10 + 10 : getNextCategorySortOrder())),
         deleted: false,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
@@ -8576,8 +8645,26 @@ window.updateOrderCardStatus = updateOrderCardStatus;
             rating: typeof data.rating === 'number' ? data.rating : 5.0,
             ratingCount: typeof data.ratingCount === 'number' ? data.ratingCount : 5,
             image: data.image || '',
-            discount: Number(data.discount) || 0
+            discount: Number(data.discount) || 0,
+            sortOrder: Number.isFinite(Number(data.sortOrder ?? data.order ?? data.orderIndex)) ? Number(data.sortOrder ?? data.order ?? data.orderIndex) : 999999,
+            orderIndex: Number.isFinite(Number(data.orderIndex ?? data.sortOrder ?? data.order)) ? Number(data.orderIndex ?? data.sortOrder ?? data.order) : 999999
           });
+        });
+
+        // Keep Firestore menu items in admin/customer display order.
+        firestoreItems.sort(function(a, b) {
+          const cats = Array.isArray(window.categories) ? window.categories : (typeof categories !== 'undefined' && Array.isArray(categories) ? categories : []);
+          const catIndex = function(id) {
+            const idx = cats.findIndex(c => c.id === id);
+            return idx >= 0 ? idx : 999999;
+          };
+          const ac = catIndex(a.category || a.catId);
+          const bc = catIndex(b.category || b.catId);
+          if (ac !== bc) return ac - bc;
+          const ao = Number.isFinite(Number(a.sortOrder)) ? Number(a.sortOrder) : 999999;
+          const bo = Number.isFinite(Number(b.sortOrder)) ? Number(b.sortOrder) : 999999;
+          if (ao !== bo) return ao - bo;
+          return String(a.name || '').localeCompare(String(b.name || ''));
         });
 
         // Update items arrays in-place to preserve application references
@@ -11255,6 +11342,238 @@ document.addEventListener('click', function(e) {
       }
     } catch(e) {}
   });
+})();
+</script>
+
+
+
+<!-- GFY ADMIN ITEM DRAG REORDER FIX -->
+<script>
+(function(){
+  'use strict';
+  if (window.__GFY_ITEM_DRAG_REORDER__) return;
+  window.__GFY_ITEM_DRAG_REORDER__ = true;
+
+  var draggingCard = null;
+  var pointerStarted = false;
+  var dragStartX = 0;
+  var dragStartY = 0;
+  var saveTimer = null;
+
+  function getDB(){
+    if (typeof db !== 'undefined' && db) return db;
+    if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function') return firebase.firestore();
+    return null;
+  }
+  function toast(msg, time, type){
+    if (typeof showToast === 'function') showToast(msg, time || 2200, type || 'info');
+  }
+  function getItemId(card){
+    if (!card) return '';
+    if (card.dataset && card.dataset.itemId) return card.dataset.itemId;
+    var btn = card.querySelector('.mng-del[onclick*="deleteItem"]');
+    var onclick = btn ? (btn.getAttribute('onclick') || '') : '';
+    var match = onclick.match(/deleteItem\(['"]([^'"]+)['"]\)/);
+    return match ? match[1] : '';
+  }
+  function getCards(){
+    var list = document.getElementById('manage-items-list');
+    if (!list) return [];
+    return Array.prototype.slice.call(list.querySelectorAll('.mng-card')).filter(function(card){ return !!getItemId(card); });
+  }
+  function getItemById(id){
+    var pools = [window.menuItems, window.items, window.allItems, window.products, window.menuData];
+    for (var i=0;i<pools.length;i++) {
+      if (Array.isArray(pools[i])) {
+        var found = pools[i].find(function(x){ return String(x.id) === String(id); });
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+  function syncLocalOrder(ids){
+    var orderMap = {};
+    ids.forEach(function(id, idx){ orderMap[id] = (idx + 1) * 10; });
+    [window.menuItems, window.items, window.allItems, window.products, window.menuData].forEach(function(arr){
+      if (!Array.isArray(arr)) return;
+      arr.forEach(function(item){
+        if (item && orderMap[item.id] != null) {
+          item.sortOrder = orderMap[item.id];
+          item.orderIndex = orderMap[item.id];
+        }
+      });
+      arr.sort(function(a,b){
+        var ac = Number.isFinite(Number(a && a.sortOrder)) ? Number(a.sortOrder) : 999999;
+        var bc = Number.isFinite(Number(b && b.sortOrder)) ? Number(b.sortOrder) : 999999;
+        if (String(a && (a.category || a.catId || '')) === String(b && (b.category || b.catId || '')) && ac !== bc) return ac - bc;
+        return 0;
+      });
+    });
+  }
+  async function saveVisibleItemOrder(){
+    var firebaseDB = getDB();
+    if (!firebaseDB) { toast('⚠️ Database not ready', 2200, 'error'); return; }
+    if (typeof currentRole !== 'undefined' && currentRole !== 'admin') { toast('⚠️ Only admin can move items', 2200, 'error'); return; }
+
+    var cards = getCards();
+    var ids = cards.map(getItemId).filter(Boolean);
+    if (ids.length < 2) return;
+    syncLocalOrder(ids);
+
+    try {
+      if (typeof firebaseDB.batch === 'function') {
+        var batch = firebaseDB.batch();
+        ids.forEach(function(id, idx){
+          var order = (idx + 1) * 10;
+          var ref = firebaseDB.collection('menuItems').doc(id);
+          var payload = { sortOrder: order, orderIndex: order };
+          if (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue) {
+            payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+          }
+          batch.set(ref, payload, { merge: true });
+        });
+        await batch.commit();
+      } else {
+        await Promise.all(ids.map(function(id, idx){
+          var order = (idx + 1) * 10;
+          var payload = { sortOrder: order, orderIndex: order };
+          if (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue) {
+            payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+          }
+          return firebaseDB.collection('menuItems').doc(id).set(payload, { merge: true });
+        }));
+      }
+      toast('✅ Item order saved', 1800, 'success');
+      if (typeof renderMenuPage === 'function') renderMenuPage(window._currentMenuFilter || 'all');
+    } catch(err) {
+      console.error('[ItemReorder] save failed:', err);
+      toast('⚠️ Item order save failed: ' + (err.message || err), 3500, 'error');
+    }
+  }
+  function scheduleSave(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveVisibleItemOrder, 250);
+  }
+  function clearDropMarkers(){
+    document.querySelectorAll('.gfy-item-drop-before,.gfy-item-drop-after').forEach(function(el){
+      el.classList.remove('gfy-item-drop-before','gfy-item-drop-after');
+    });
+  }
+  function moveBeforeAfter(target, clientY){
+    if (!draggingCard || !target || target === draggingCard || !target.classList.contains('mng-card')) return;
+    var list = document.getElementById('manage-items-list');
+    if (!list || target.parentElement !== list) return;
+    var rect = target.getBoundingClientRect();
+    var after = clientY > rect.top + rect.height / 2;
+    clearDropMarkers();
+    target.classList.add(after ? 'gfy-item-drop-after' : 'gfy-item-drop-before');
+    if (after) list.insertBefore(draggingCard, target.nextSibling);
+    else list.insertBefore(draggingCard, target);
+  }
+  function enhanceCard(card){
+    var id = getItemId(card);
+    if (!id) return;
+    card.dataset.itemId = id;
+    card.setAttribute('draggable', 'true');
+    if (!card.querySelector('.gfy-item-drag-handle')) {
+      var handle = document.createElement('button');
+      handle.type = 'button';
+      handle.className = 'gfy-item-drag-handle';
+      handle.title = 'Drag to move item';
+      handle.setAttribute('aria-label', 'Drag to move item');
+      handle.innerHTML = '↕';
+      handle.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); });
+      card.insertBefore(handle, card.firstChild);
+
+      handle.addEventListener('pointerdown', function(e){
+        if (typeof currentRole !== 'undefined' && currentRole !== 'admin') return;
+        draggingCard = card;
+        pointerStarted = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        card.classList.add('gfy-item-dragging');
+        try { handle.setPointerCapture(e.pointerId); } catch(_) {}
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      handle.addEventListener('pointermove', function(e){
+        if (!pointerStarted || !draggingCard) return;
+        if (Math.abs(e.clientX - dragStartX) < 4 && Math.abs(e.clientY - dragStartY) < 4) return;
+        draggingCard.style.pointerEvents = 'none';
+        var target = document.elementFromPoint(e.clientX, e.clientY);
+        draggingCard.style.pointerEvents = '';
+        var targetCard = target ? target.closest('.mng-card') : null;
+        moveBeforeAfter(targetCard, e.clientY);
+        e.preventDefault();
+      });
+      handle.addEventListener('pointerup', function(e){
+        if (!pointerStarted) return;
+        pointerStarted = false;
+        if (draggingCard) draggingCard.classList.remove('gfy-item-dragging');
+        draggingCard = null;
+        clearDropMarkers();
+        scheduleSave();
+        try { handle.releasePointerCapture(e.pointerId); } catch(_) {}
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      handle.addEventListener('pointercancel', function(){
+        pointerStarted = false;
+        if (draggingCard) draggingCard.classList.remove('gfy-item-dragging');
+        draggingCard = null;
+        clearDropMarkers();
+      });
+    }
+    if (!card.__gfyNativeDragBound) {
+      card.__gfyNativeDragBound = true;
+      card.addEventListener('dragstart', function(e){
+        draggingCard = card;
+        card.classList.add('gfy-item-dragging');
+        try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', id); } catch(_) {}
+      });
+      card.addEventListener('dragend', function(){
+        if (draggingCard) draggingCard.classList.remove('gfy-item-dragging');
+        draggingCard = null;
+        clearDropMarkers();
+        scheduleSave();
+      });
+      card.addEventListener('dragover', function(e){
+        if (!draggingCard || draggingCard === card) return;
+        e.preventDefault();
+        moveBeforeAfter(card, e.clientY);
+      });
+      card.addEventListener('drop', function(e){
+        e.preventDefault();
+        if (draggingCard) draggingCard.classList.remove('gfy-item-dragging');
+        draggingCard = null;
+        clearDropMarkers();
+        scheduleSave();
+      });
+    }
+  }
+  function enhanceList(){
+    var list = document.getElementById('manage-items-list');
+    if (!list) return;
+    list.classList.add('gfy-item-reorder-ready');
+    getCards().forEach(enhanceCard);
+    var title = document.getElementById('manage-items-title');
+    if (title && !document.querySelector('.gfy-item-reorder-note')) {
+      var note = document.createElement('div');
+      note.className = 'gfy-item-reorder-note';
+      note.textContent = '↕ Admin: drag items up/down to change customer menu order.';
+      title.parentElement && title.parentElement.insertAdjacentElement('afterend', note);
+    }
+  }
+  function init(){
+    var list = document.getElementById('manage-items-list');
+    if (!list) { setTimeout(init, 300); return; }
+    enhanceList();
+    var observer = new MutationObserver(function(){ enhanceList(); });
+    observer.observe(list, { childList: true, subtree: true });
+    setInterval(enhanceList, 1200);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else setTimeout(init, 150);
 })();
 </script>
 

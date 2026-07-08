@@ -273,65 +273,17 @@ document.addEventListener('error', function(e) {
     .section-title{font-family:"Yeseva One",serif;font-size:1.5rem;color:var(--brown);margin-bottom:18px;display:flex;align-items:center;gap:10px;border-left:4px solid var(--saffron);padding-left:12px}
     .page{display:none;opacity:0;transition:opacity .3s ease-in-out}
     .page.active{display:block;opacity:1}
-    .page-auth-loading{position:fixed;inset:0;z-index:10050;background:linear-gradient(180deg,#f4fff6,#e8f7ed);display:none;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px;opacity:0;transition:opacity .3s ease-in-out;overflow:hidden;overscroll-behavior:none}
+    .page-auth-loading{position:fixed;inset:0;z-index:10050;background:linear-gradient(180deg,#f4fff6,#e8f7ed);display:none;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px;opacity:0;transition:opacity .3s ease-in-out}
     .page-auth-loading.active{display:flex;opacity:1}
     .auth-loading-card{width:100%;max-width:360px;background:rgba(255,255,255,0.96);border-radius:28px;box-shadow:0 28px 80px rgba(0,0,0,0.08);padding:36px 28px;text-align:center}
     .auth-loading-logo{width:180px;height:auto;border-radius:24px;margin:0 auto 20px;display:block;box-shadow:0 18px 48px rgba(0,0,0,0.08)}
     .auth-loading-message{font-family:"Yeseva One",serif;font-size:1.3rem;color:var(--brown);margin-bottom:20px}
     .auth-loading-spinner{width:44px;height:44px;margin:0 auto;border:5px solid rgba(0,0,0,0.08);border-top-color:var(--saffron);border-radius:50%;animation:spin 1s linear infinite}
     @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-    .page-login{
-      position:fixed!important;
-      inset:0!important;
-      top:0!important;left:0!important;right:0!important;bottom:0!important;
-      z-index:10050;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      width:100vw;
-      min-width:100%;
-      min-height:100vh;
-      min-height:100dvh;
-      height:100%;
-      height:100dvh;
-      padding:20px;
-      overflow:hidden;
-      overscroll-behavior:none;
-      background:linear-gradient(180deg,#f4fff6,#e8f7ed);
-      contain:layout paint;
-      transform:none!important;
-      transition:none!important;
-    }
-    .page-login.active{display:flex!important}
-    .login-card{
-      width:min(100%,420px);
-      max-width:420px;
-      min-height:420px;
-      background:#fff;
-      border-radius:28px;
-      box-shadow:0 28px 80px rgba(0,0,0,0.08);
-      padding:100px 40px 40px;
-      text-align:center;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      margin:0 auto;
-      transform:none!important;
-      transition:none!important;
-      flex-shrink:0;
-    }
-    .login-logo{
-      width:210px;
-      height:210px;
-      aspect-ratio:1/1;
-      object-fit:cover;
-      border-radius:55px;
-      margin:0 auto 20px;
-      box-shadow:0 16px 40px rgba(0,0,0,0.12);
-      display:block;
-      flex-shrink:0;
-    }
+    .page-login{position:fixed;inset:0;z-index:10050;background:linear-gradient(180deg,#f4fff6,#e8f7ed);display:none;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px}
+    .page-login.active{display:flex}
+    .login-card{width:100%;max-width:420px;background:#fff;border-radius:28px;box-shadow:0 28px 80px rgba(0,0,0,0.0);padding:100px 40px;text-align:center}
+    .login-logo{width:210px;height:auto;border-radius:55px;margin:0 auto 20px;box-shadow:0 16px 40px rgba(0,0,0,0.12)}
     .login-card h1{font-family:"Yeseva One",serif;font-size:2rem;color:var(--brown);margin:0 0 10px}
     .login-card p{color:#4f6d58;font-size:1rem;line-height:1.6;margin:0 0 24px}
     .page-login .google-signin-btn{margin-top:10px}
@@ -1775,19 +1727,6 @@ input, textarea, [contenteditable="true"], [contenteditable]:not([contenteditabl
 #page-auth-loading.active{
   display:flex!important;
 }
-body.gfy-login-page-active{
-  overflow:hidden!important;
-  height:100vh!important;
-  height:100dvh!important;
-  padding-top:0!important;
-  overscroll-behavior:none!important;
-}
-html.gfy-login-page-active{
-  overflow:hidden!important;
-  height:100vh!important;
-  height:100dvh!important;
-  overscroll-behavior:none!important;
-}
 
 /* AUTH BOOT: hide normal app chrome until Firebase decides signed-in vs signed-out. */
 body.gfy-auth-booting header,
@@ -1817,13 +1756,11 @@ body.gfy-auth-booting #page-auth-loading.active{
   justify-content:center!important;
   overflow:hidden!important;
   transform:none!important;
-  contain:layout paint!important;
 }
 #page-login.active{display:flex!important;}
 #page-login .login-card{
   margin:0 auto!important;
   transform:none!important;
-  transition:none!important;
 }
 
 
@@ -9598,33 +9535,6 @@ window.addEventListener('load', function() {
     'page-delivery-settings'
   ];
 
-  function setLoginSurfaceState(isLoginSurface) {
-    var root = document.documentElement;
-    var body = document.body;
-    if (!root || !body) return;
-
-    root.classList.toggle('gfy-login-page-active', isLoginSurface);
-    body.classList.toggle('gfy-login-page-active', isLoginSurface);
-
-    if (isLoginSurface) {
-      try { window.scrollTo(0, 0); } catch (e) {}
-      root.style.scrollBehavior = 'auto';
-      body.style.overflow = 'hidden';
-      body.style.height = '100vh';
-      body.style.height = '100dvh';
-      body.style.paddingTop = '0';
-      body.style.overscrollBehavior = 'none';
-      root.style.overscrollBehavior = 'none';
-    } else {
-      root.style.scrollBehavior = '';
-      body.style.overflow = '';
-      body.style.height = '';
-      body.style.paddingTop = '';
-      body.style.overscrollBehavior = '';
-      root.style.overscrollBehavior = '';
-    }
-  }
-
   function resolveEl(name) {
     if (!name) return null;
     // 1. Try the map
@@ -9685,9 +9595,6 @@ window.addEventListener('load', function() {
         console.warn('[showPage] original crashed for "' + page + '", using fallback.', e);
       }
     }
-
-    var isLoginSurface = page === 'login' || page === 'auth-loading';
-    setLoginSurfaceState(isLoginSurface);
 
     // 4. Force/Fallback switch to prevent blank screens
     ALL_PAGE_IDS.forEach(function (id) {

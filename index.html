@@ -10,7 +10,7 @@
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
   <meta name="author" content="Grocery For You Sircilla"/>
   <meta name="theme-color" content="#1a5c2a"/>
-  <meta http-equiv="Permissions-Policy" content="accelerometer=*, gyroscope=*, payment=*">
+  <meta http-equiv="Permissions-Policy" content="geolocation=*, accelerometer=*, gyroscope=*, payment=*">
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple -mobile-web-app-title" content="Grocery For You"/>
@@ -3481,7 +3481,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="full" style="margin-top:4px">
               <div class="om-map-label">📍 Pin Your Location <span style="font-weight:400;color:#888;font-size:.7rem;text-transform:none">(tap map to pin)</span></div>
               <div class="om-map-search"><input type="text" id="om-map-search-input" dir="ltr" inputmode="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search area in Sircilla..." /></div>
-              <button class="om-gps-btn" onclick="omUseMyLocation()">🎯 Use My Current Location</button>
+              <button type="button" class="om-gps-btn" onclick="omUseMyLocation(event)">🎯 Use My Current Location</button>
               <div id="om-delivery-map"></div>
               <div class="om-map-pin-info" id="om-pin-info">
                 <span>📌</span>
@@ -4783,30 +4783,13 @@ function toggleSidebar() {
   function hookSubmitTicket() {
     window.submitSupportTicket = async function(...args) {
       console.log('[TicketSubmit] 📝 Support ticket submission initiated');
-
-      if (window._supportTicketSubmitting) {
-        if (typeof showToast === 'function') showToast('⏳ Ticket submission in progress. Please wait...', 1800);
-        return;
-      }
-      window._supportTicketSubmitting = true;
-
-      // Find the submit button inside the support form (best-effort)
-      var submitBtn = document.querySelector('#support-form-section button[onclick*="submitSupportTicket"]') ||
-                      document.querySelector('#support-form-section button');
-      var origHTML = submitBtn ? submitBtn.innerHTML : null;
       try {
-        if (submitBtn) {
-          submitBtn.disabled = true;
-          submitBtn.setAttribute('data-loading', 'true');
-          submitBtn.innerHTML = '⏳ Submitting...';
-        }
-
         const result = await submitSupportTicketInternal(...args);
         console.log('[TicketSubmit] ✅ Submission completed successfully');
         allowRaisedTicketsAfterSubmit();
         showTicketList();
         // Reload after a short delay to let Firestore write settle
-        setTimeout(() => { if (typeof loadTickets === 'function') loadTickets(); }, 800);
+        setTimeout(() => { loadTickets(); }, 800);
         return result;
       } catch (err) {
         // Only show a toast for unexpected errors (validation already shows its own)
@@ -4816,14 +4799,7 @@ function toggleSidebar() {
           'Not a valid order ID','Order does not belong to current customer',
           'Active support ticket already exists for this order'];
         if (!knownErrors.includes(msg)) {
-          if (typeof showToast === 'function') showToast('⚠️ Could not submit ticket. Please try again.', 4000);
-        }
-      } finally {
-        window._supportTicketSubmitting = false;
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.removeAttribute('data-loading');
-          if (origHTML) submitBtn.innerHTML = origHTML;
+          showToast('⚠️ Could not submit ticket. Please try again.', 4000);
         }
       }
     };
@@ -10163,7 +10139,7 @@ window.addEventListener('load', function() {
 
   /* ── 5. Ensure finalizeOrder always stores customerUid ─────────────── */
   // Wrap finalizeOrder to inject uid from currentUser if missing
-    var _finalizePatchTimer = setInterval(function() {
+  var _finalizePatchTimer = setInterval(function() {
     if (typeof window.finalizeOrder !== 'function') return;
     clearInterval(_finalizePatchTimer);
     if (window.__gfyFinalizePatched) return;
@@ -10176,57 +10152,9 @@ window.addEventListener('load', function() {
       if (user && !window._gfyOrderUid) {
         window._gfyOrderUid = user.uid;
       }
-
-      // Call original finalizeOrder implementation and preserve return value
-      var _ret;
-      try {
-        _ret = _origFinalize.apply(this, arguments);
-      } catch (e) {
-        throw e;
-      }
-
-      // After finalizeOrder runs, watch for the order-success UI and then clear cart
-      try {
-        var _cleared = false;
-        var _iv = setInterval(function() {
-          try {
-            var successEl = document.getElementById('om-success');
-            if (!successEl) return;
-            var style = window.getComputedStyle ? window.getComputedStyle(successEl) : null;
-            var visible = (successEl.classList && successEl.classList.contains('open')) || (style && style.display !== 'none' && style.visibility !== 'hidden') || (successEl.style && successEl.style.display && successEl.style.display !== 'none');
-            if (visible) {
-              // Clear cart state (in-memory + localStorage) and refresh UI
-              try {
-                try { window.cart = {}; } catch(e){}
-                try { localStorage.removeItem('cart'); localStorage.removeItem('gfy_cart'); } catch(e){}
-                if (typeof window.updateCart === 'function') {
-                  try { window.updateCart(); } catch(e){}
-                }
-                // Repaint all quantity blocks
-                try {
-                  document.querySelectorAll('[id^="qblock-"]').forEach(function(el){
-                    var id = el.id.replace(/^qblock-/, '');
-                    if (typeof window.paintCard === 'function') {
-                      try { window.paintCard(id); } catch(e){}
-                    }
-                  });
-                } catch(e){}
-                if (typeof syncTotalsUI === 'function') {
-                  try { syncTotalsUI(); } catch(e){}
-                }
-              } catch(_e) { console.warn('[GFYFinalFixes] failed to clear cart UI', _e); }
-              _cleared = true;
-            }
-          } catch(_e) {}
-          if (_cleared) clearInterval(_iv);
-        }, 300);
-        // Timeout guard to stop observing after 15s
-        setTimeout(function(){ try { clearInterval(_iv); } catch(e){} }, 15000);
-      } catch(e) {}
-
-      return _ret;
+      return _origFinalize.apply(this, arguments);
     };
-    console.log('[GFYFinalFixes] finalizeOrder patched with uid injection and post-success cart clear');
+    console.log('[GFYFinalFixes] finalizeOrder patched with uid injection');
   }, 500);
 
   console.log('[GFYFinalFixes] ✅ Utility fixes loaded');
@@ -10398,46 +10326,6 @@ window.addEventListener('load', function() {
   // Removed JS patch because runtime DOM writes can disrupt cursor/input behavior.
 
   console.log('[GFYGeoFix] omUseMyLocation installed.');
-})();
-</script>
-
-<!-- Shim: addrUseMyLocation fallback (if original missing) -->
-<script>
-(function(){
-  if (typeof window.addrUseMyLocation === 'function') return;
-  window.addrUseMyLocation = function() {
-    // If order-modal geolocation exists, reuse it and copy pin to address editor
-    if (typeof window.omUseMyLocation === 'function') {
-      window.omUseMyLocation();
-      setTimeout(function(){
-        try {
-          if (window.omPinLatLng) {
-            window.addrPinLatLng = window.omPinLatLng;
-            if (typeof addrSetPin === 'function') addrSetPin(window.addrPinLatLng);
-            var coords = document.getElementById('addr-coords');
-            if (coords) coords.textContent = (window.addrPinLatLng.lat || 0).toFixed(6) + ',' + (window.addrPinLatLng.lng || 0).toFixed(6);
-          }
-        } catch(e){}
-      }, 900);
-      return;
-    }
-
-    // Minimal fallback: request geolocation and populate coords element
-    if (!navigator.geolocation) {
-      if (typeof showToast === 'function') showToast('⚠️ GPS not supported. Enter address manually.', 3500);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(function(pos){
-      try {
-        var lat = pos.coords.latitude, lng = pos.coords.longitude;
-        window.addrPinLatLng = { lat: lat, lng: lng };
-        var coords = document.getElementById('addr-coords');
-        if (coords) coords.textContent = lat.toFixed(6) + ',' + lng.toFixed(6);
-        if (typeof addrSetPin === 'function') addrSetPin(window.addrPinLatLng);
-        if (typeof showToast === 'function') showToast('✅ Location detected. Verify and save address.', 3000);
-      } catch(e){}
-    }, function(err){ if (typeof showToast === 'function') showToast('⚠️ Could not detect location. Please enter manually.', 3500); }, { enableHighAccuracy:true, timeout:15000 });
-  };
 })();
 </script>
 
@@ -12531,6 +12419,124 @@ document.addEventListener('click', function(e) {
   }, true);
   document.addEventListener('DOMContentLoaded', function(){ reconcile(); });
   setInterval(function(){ reconcile(); }, 700);
+})();
+</script>
+
+
+
+<!-- GFY FIX: Existing location/order validation safety patch. No duplicate buttons. -->
+<script>
+(function(){
+  'use strict';
+  if (window.__GFY_LOCATION_ORDER_VALIDATION_FIX__) return;
+  window.__GFY_LOCATION_ORDER_VALIDATION_FIX__ = true;
+
+  function toast(msg, time, type){
+    if (typeof window.showToast === 'function') return window.showToast(msg, time || 3500, type || 'info');
+    alert(String(msg || ''));
+  }
+
+  function getPinFromDom(){
+    var info = document.getElementById('om-pin-info');
+    var coords = document.getElementById('om-pin-coords');
+    var visible = !!(info && info.classList && info.classList.contains('visible'));
+    var text = coords ? String(coords.textContent || '').trim() : '';
+    return visible && !!text;
+  }
+
+  function hasDeliveryPin(){
+    try {
+      if (window.omPinLatLng && typeof window.omPinLatLng.lat === 'number' && typeof window.omPinLatLng.lng === 'number') return true;
+      if (window.omPinLatLng && typeof window.omPinLatLng.lat === 'function' && typeof window.omPinLatLng.lng === 'function') return true;
+      if (getPinFromDom()) return true;
+    } catch(e) {}
+    return false;
+  }
+
+  function resetDeliveryPinUi(){
+    try { window.omPinLatLng = null; } catch(e) {}
+    var info = document.getElementById('om-pin-info');
+    var coords = document.getElementById('om-pin-coords');
+    var route = document.getElementById('om-route-info');
+    if (info && info.classList) info.classList.remove('visible');
+    if (coords) coords.textContent = '';
+    if (route) route.innerHTML = '';
+  }
+
+  function focusLocationArea(){
+    var map = document.getElementById('om-delivery-map');
+    if (map && typeof map.scrollIntoView === 'function') {
+      try { map.scrollIntoView({ behavior:'smooth', block:'center' }); } catch(e) {}
+    }
+  }
+
+  function normalizeGpsButton(){
+    var btn = document.querySelector('#order-modal-overlay .om-gps-btn');
+    if (!btn) return;
+    btn.setAttribute('type', 'button');
+    btn.onclick = function(ev){
+      if (ev && ev.preventDefault) ev.preventDefault();
+      if (ev && ev.stopPropagation) ev.stopPropagation();
+      if (typeof window.omUseMyLocation === 'function') return window.omUseMyLocation(ev);
+    };
+  }
+
+  /* Keep existing openOrderModal, but clear stale pin UI every time the order modal opens.
+     Saved-address logic can still set the pin again after its own existing subscription runs. */
+  var openTimer = setInterval(function(){
+    if (typeof window.openOrderModal !== 'function' || window.openOrderModal.__gfyLocationResetWrapped) return;
+    clearInterval(openTimer);
+    var originalOpen = window.openOrderModal;
+    window.openOrderModal = function(){
+      var result = originalOpen.apply(this, arguments);
+      resetDeliveryPinUi();
+      setTimeout(normalizeGpsButton, 50);
+      setTimeout(normalizeGpsButton, 400);
+      return result;
+    };
+    window.openOrderModal.__gfyLocationResetWrapped = true;
+    window.GFY_openOrderModal = window.openOrderModal;
+  }, 120);
+
+  /* Keep existing submitOrder, but block order before Firestore/payment when no map pin exists. */
+  var submitTimer = setInterval(function(){
+    if (typeof window.submitOrder !== 'function' || window.submitOrder.__gfyLocationValidationWrapped) return;
+    clearInterval(submitTimer);
+    var originalSubmit = window.submitOrder;
+    window.submitOrder = function(){
+      if (!hasDeliveryPin()) {
+        toast('⚠️ Please add your delivery location. Tap “Use My Current Location” and allow location permission, or tap the map to pin manually.', 5000, 'error');
+        focusLocationArea();
+        return false;
+      }
+      return originalSubmit.apply(this, arguments);
+    };
+    window.submitOrder.__gfyLocationValidationWrapped = true;
+  }, 120);
+
+  /* Make the existing GPS function permission-friendly: it runs only on click and asks the browser/app permission. */
+  var geoTimer = setInterval(function(){
+    if (typeof window.omUseMyLocation !== 'function' || window.omUseMyLocation.__gfyPermissionWrapped) return;
+    clearInterval(geoTimer);
+    var originalGeo = window.omUseMyLocation;
+    window.omUseMyLocation = function(ev){
+      if (ev && ev.preventDefault) ev.preventDefault();
+      if (!navigator.geolocation) {
+        toast('⚠️ Location is not supported on this device. Please tap the map to pin manually.', 4500, 'error');
+        return false;
+      }
+      toast('📍 Allow location permission to detect your delivery location.', 3200, 'info');
+      return originalGeo.apply(this, arguments);
+    };
+    window.omUseMyLocation.__gfyPermissionWrapped = true;
+    normalizeGpsButton();
+  }, 120);
+
+  document.addEventListener('DOMContentLoaded', function(){
+    normalizeGpsButton();
+    var place = document.querySelector('#order-modal-overlay .om-place');
+    if (place) place.setAttribute('type', 'button');
+  });
 })();
 </script>
 

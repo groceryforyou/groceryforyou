@@ -10170,6 +10170,40 @@ window.addEventListener('load', function() {
   if (window.__GFY_GEO_FIX_INSTALLED__) return;
   window.__GFY_GEO_FIX_INSTALLED__ = true;
 
+  function bindGeoButtons() {
+    var orderBtn = document.querySelector('#order-modal-overlay .om-gps-btn');
+    if (orderBtn && !orderBtn.__gfyGeoBound) {
+      orderBtn.__gfyGeoBound = true;
+      orderBtn.removeAttribute('onclick');
+      orderBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.omUseMyLocation === 'function') {
+          window.omUseMyLocation();
+        }
+      }, true);
+    }
+
+    var addressBtn = document.querySelector('#address-editor-overlay .om-gps-btn');
+    if (addressBtn && !addressBtn.__gfyGeoBound) {
+      addressBtn.__gfyGeoBound = true;
+      addressBtn.removeAttribute('onclick');
+      addressBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.addrUseMyLocation === 'function') {
+          window.addrUseMyLocation();
+        }
+      }, true);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindGeoButtons, { once: true });
+  } else {
+    bindGeoButtons();
+  }
+
   function getGeoButton(preferredButton) {
     if (preferredButton && preferredButton.nodeType === 1) return preferredButton;
     var addressBtn = document.querySelector('#address-editor-overlay .om-gps-btn');
@@ -10204,9 +10238,11 @@ window.addEventListener('load', function() {
   }
 
   function requestUserLocation(preferredButton) {
-    if (!window.isSecureContext && window.location.protocol !== 'https:' && window.location.protocol !== 'http:') {
+    var protocol = window.location.protocol || '';
+    var isAllowedProtocol = protocol === 'https:' || protocol === 'http:' || protocol === 'file:';
+    if (!window.isSecureContext && !isAllowedProtocol) {
       if (typeof window.showToast === 'function') {
-        window.showToast('🔒 This page must be served over HTTPS for location access in the APK WebView.', 5000);
+        window.showToast('🔒 This page must be served over HTTPS/HTTP or loaded from the APK asset for location access.', 5000);
       }
       return;
     }

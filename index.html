@@ -10145,6 +10145,42 @@ window.addEventListener('load', function() {
     if (window.__gfyFinalizePatched) return;
     window.__gfyFinalizePatched = true;
 
+    function resetCartAfterSuccessfulOrder() {
+      try {
+        if (window.cart && typeof window.cart === 'object') {
+          Object.keys(window.cart).forEach(function(id) {
+            delete window.cart[id];
+          });
+        }
+
+        try {
+          localStorage.removeItem('cart');
+          localStorage.removeItem('gfy_cart');
+          localStorage.removeItem('gfyCart');
+          localStorage.removeItem('cartData');
+          sessionStorage.removeItem('cart');
+        } catch (e) {}
+
+        if (typeof window.updateCart === 'function') {
+          window.updateCart();
+        }
+        if (typeof window.syncTotalsUI === 'function') {
+          window.syncTotalsUI();
+        }
+        if (typeof window.refreshCard === 'function') {
+          document.querySelectorAll('[id^="qblock-"]').forEach(function(el) {
+            var id = el.id.replace(/^qblock-/, '');
+            if (id) window.refreshCard(id);
+          });
+        }
+        if (typeof window.requestTotalsRefresh === 'function') {
+          window.requestTotalsRefresh();
+        }
+      } catch (e) {
+        console.warn('[GFYFinalFixes] Cart reset after order failed', e);
+      }
+    }
+
     var _origFinalize = window.finalizeOrder;
     window.finalizeOrder = function(payMethod, isPaid, payId) {
       // Ensure uid is available for Firestore queries
@@ -10152,9 +10188,28 @@ window.addEventListener('load', function() {
       if (user && !window._gfyOrderUid) {
         window._gfyOrderUid = user.uid;
       }
-      return _origFinalize.apply(this, arguments);
+
+      var result = _origFinalize.apply(this, arguments);
+
+      if (result && typeof result.then === 'function') {
+        return result.then(function(value) {
+          if (value !== false) {
+            resetCartAfterSuccessfulOrder();
+          }
+          return value;
+        }).catch(function(err) {
+          console.warn('[GFYFinalFixes] finalizeOrder failed', err);
+          throw err;
+        });
+      }
+
+      if (result !== false && result !== undefined) {
+        resetCartAfterSuccessfulOrder();
+      }
+
+      return result;
     };
-    console.log('[GFYFinalFixes] finalizeOrder patched with uid injection');
+    console.log('[GFYFinalFixes] finalizeOrder patched with uid injection and cart reset');
   }, 500);
 
   console.log('[GFYFinalFixes] ✅ Utility fixes loaded');

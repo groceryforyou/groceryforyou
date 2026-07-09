@@ -9866,12 +9866,50 @@ window.addEventListener('load', function() {
     const phone   = phoneEl   ? phoneEl.value.trim()   : '';
     const address = addressEl ? addressEl.value.trim() : '';
     const email   = emailEl   ? emailEl.value.trim()   : (user.email || '');
+    const pm = typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : '';
 
-    if (!name)  { showToast('⚠️ Please enter your name'); if (nameEl) nameEl.focus(); return; }
-    if (!phone) { showToast('⚠️ Enter phone number');     if (phoneEl) phoneEl.focus(); return; }
-    if (!/^[0-9]{10}$/.test(phone)) { showToast('⚠️ Phone must be 10 digits',3000); if (phoneEl) phoneEl.focus(); return; }
-    if (!email)   { showToast('⚠️ Enter email');           if (emailEl) emailEl.focus(); return; }
-    if (!address) { showToast('⚠️ Enter delivery address'); if (addressEl) addressEl.focus(); return; }
+    const missingDetails = [];
+    if (!name) missingDetails.push({ key: 'name', label: 'Name' });
+    if (!phone) missingDetails.push({ key: 'phone', label: 'Phone Number' });
+    else if (!/^[0-9]{10}$/.test(phone)) {
+      showToast('⚠️ Please enter a valid 10-digit phone number', 3000);
+      if (phoneEl) phoneEl.focus();
+      return;
+    }
+    if (!email) missingDetails.push({ key: 'email', label: 'Email Address' });
+    if (!address) missingDetails.push({ key: 'address', label: 'Delivery Address' });
+    if (typeof omPinLatLng === 'undefined' || !omPinLatLng) missingDetails.push({ key: 'location', label: 'Location' });
+    if (!pm) missingDetails.push({ key: 'payment', label: 'Payment Method' });
+
+    if (missingDetails.length) {
+      const singleMessages = {
+        name: 'Please enter your name',
+        phone: 'Please enter your phone number',
+        email: 'Please enter your email address',
+        address: 'Please enter your delivery address',
+        location: 'Please select or use your location',
+        payment: 'Please select payment method'
+      };
+
+      let msg = '';
+      if (missingDetails.length === 1) {
+        msg = singleMessages[missingDetails[0].key] || ('Please fill: ' + missingDetails[0].label);
+      } else {
+        msg = 'Please fill: ' + missingDetails.map(item => item.label).join(', ');
+      }
+
+      showToast(msg);
+      const firstMissing = missingDetails[0];
+      if (firstMissing.key === 'name' && nameEl) nameEl.focus();
+      else if (firstMissing.key === 'phone' && phoneEl) phoneEl.focus();
+      else if (firstMissing.key === 'email' && emailEl) emailEl.focus();
+      else if (firstMissing.key === 'address' && addressEl) addressEl.focus();
+      else if (firstMissing.key === 'location') {
+        const mapSearch = document.getElementById('om-map-search-input');
+        if (mapSearch) mapSearch.focus();
+      }
+      return;
+    }
 
     // Keep address input in natural LTR mode for Android WebView cursor stability.
     [
@@ -9903,9 +9941,9 @@ window.addEventListener('load', function() {
       return;
     }
 
-    const pm = typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : 'cod';
+    const paymentMethod = typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : 'cod';
 
-    if (pm === 'upi' || pm === 'card') {
+    if (paymentMethod === 'upi' || paymentMethod === 'card') {
       // UPI / Razorpay — user must be signed in (already verified above)
       const total = typeof calculateTotals === 'function' ? calculateTotals().grandTotal : (window.currentGrandTotal || 0);
       if (typeof openRazorpayCheckout === 'function') {
@@ -9916,7 +9954,7 @@ window.addEventListener('load', function() {
       }
       return;
     }
-    if (pm === 'qr') {
+    if (paymentMethod === 'qr') {
       const total = typeof calculateTotals === 'function' ? calculateTotals().grandTotal : (window.currentGrandTotal || 0);
       if (typeof showPhonePeQR === 'function') showPhonePeQR(total);
       return;
@@ -9924,7 +9962,7 @@ window.addEventListener('load', function() {
 
     // COD path — user already verified signed in above
     if (typeof finalizeOrder === 'function') {
-      finalizeOrder(pm, false);
+      finalizeOrder(paymentMethod, false);
     }
   };
 

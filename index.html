@@ -3477,7 +3477,6 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="full" id="om-manual-address-wrap">
           <div class="om-manual-address-grid">
             <div class="full"><label for="om-address">Address</label><textarea id="om-address" dir="ltr" inputmode="text" autocomplete="off" autocorrect="off" spellcheck="false" rows="2" placeholder="House No., Street, Area..."></textarea></div>
-            <div><input type="text" id="om-landmark" dir="ltr" inputmode="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Near school..." /></div>
             <div class="full" style="margin-top:4px">
               
               <button class="om-gps-btn" onclick="omUseMyLocation()">🎯 Use My Current Location</button>
@@ -10411,6 +10410,31 @@ window.addEventListener('load', function() {
       );
     }
 
+    function checkPermissionAndRequest() {
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({ name: 'geolocation' }).then(function(permissionStatus) {
+          if (!permissionStatus) {
+            requestLocation();
+            return;
+          }
+
+          if (permissionStatus.state === 'denied') {
+            restoreButton();
+            if (typeof showToast === 'function') {
+              showToast('Location permission is required to use your current location', 4500);
+            }
+            return;
+          }
+
+          requestLocation();
+        }).catch(function() {
+          requestLocation();
+        });
+      } else {
+        requestLocation();
+      }
+    }
+
     // ── Success callback ──────────────────────────────────────────────────
     function onSuccess(position) {
       restoreButton();
@@ -10472,10 +10496,10 @@ window.addEventListener('load', function() {
       var msg;
       switch (error.code) {
         case 1: // PERMISSION_DENIED
-          msg = 'Location permission is required to continue.';
+          msg = 'Location permission is required to use your current location';
           break;
         case 2: // POSITION_UNAVAILABLE
-          msg = '📍 Location services are off. Please turn on GPS to continue.';
+          msg = 'Please turn on Location Services';
           try {
             window.__gfyGeoNeedLocationRetry = true;
             if (/Android/i.test(navigator.userAgent)) {
@@ -10488,7 +10512,7 @@ window.addEventListener('load', function() {
           } catch (e) {}
           break;
         case 3: // TIMEOUT
-          msg = '⏱ Location request timed out. Please try again or pin manually.';
+          msg = 'Location request timed out. Please try again or pin manually.';
           break;
         default:
           msg = '⚠️ Location error. Please search or pin your location manually.';
@@ -10522,7 +10546,7 @@ window.addEventListener('load', function() {
 
     // ── Request position (only on user click — safe for Android WebView) ──
     console.log('[GFYGeo] Requesting current position...');
-    requestLocation();
+    checkPermissionAndRequest();
   };
 
   window.addrUseMyLocation = function addrUseMyLocation() {

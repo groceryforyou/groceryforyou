@@ -16,7 +16,7 @@
   <meta name="apple -mobile-web-app-title" content="Grocery For You"/>
   <meta name="application-name" content="Grocery For You"/>
   <meta name="geo.region" content="IN-TS"/>
-  <meta name="geo.placename" content="Sicsilla, Rajanna Sircilla District, Telangana, India"/>
+  <meta name="geo.placename" content="Sircilla, Rajanna Sircilla District, Telangana, India"/>
   <meta name="geo.position" content="18.38973;78.812042"/>
   <meta name="ICBM" content="18.38973, 78.812042"/>
   <link rel="canonical" href="https://groceryforyou.github.io/"/>
@@ -453,8 +453,9 @@ document.addEventListener('error', function(e) {
     .om-map-search input{flex:1;border:1.5px solid var(--border);border-radius:10px;padding:8px 11px;font-size:.83rem;font-family:"Lato",sans-serif;outline:none}
     .om-map-search input:focus{border-color:var(--saffron)}
     .om-map-search button{background:var(--saffron);color:#fff;border:none;border-radius:10px;padding:8px 12px;cursor:pointer;font-size:.8rem;font-weight:700;touch-action:manipulation}
-    .om-gps-btn{width:100%;background:var(--cream);border:1.5px solid var(--border);border-radius:10px;padding:9px;font-size:.8rem;font-weight:700;color:var(--brown);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:7px;transition:all .2s;touch-action:manipulation}
+    .om-gps-btn{width:100%;background:var(--cream);border:1.5px solid var(--border);border-radius:10px;padding:9px;font-size:.8rem;font-weight:700;color:var(--brown);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:7px;transition:all .2s;touch-action:manipulation;pointer-events:auto;position:relative;z-index:3;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
     .om-gps-btn:hover{background:#e8f5e9;border-color:var(--green);color:var(--green)}
+    .android-webview .om-gps-btn{pointer-events:auto}
     #om-delivery-map{height:200px;border-radius:12px;border:2px solid var(--border);margin-bottom:7px}
     .om-map-pin-info{background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:7px 11px;font-size:.78rem;color:var(--brown);display:none;align-items:center;gap:7px}
     .om-map-pin-info.visible{display:flex}
@@ -2283,7 +2284,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 })();
 </script>
   <!-- Visually hidden but accessible H1 for screen readers + SEO -->
-  <h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Grocery For You Sicsilla — Online Grocery Delivery in Sircilla</h1>
+  <h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Grocery For You Sircilla — Online Grocery Delivery in Sircilla</h1>
 
 <!-- MOBILE SEARCH OVERLAY -->
 <div class="mob-search-overlay" id="mob-search-overlay">
@@ -2434,7 +2435,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 <!-- HERO -->
 <div class="hero" id="hero-section" role="banner">
   <h2 style="font-family:'Yeseva One',serif;font-size:2.2rem;color:var(--turmeric);text-shadow:0 2px 12px rgba(0,0,0,0.5);margin-bottom:0">Grocery For You Sircilla 🛒</h2>
-  <p style="color:#c8e6c9;font-size:1rem;margin-top:6px;font-style:italic">Online Grocery Delivery in Sircilla · Town Center, Sicsilla, Telangana</p>
+  <p style="color:#c8e6c9;font-size:1rem;margin-top:6px;font-style:italic">Online Grocery Delivery in Sircilla · Town Center, Sircilla, Telangana</p>
   <p style="color:#a5d6a7;font-size:.85rem;margin-top:4px">Fresh Vegetables · Fruits · Dairy · Staples — Delivered to your door!</p>
   <div id="business-status-badge" class="business-status-badge closed" style="display:inline-flex;white-space:nowrap;margin:18px auto 0;">
     <span class="business-status-dot"></span>
@@ -4396,7 +4397,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
 <script>
 (function(){
-  const ADMIN_WHATSAPP_NUMBER = '919154092906';
+  const ADMIN_WHATSAPP_NUMBER = '91';
   const CALLMEBOT_API_KEY = 'REPLACE_WITH_CALLMEBOT_API_KEY';
   const processedOrders = new Set(JSON.parse(sessionStorage.getItem('processedOrders') || '[]'));
   let adminOrderListenerAttached = false;
@@ -10161,171 +10162,171 @@ window.addEventListener('load', function() {
 })();
 </script>
 
-<!-- ===== GFY GEOLOCATION FIX: robust omUseMyLocation ===== -->
+<!-- ===== GFY GEOLOCATION FIX: robust omUseMyLocation / addrUseMyLocation ===== -->
 <script>
 (function GFYGeoFix() {
   'use strict';
 
-  // Guard: define once only — prevents duplicate listeners / duplicate definitions
   if (window.__GFY_GEO_FIX_INSTALLED__) return;
   window.__GFY_GEO_FIX_INSTALLED__ = true;
 
-  /**
-   * omUseMyLocation
-   * ─────────────────────────────────────────────────────────────────────────
-   * Called ONLY from user click on "🎯 Use My Current Location" button.
-   * Handles all three Geolocation API error cases:
-   *   1. PERMISSION_DENIED   (code 1) — tell user to enable in settings
-   *   2. POSITION_UNAVAILABLE (code 2) — tell user to search/pin manually
-   *   3. TIMEOUT             (code 3) — tell user to retry or pin manually
-   * Falls back gracefully: if GPS is denied the user can still pin on map
-   * or type an address — order placement is NOT blocked.
-   * Safe for Android WebView: geolocation is triggered only from this click
-   * handler, never automatically on page load.
-   */
-  window.omUseMyLocation = function omUseMyLocation() {
+  function getGeoButton(preferredButton) {
+    if (preferredButton && preferredButton.nodeType === 1) return preferredButton;
+    var addressBtn = document.querySelector('#address-editor-overlay .om-gps-btn');
+    if (addressBtn) return addressBtn;
+    return document.querySelector('#order-modal-overlay .om-gps-btn');
+  }
 
-    // ── GPS not supported at all ──────────────────────────────────────────
-    if (!navigator.geolocation) {
-      console.log('Geolocation supported:', false);
-      if (typeof showToast === 'function') {
-        showToast('⚠️ GPS not supported on this device. Please search or pin manually.', 4000);
+  function setGeoButtonState(btn, loading, originalHtml) {
+    if (!btn) return;
+    btn.disabled = !!loading;
+    btn.innerHTML = loading ? '⏳ Getting location...' : (originalHtml || '🎯 Use My Location');
+  }
+
+  function showGeolocationError(error) {
+    var msg;
+    switch (error && error.code) {
+      case 1:
+        msg = '📍 Location permission denied. Please allow location permission for this app and try again.';
+        break;
+      case 2:
+        msg = '📡 GPS is off or your location is unavailable. Please turn on GPS or pin manually.';
+        break;
+      case 3:
+        msg = '⏱ Location request timed out. Please try again or pin manually.';
+        break;
+      default:
+        msg = '⚠️ Unable to read your location. Please search or pin it manually.';
+    }
+    if (typeof window.showToast === 'function') {
+      window.showToast(msg, 5500);
+    }
+  }
+
+  function requestUserLocation(preferredButton) {
+    if (!window.isSecureContext && window.location.protocol !== 'https:' && window.location.protocol !== 'http:') {
+      if (typeof window.showToast === 'function') {
+        window.showToast('🔒 This page must be served over HTTPS for location access in the APK WebView.', 5000);
       }
       return;
     }
-    console.log('Geolocation supported:', true);
 
-    // ── Update GPS button to loading state (single place) ─────────────────
-    var btn = document.querySelector('#order-modal-overlay .om-gps-btn');
-    var originalBtnHTML = btn ? btn.innerHTML : '';
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = '⏳ Getting location...';
+    if (!navigator.geolocation) {
+      if (typeof window.showToast === 'function') {
+        window.showToast('⚠️ GPS is not supported on this device. Please search or pin manually.', 4000);
+      }
+      return;
     }
 
-    // ── Show toast so user knows something is happening ───────────────────
-    if (typeof showToast === 'function') {
-      showToast('📡 Detecting your location...', 3000);
+    var btn = getGeoButton(preferredButton);
+    var originalHtml = btn ? btn.innerHTML : '';
+    setGeoButtonState(btn, true, originalHtml);
+
+    if (typeof window.showToast === 'function') {
+      window.showToast('📡 Detecting your location...', 3000);
     }
 
-    // ── Success callback ──────────────────────────────────────────────────
+    function finishWithButtonState() {
+      setGeoButtonState(btn, false, originalHtml);
+    }
+
     function onSuccess(position) {
-      // Restore button
-      if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHTML || '🎯 Use My Current Location'; }
+      finishWithButtonState();
 
-      var lat = position.coords.latitude;
-      var lng = position.coords.longitude;
-      console.log('Geolocation success:', lat, lng);
+      var lat = position && position.coords ? position.coords.latitude : null;
+      var lng = position && position.coords ? position.coords.longitude : null;
+      if (lat === null || lng === null) {
+        showGeolocationError({ code: 2 });
+        return;
+      }
+
       console.log('[GFYGeo] Position detected:', { lat: lat, lng: lng });
 
-    // Use existing map pin logic if available
       try {
-        // Build Leaflet LatLng — matches the signature the obfuscated omSetPin expects
-        var latlng = (typeof L !== 'undefined') ? L.latLng(lat, lng) : { lat: lat, lng: lng };
+        var latlng = (typeof L !== 'undefined' && typeof L.latLng === 'function') ? L.latLng(lat, lng) : { lat: lat, lng: lng };
 
-        if (typeof omMap !== 'undefined' && omMap && typeof omMap.setView === 'function')
-          omMap.setView([lat, lng], 16);
-
-        if (typeof omSetPin === 'function') {
-          omSetPin(latlng);               // updates omPinLatLng used by submitOrder
-        } else {
-          window.omPinLatLng = latlng;   // fallback: set shared state directly
+        if (typeof window.omMap !== 'undefined' && window.omMap && typeof window.omMap.setView === 'function') {
+          window.omMap.setView([lat, lng], 16);
         }
 
-        if (typeof showToast === 'function')
-          showToast('✅ Location detected! Verify the pin on the map.', 3000);
+        if (typeof window.omSetPin === 'function') {
+          window.omSetPin(latlng);
+        } else {
+          window.omPinLatLng = latlng;
+        }
 
-        // Non-blocking reverse-geocode to prefill address field
-        fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng)
-          .then(function(r) { return r.json(); })
-          .then(function(d) {
-            if (d && d.display_name) {
-              var addrEl = document.getElementById('om-address');
-              if (addrEl) {
+        if (typeof window.updateAddressEditorPinInfo === 'function') {
+          window.updateAddressEditorPinInfo(latlng);
+        }
+
+        if (typeof window.showToast === 'function') {
+          window.showToast('✅ Location detected! Verify the pin on the map.', 3000);
+        }
+
+        var addrEl = document.getElementById('om-address');
+        if (addrEl && !addrEl.value.trim()) {
+          fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng)
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+              if (d && d.display_name) {
                 var autoAddress = d.display_name.split(',').slice(0, 4).join(', ');
-
-                // Do not touch the field while the user is typing
-                if (document.activeElement !== addrEl && !addrEl.value.trim()) {
+                if (document.activeElement !== addrEl) {
                   addrEl.value = autoAddress;
                 }
               }
-            }
-          })
-          .catch(function() {});
-
+            })
+            .catch(function() {});
+        }
       } catch (e) {
         console.warn('[GFYGeo] Map pin error:', e);
-        if (typeof showToast === 'function')
-          showToast('✅ Location found. Please pin it manually on the map.', 3500);
-      }
-    }
-
-    // ── Error callback with descriptive messages per error code ───────────
-    function onError(error) {
-      // Restore button
-      if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHTML || '🎯 Use My Current Location'; }
-
-      console.error('Geolocation error code:', error.code);
-      console.warn('[GFYGeo] Geolocation error code=' + error.code + ':', error.message);
-
-      var msg;
-      switch (error.code) {
-        case 1: // PERMISSION_DENIED
-          msg = '📍 Location permission denied. Please enable location permission for this browser/app, then try again.';
-          break;
-        case 2: // POSITION_UNAVAILABLE
-          msg = '📡 Could not detect your location (GPS unavailable). Please search area or pin manually.';
-          break;
-        case 3: // TIMEOUT
-          msg = '⏱ Location request timed out. Please try again or pin manually.';
-          break;
-        default:
-          msg = '⚠️ Location error. Please search or pin your location manually.';
-      }
-
-      if (typeof showToast === 'function') {
-        showToast(msg, 5500);
-      }
-
-      // Show the map search input and focus it so user can pin manually.
-      // Avoid Android WebView scrollIntoView jitter when the keyboard opens.
-      var searchInput = document.getElementById('om-map-search-input');
-      if (searchInput) {
-        var isAndroidWebView = /Android/i.test(navigator.userAgent);
-        if (isAndroidWebView) {
-          try {
-            searchInput.focus({ preventScroll: true });
-          } catch (e) {
-            // Avoid raw focus on Android WebView if preventScroll isn't supported.
-          }
-        } else {
-          try {
-            searchInput.focus({ preventScroll: true });
-          } catch (e) {
-            searchInput.focus();
-          }
-          searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (typeof window.showToast === 'function') {
+          window.showToast('✅ Location found. Please pin it manually on the map.', 3500);
         }
       }
     }
 
-    // ── Request position (only on user click — safe for Android WebView) ──
-    console.log('[GFYGeo] Requesting current position...');
-    navigator.geolocation.getCurrentPosition(
-      onSuccess,
-      onError,
-      {
+    function onError(error) {
+      finishWithButtonState();
+      console.warn('[GFYGeo] Geolocation error:', error && error.code, error && error.message);
+      showGeolocationError(error || { code: 0 });
+    }
+
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'geolocation' }).then(function(result) {
+        if (result && result.state === 'denied') {
+          onError({ code: 1, message: 'Permission denied' });
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0
+        });
+      }).catch(function() {
+        navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0
+        });
+      });
+    } else {
+      navigator.geolocation.getCurrentPosition(onSuccess, onError, {
         enableHighAccuracy: true,
-        timeout:            15000,  // 15 s before TIMEOUT fires (per spec)
-        maximumAge:         0       // always fresh; no cached position
-      }
-    );
+        timeout: 15000,
+        maximumAge: 0
+      });
+    }
+  }
+
+  window.omUseMyLocation = function omUseMyLocation() {
+    return requestUserLocation(document.querySelector('#order-modal-overlay .om-gps-btn'));
   };
 
-  // LTR direction for order modal fields is already enforced by CSS.
-  // Removed JS patch because runtime DOM writes can disrupt cursor/input behavior.
+  window.addrUseMyLocation = function addrUseMyLocation() {
+    return requestUserLocation(document.querySelector('#address-editor-overlay .om-gps-btn'));
+  };
 
-  console.log('[GFYGeoFix] omUseMyLocation installed.');
+  console.log('[GFYGeoFix] omUseMyLocation and addrUseMyLocation installed.');
 })();
 </script>
 

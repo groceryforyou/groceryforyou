@@ -9932,7 +9932,7 @@ window.addEventListener('load', function() {
 });
 
     if (typeof omPinLatLng === 'undefined' || !omPinLatLng) {
-      showToast('⚠️ Please enable location and select your delivery location.');
+      showToast('⚠️ Please enable Location Services and select your delivery location.');
       return;
     }
     if (typeof isServiceableLatLng === 'function' && typeof omPinLatLng !== 'undefined' && omPinLatLng &&
@@ -10353,6 +10353,26 @@ window.addEventListener('load', function() {
    */
   window.omUseMyLocation = function omUseMyLocation() {
 
+    if (!window.__gfyGeoResumeListenerInstalled) {
+      window.__gfyGeoResumeListenerInstalled = true;
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible' && window.__gfyGeoNeedLocationRetry) {
+          window.__gfyGeoNeedLocationRetry = false;
+          if (typeof window.omUseMyLocation === 'function') {
+            window.omUseMyLocation();
+          }
+        }
+      });
+      window.addEventListener('focus', function() {
+        if (window.__gfyGeoNeedLocationRetry) {
+          window.__gfyGeoNeedLocationRetry = false;
+          if (typeof window.omUseMyLocation === 'function') {
+            window.omUseMyLocation();
+          }
+        }
+      });
+    }
+
     // ── GPS not supported at all ──────────────────────────────────────────
     if (!navigator.geolocation) {
       console.log('Geolocation supported:', false);
@@ -10455,7 +10475,13 @@ window.addEventListener('load', function() {
           msg = '📍 Location permission is required to place an order.';
           break;
         case 2: // POSITION_UNAVAILABLE
-          msg = '📡 Could not detect your location (GPS unavailable). Please search area or pin manually.';
+          msg = '📡 Could not detect your location. Please enable Location Services and try again.';
+          if (/Android/i.test(navigator.userAgent)) {
+            try {
+              window.__gfyGeoNeedLocationRetry = true;
+              window.location.href = 'android.settings.LOCATION_SOURCE_SETTINGS';
+            } catch (e) {}
+          }
           break;
         case 3: // TIMEOUT
           msg = '⏱ Location request timed out. Please try again or pin manually.';

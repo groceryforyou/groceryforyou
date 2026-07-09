@@ -4783,13 +4783,30 @@ function toggleSidebar() {
   function hookSubmitTicket() {
     window.submitSupportTicket = async function(...args) {
       console.log('[TicketSubmit] 📝 Support ticket submission initiated');
+
+      if (window._supportTicketSubmitting) {
+        if (typeof showToast === 'function') showToast('⏳ Ticket submission in progress. Please wait...', 1800);
+        return;
+      }
+      window._supportTicketSubmitting = true;
+
+      // Find the submit button inside the support form (best-effort)
+      var submitBtn = document.querySelector('#support-form-section button[onclick*="submitSupportTicket"]') ||
+                      document.querySelector('#support-form-section button');
+      var origHTML = submitBtn ? submitBtn.innerHTML : null;
       try {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.setAttribute('data-loading', 'true');
+          submitBtn.innerHTML = '⏳ Submitting...';
+        }
+
         const result = await submitSupportTicketInternal(...args);
         console.log('[TicketSubmit] ✅ Submission completed successfully');
         allowRaisedTicketsAfterSubmit();
         showTicketList();
         // Reload after a short delay to let Firestore write settle
-        setTimeout(() => { loadTickets(); }, 800);
+        setTimeout(() => { if (typeof loadTickets === 'function') loadTickets(); }, 800);
         return result;
       } catch (err) {
         // Only show a toast for unexpected errors (validation already shows its own)
@@ -4799,7 +4816,14 @@ function toggleSidebar() {
           'Not a valid order ID','Order does not belong to current customer',
           'Active support ticket already exists for this order'];
         if (!knownErrors.includes(msg)) {
-          showToast('⚠️ Could not submit ticket. Please try again.', 4000);
+          if (typeof showToast === 'function') showToast('⚠️ Could not submit ticket. Please try again.', 4000);
+        }
+      } finally {
+        window._supportTicketSubmitting = false;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.removeAttribute('data-loading');
+          if (origHTML) submitBtn.innerHTML = origHTML;
         }
       }
     };
@@ -10139,7 +10163,7 @@ window.addEventListener('load', function() {
 
   /* ── 5. Ensure finalizeOrder always stores customerUid ─────────────── */
   // Wrap finalizeOrder to inject uid from currentUser if missing
-  var _finalizePatchTimer = setInterval(function() {
+    var _finalizePatchTimer = setInterval(function() {
     if (typeof window.finalizeOrder !== 'function') return;
     clearInterval(_finalizePatchTimer);
     if (window.__gfyFinalizePatched) return;
@@ -10152,9 +10176,57 @@ window.addEventListener('load', function() {
       if (user && !window._gfyOrderUid) {
         window._gfyOrderUid = user.uid;
       }
-      return _origFinalize.apply(this, arguments);
+
+      // Call original finalizeOrder implementation and preserve return value
+      var _ret;
+      try {
+        _ret = _origFinalize.apply(this, arguments);
+      } catch (e) {
+        throw e;
+      }
+
+      // After finalizeOrder runs, watch for the order-success UI and then clear cart
+      try {
+        var _cleared = false;
+        var _iv = setInterval(function() {
+          try {
+            var successEl = document.getElementById('om-success');
+            if (!successEl) return;
+            var style = window.getComputedStyle ? window.getComputedStyle(successEl) : null;
+            var visible = (successEl.classList && successEl.classList.contains('open')) || (style && style.display !== 'none' && style.visibility !== 'hidden') || (successEl.style && successEl.style.display && successEl.style.display !== 'none');
+            if (visible) {
+              // Clear cart state (in-memory + localStorage) and refresh UI
+              try {
+                try { window.cart = {}; } catch(e){}
+                try { localStorage.removeItem('cart'); localStorage.removeItem('gfy_cart'); } catch(e){}
+                if (typeof window.updateCart === 'function') {
+                  try { window.updateCart(); } catch(e){}
+                }
+                // Repaint all quantity blocks
+                try {
+                  document.querySelectorAll('[id^="qblock-"]').forEach(function(el){
+                    var id = el.id.replace(/^qblock-/, '');
+                    if (typeof window.paintCard === 'function') {
+                      try { window.paintCard(id); } catch(e){}
+                    }
+                  });
+                } catch(e){}
+                if (typeof syncTotalsUI === 'function') {
+                  try { syncTotalsUI(); } catch(e){}
+                }
+              } catch(_e) { console.warn('[GFYFinalFixes] failed to clear cart UI', _e); }
+              _cleared = true;
+            }
+          } catch(_e) {}
+          if (_cleared) clearInterval(_iv);
+        }, 300);
+        // Timeout guard to stop observing after 15s
+        setTimeout(function(){ try { clearInterval(_iv); } catch(e){} }, 15000);
+      } catch(e) {}
+
+      return _ret;
     };
-    console.log('[GFYFinalFixes] finalizeOrder patched with uid injection');
+    console.log('[GFYFinalFixes] finalizeOrder patched with uid injection and post-success cart clear');
   }, 500);
 
   console.log('[GFYFinalFixes] ✅ Utility fixes loaded');
@@ -10326,6 +10398,46 @@ window.addEventListener('load', function() {
   // Removed JS patch because runtime DOM writes can disrupt cursor/input behavior.
 
   console.log('[GFYGeoFix] omUseMyLocation installed.');
+})();
+</script>
+
+<!-- Shim: addrUseMyLocation fallback (if original missing) -->
+<script>
+(function(){
+  if (typeof window.addrUseMyLocation === 'function') return;
+  window.addrUseMyLocation = function() {
+    // If order-modal geolocation exists, reuse it and copy pin to address editor
+    if (typeof window.omUseMyLocation === 'function') {
+      window.omUseMyLocation();
+      setTimeout(function(){
+        try {
+          if (window.omPinLatLng) {
+            window.addrPinLatLng = window.omPinLatLng;
+            if (typeof addrSetPin === 'function') addrSetPin(window.addrPinLatLng);
+            var coords = document.getElementById('addr-coords');
+            if (coords) coords.textContent = (window.addrPinLatLng.lat || 0).toFixed(6) + ',' + (window.addrPinLatLng.lng || 0).toFixed(6);
+          }
+        } catch(e){}
+      }, 900);
+      return;
+    }
+
+    // Minimal fallback: request geolocation and populate coords element
+    if (!navigator.geolocation) {
+      if (typeof showToast === 'function') showToast('⚠️ GPS not supported. Enter address manually.', 3500);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(function(pos){
+      try {
+        var lat = pos.coords.latitude, lng = pos.coords.longitude;
+        window.addrPinLatLng = { lat: lat, lng: lng };
+        var coords = document.getElementById('addr-coords');
+        if (coords) coords.textContent = lat.toFixed(6) + ',' + lng.toFixed(6);
+        if (typeof addrSetPin === 'function') addrSetPin(window.addrPinLatLng);
+        if (typeof showToast === 'function') showToast('✅ Location detected. Verify and save address.', 3000);
+      } catch(e){}
+    }, function(err){ if (typeof showToast === 'function') showToast('⚠️ Could not detect location. Please enter manually.', 3500); }, { enableHighAccuracy:true, timeout:15000 });
+  };
 })();
 </script>
 

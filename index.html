@@ -9176,7 +9176,16 @@ window.updateOrderCardStatus = updateOrderCardStatus;
 
   function gfyItems(){ return Array.isArray(window.items) ? window.items : []; }
   function gfyCart(){
-    if (!window.cart || typeof window.cart !== 'object') window.cart = {};
+    try {
+      if (typeof cart !== 'undefined' && cart && typeof cart === 'object') {
+        window.cart = cart;
+        return cart;
+      }
+    } catch (e) {}
+    if (!window.cart || typeof window.cart !== 'object') {
+      window.cart = {};
+    }
+    try { cart = window.cart; } catch (e) {}
     return window.cart;
   }
   function escAttr(value){
@@ -9214,22 +9223,52 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     id = String(id || '');
     var item = findItem(id);
     if (!item || item.inStock === false) return;
-    var cart = gfyCart();
-    if (cart[id]) cart[id].qty = Number(cart[id].qty || 0) + 1;
-    else cart[id] = { name: item.name || '', price: Number(item.price || 0), qty: 1, emoji: item.emoji || '' };
+    var cartState = gfyCart();
+    if (cartState[id]) cartState[id].qty = Number(cartState[id].qty || 0) + 1;
+    else cartState[id] = { name: item.name || '', price: Number(item.price || 0), qty: 1, emoji: item.emoji || '' };
+    try { cart = cartState; } catch (e) {}
+    window.cart = cartState;
     paintCard(id);
     if (typeof window.updateCart === 'function') window.updateCart();
     if (typeof window.showToast === 'function') window.showToast('✓ ' + (item.name || 'Item') + ' added!', 900);
   };
   window.cardDec = function(id){
     id = String(id || '');
-    var cart = gfyCart();
-    if (!cart[id]) return;
-    cart[id].qty = Number(cart[id].qty || 0) - 1;
-    if (cart[id].qty <= 0) delete cart[id];
+    var cartState = gfyCart();
+    if (!cartState[id]) return;
+    cartState[id].qty = Number(cartState[id].qty || 0) - 1;
+    if (cartState[id].qty <= 0) delete cartState[id];
+    try { cart = cartState; } catch (e) {}
+    window.cart = cartState;
     paintCard(id);
     if (typeof window.updateCart === 'function') window.updateCart();
   };
+
+  if (!window.__GFY_CART_CHECKOUT_VISIBILITY_PATCHED__) {
+    window.__GFY_CART_CHECKOUT_VISIBILITY_PATCHED__ = true;
+    var _gfyOriginalUpdateCart = window.updateCart;
+    window.updateCart = function() {
+      var result;
+      try {
+        result = _gfyOriginalUpdateCart.apply(this, arguments);
+      } catch (e) {
+        result = undefined;
+      }
+      try {
+        var cartState = (typeof cart !== 'undefined' && cart && typeof cart === 'object') ? cart : (window.cart || {});
+        var cartKeys = Object.keys(cartState || {});
+        var hasItems = cartKeys.length > 0;
+        var checkoutBtn = document.querySelector('.checkout-btn');
+        if (checkoutBtn) checkoutBtn.style.display = hasItems ? '' : 'none';
+        var floatingBar = document.getElementById('float-order-bar');
+        if (floatingBar) {
+          floatingBar.classList.toggle('visible', hasItems);
+          floatingBar.style.display = hasItems ? '' : 'none';
+        }
+      } catch (e) {}
+      return result;
+    };
+  }
 
   document.addEventListener('click', function(ev){
     var btn = ev.target && ev.target.closest && ev.target.closest('[data-gfy-cart-action][data-gfy-item-id]');

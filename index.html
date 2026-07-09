@@ -9887,7 +9887,7 @@ window.addEventListener('load', function() {
         phone: 'Please enter your phone number',
         email: 'Please enter your email address',
         address: 'Please enter your delivery address',
-        location: 'Please select or use your location',
+        location: 'Please enable location and select your delivery location.',
         payment: 'Please select payment method'
       };
 
@@ -9931,8 +9931,8 @@ window.addEventListener('load', function() {
   }
 });
 
-    if (typeof omPinLatLng !== 'undefined' && !omPinLatLng) {
-      showToast('⚠️ Pin your delivery location on the map');
+    if (typeof omPinLatLng === 'undefined' || !omPinLatLng) {
+      showToast('⚠️ Please enable location and select your delivery location.');
       return;
     }
     if (typeof isServiceableLatLng === 'function' && typeof omPinLatLng !== 'undefined' && omPinLatLng &&
@@ -10371,15 +10371,29 @@ window.addEventListener('load', function() {
       btn.innerHTML = '⏳ Getting location...';
     }
 
-    // ── Show toast so user knows something is happening ───────────────────
-    if (typeof showToast === 'function') {
-      showToast('📡 Detecting your location...', 3000);
+    function restoreButton() {
+      if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHTML || '🎯 Use My Current Location'; }
+    }
+
+    function requestLocation() {
+      if (typeof showToast === 'function') {
+        showToast('📡 Detecting your location...', 3000);
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        onSuccess,
+        onError,
+        {
+          enableHighAccuracy: true,
+          timeout:            15000,
+          maximumAge:         0
+        }
+      );
     }
 
     // ── Success callback ──────────────────────────────────────────────────
     function onSuccess(position) {
-      // Restore button
-      if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHTML || '🎯 Use My Current Location'; }
+      restoreButton();
 
       var lat = position.coords.latitude;
       var lng = position.coords.longitude;
@@ -10430,8 +10444,7 @@ window.addEventListener('load', function() {
 
     // ── Error callback with descriptive messages per error code ───────────
     function onError(error) {
-      // Restore button
-      if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHTML || '🎯 Use My Current Location'; }
+      restoreButton();
 
       console.error('Geolocation error code:', error.code);
       console.warn('[GFYGeo] Geolocation error code=' + error.code + ':', error.message);
@@ -10439,7 +10452,7 @@ window.addEventListener('load', function() {
       var msg;
       switch (error.code) {
         case 1: // PERMISSION_DENIED
-          msg = '📍 Location permission denied. Please enable location permission for this browser/app, then try again.';
+          msg = '📍 Location permission is required to place an order.';
           break;
         case 2: // POSITION_UNAVAILABLE
           msg = '📡 Could not detect your location (GPS unavailable). Please search area or pin manually.';
@@ -10479,15 +10492,22 @@ window.addEventListener('load', function() {
 
     // ── Request position (only on user click — safe for Android WebView) ──
     console.log('[GFYGeo] Requesting current position...');
-    navigator.geolocation.getCurrentPosition(
-      onSuccess,
-      onError,
-      {
-        enableHighAccuracy: true,
-        timeout:            15000,  // 15 s before TIMEOUT fires (per spec)
-        maximumAge:         0       // always fresh; no cached position
-      }
-    );
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'geolocation' }).then(function(permissionStatus) {
+        if (permissionStatus && permissionStatus.state === 'denied') {
+          if (typeof showToast === 'function') {
+            showToast('📍 Location permission is required to place an order.', 4000);
+          }
+          restoreButton();
+          return;
+        }
+        requestLocation();
+      }).catch(function() {
+        requestLocation();
+      });
+    } else {
+      requestLocation();
+    }
   };
 
   // LTR direction for order modal fields is already enforced by CSS.

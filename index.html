@@ -10147,38 +10147,43 @@ window.addEventListener('load', function() {
 
     function resetCartAfterSuccessfulOrder() {
       try {
-        if (window.cart && typeof window.cart === 'object') {
-          Object.keys(window.cart).forEach(function(id) {
-            delete window.cart[id];
-          });
+        if (typeof cart !== 'undefined') {
+          cart = {};
         }
-
-        try {
+        window.cart = cart;
+      } catch (e) {}
+      try {
+        if (typeof localStorage !== 'undefined') {
           localStorage.removeItem('cart');
           localStorage.removeItem('gfy_cart');
-          localStorage.removeItem('gfyCart');
-          localStorage.removeItem('cartData');
-          sessionStorage.removeItem('cart');
-        } catch (e) {}
-
+        }
+      } catch (e) {}
+      try {
         if (typeof window.updateCart === 'function') {
           window.updateCart();
         }
+      } catch (e) {}
+      try {
         if (typeof window.syncTotalsUI === 'function') {
           window.syncTotalsUI();
         }
+      } catch (e) {}
+      try {
+        if (typeof window.renderMenuPage === 'function') {
+          window.renderMenuPage(window._currentMenuFilter || 'all');
+        }
+      } catch (e) {}
+      try {
         if (typeof window.refreshCard === 'function') {
-          document.querySelectorAll('[id^="qblock-"]').forEach(function(el) {
-            var id = el.id.replace(/^qblock-/, '');
-            if (id) window.refreshCard(id);
-          });
+          var cardEls = document.querySelectorAll('[id^="qblock-"]');
+          if (cardEls && cardEls.length) {
+            Array.prototype.forEach.call(cardEls, function(el) {
+              var id = el.id.replace(/^qblock-/, '');
+              if (id) window.refreshCard(id);
+            });
+          }
         }
-        if (typeof window.requestTotalsRefresh === 'function') {
-          window.requestTotalsRefresh();
-        }
-      } catch (e) {
-        console.warn('[GFYFinalFixes] Cart reset after order failed', e);
-      }
+      } catch (e) {}
     }
 
     var _origFinalize = window.finalizeOrder;
@@ -10188,26 +10193,23 @@ window.addEventListener('load', function() {
       if (user && !window._gfyOrderUid) {
         window._gfyOrderUid = user.uid;
       }
-
-      var result = _origFinalize.apply(this, arguments);
-
-      if (result && typeof result.then === 'function') {
-        return result.then(function(value) {
-          if (value !== false) {
+      try {
+        var result = _origFinalize.apply(this, arguments);
+        if (result && typeof result.then === 'function') {
+          return result.then(function(value) {
             resetCartAfterSuccessfulOrder();
-          }
-          return value;
-        }).catch(function(err) {
-          console.warn('[GFYFinalFixes] finalizeOrder failed', err);
-          throw err;
-        });
-      }
-
-      if (result !== false && result !== undefined) {
+            return value;
+          }).catch(function(err) {
+            console.warn('[GFYFinalFixes] finalizeOrder failed; cart preserved', err);
+            throw err;
+          });
+        }
         resetCartAfterSuccessfulOrder();
+        return result;
+      } catch (err) {
+        console.warn('[GFYFinalFixes] finalizeOrder threw; cart preserved', err);
+        throw err;
       }
-
-      return result;
     };
     console.log('[GFYFinalFixes] finalizeOrder patched with uid injection and cart reset');
   }, 500);

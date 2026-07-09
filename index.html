@@ -10147,43 +10147,77 @@ window.addEventListener('load', function() {
 
     function resetCartAfterSuccessfulOrder() {
       try {
-        if (typeof cart !== 'undefined') {
-          cart = {};
+        var cartState = window.cart && typeof window.cart === 'object' ? window.cart : {};
+        Object.keys(cartState).forEach(function(key) {
+          delete cartState[key];
+        });
+        window.cart = cartState;
+        if (typeof globalThis !== 'undefined') {
+          globalThis.cart = cartState;
         }
-        window.cart = cart;
-      } catch (e) {}
+      } catch (e) {
+        try {
+          window.cart = {};
+        } catch (_e) {}
+      }
       try {
         if (typeof localStorage !== 'undefined') {
-          localStorage.removeItem('cart');
-          localStorage.removeItem('gfy_cart');
+          ['cart', 'gfy_cart', 'gfyCart', 'gfyCartData', 'cartData', 'cartItems'].forEach(function(key) {
+            try { localStorage.removeItem(key); } catch (_e) {}
+            try { sessionStorage.removeItem(key); } catch (_e) {}
+          });
         }
       } catch (e) {}
       try {
-        if (typeof window.updateCart === 'function') {
-          window.updateCart();
-        }
+        if (window.currentSubtotal !== undefined) window.currentSubtotal = 0;
+        if (window.currentGrandTotal !== undefined) window.currentGrandTotal = 0;
+        if (window.finalAmount !== undefined) window.finalAmount = 0;
+        if (window._pendingUPIAmount !== undefined) window._pendingUPIAmount = 0;
       } catch (e) {}
-      try {
-        if (typeof window.syncTotalsUI === 'function') {
-          window.syncTotalsUI();
-        }
-      } catch (e) {}
-      try {
-        if (typeof window.renderMenuPage === 'function') {
-          window.renderMenuPage(window._currentMenuFilter || 'all');
-        }
-      } catch (e) {}
-      try {
-        if (typeof window.refreshCard === 'function') {
-          var cardEls = document.querySelectorAll('[id^="qblock-"]');
-          if (cardEls && cardEls.length) {
-            Array.prototype.forEach.call(cardEls, function(el) {
-              var id = el.id.replace(/^qblock-/, '');
-              if (id) window.refreshCard(id);
-            });
+
+      function refreshCartUi() {
+        try {
+          if (typeof window.updateCart === 'function') {
+            window.updateCart();
           }
+        } catch (e) {}
+        try {
+          if (typeof window.syncTotalsUI === 'function') {
+            window.syncTotalsUI();
+          }
+        } catch (e) {}
+        try {
+          if (typeof window.updateFloatingBar === 'function') {
+            window.updateFloatingBar();
+          }
+        } catch (e) {}
+        try {
+          if (typeof window.renderMenuPage === 'function') {
+            window.renderMenuPage(window._currentMenuFilter || 'all');
+          }
+        } catch (e) {}
+        try {
+          if (typeof window.refreshCard === 'function') {
+            var cardEls = document.querySelectorAll('[id^="qblock-"]');
+            if (cardEls && cardEls.length) {
+              Array.prototype.forEach.call(cardEls, function(el) {
+                var id = el.id.replace(/^qblock-/, '');
+                if (id) window.refreshCard(id);
+              });
+            }
+          }
+        } catch (e) {}
+      }
+
+      try {
+        if (typeof window.requestAnimationFrame === 'function') {
+          window.requestAnimationFrame(refreshCartUi);
+        } else {
+          setTimeout(refreshCartUi, 0);
         }
-      } catch (e) {}
+      } catch (e) {
+        setTimeout(refreshCartUi, 0);
+      }
     }
 
     var _origFinalize = window.finalizeOrder;

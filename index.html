@@ -9822,8 +9822,11 @@ window.addEventListener('load', function() {
     // cannot fire during initial render and reset cursor on focused fields.
     if (typeof refreshPaymentOptions === 'function') refreshPaymentOptions();
     setTimeout(function() {
+      if (typeof window.gfySelectPaymentMethod === 'function') {
+        window.gfySelectPaymentMethod(window.selectedPaymentMethod || (typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : ''));
+      }
       if (typeof subscribeOrderAddresses === 'function') subscribeOrderAddresses();
-    }, 600);
+    }, 0);
 
     // STEP 11: Map
     setTimeout(() => {
@@ -9837,146 +9840,134 @@ window.addEventListener('load', function() {
   // Ensure APK-level calls work correctly by aliasing it
   window.GFY_openOrderModal = window.openOrderModal;
 
+  // ── Single canonical payment selection + display sync ───────────────
   (function() {
-    if (window.__gfyCodPaymentPatchInstalled) return;
-    window.__gfyCodPaymentPatchInstalled = true;
+    if (window.__GFY_PAYMENT_SELECTION_PATCHED__) return;
+    window.__GFY_PAYMENT_SELECTION_PATCHED__ = true;
 
-    function normalizePaymentMethod(value) {
-      const raw = String(value || '').trim().toLowerCase();
-      if (!raw) return 'cod';
-      const codAliases = ['cash', 'cashondelivery', 'cash-on-delivery', 'payondelivery', 'pay-on-delivery', 'delivery', 'cod'];
-      if (codAliases.indexOf(raw) !== -1) return 'cod';
-      const onlineAliases = ['upi', 'phonepe', 'gpay', 'paytm', 'qr', 'card', 'wallet', 'online', 'razorpay'];
-      if (onlineAliases.indexOf(raw) !== -1) return raw;
-      return raw;
-    }
-
-    function derivePaymentMethodFromElement(target) {
-      let method = target.getAttribute('data-payment-method') || target.getAttribute('data-payment') || target.getAttribute('data-payment-type') || target.getAttribute('value') || '';
-      if (!method) {
-        const text = (target.textContent || '').toLowerCase();
-        if (text.indexOf('cash') !== -1 || text.indexOf('cod') !== -1 || text.indexOf('delivery') !== -1) {
-          method = 'cod';
-        } else if (text.indexOf('upi') !== -1 || text.indexOf('phonepe') !== -1 || text.indexOf('gpay') !== -1 || text.indexOf('paytm') !== -1) {
-          method = 'upi';
-        }
+    function labelForMethod(method) {
+      var value = String(method || '').toLowerCase();
+      switch (value) {
+        case 'cod':
+        case 'cash':
+        case 'cashondelivery':
+          return 'COD';
+        case 'upi':
+          return 'UPI';
+        case 'card':
+          return 'Card';
+        case 'qr':
+          return 'QR';
+        default:
+          return value ? value.toUpperCase() : '';
       }
-      return normalizePaymentMethod(method);
     }
 
-    function removeDuplicateCodOptions(root) {
-      const scope = root || document;
-      if (!scope.querySelectorAll) return;
-      const container = scope.getElementById ? scope.getElementById('payment-options-container') : null;
-      const targetRoot = container || scope;
-      const options = Array.from(targetRoot.querySelectorAll ? targetRoot.querySelectorAll('.payment-opt, .payment-option, .payment-method-option, [data-payment-method], [data-payment], [data-payment-type]') : []);
-      let codSeen = false;
+    function iconForMethod(method) {
+      var value = String(method || '').toLowerCase();
+      switch (value) {
+        case 'cod':
+        case 'cash':
+        case 'cashondelivery':
+          return '💵';
+        case 'upi':
+          return '📱';
+        case 'card':
+          return '💳';
+        case 'qr':
+          return '📷';
+        default:
+          return '💳';
+      }
+    }
+
+    function updatePaymentSelectionUi(method) {
+      var normalized = String(method || '').toLowerCase();
+      if (normalized === 'cash') normalized = 'cod';
+      if (normalized === 'cashondelivery') normalized = 'cod';
+      if (normalized === 'online') normalized = 'upi';
+
+      var options = document.querySelectorAll('#payment-options-container .payment-opt');
       options.forEach(function(opt) {
-        const method = derivePaymentMethodFromElement(opt);
-        if (method === 'cod' && codSeen) {
-          opt.remove();
-          return;
-        }
-        if (method === 'cod') {
-          codSeen = true;
-        }
+        var optMethod = (opt.getAttribute('data-payment-method') || opt.getAttribute('data-method') || opt.id || '').toLowerCase();
+        var optText = (opt.textContent || '').toLowerCase();
+        if (!optMethod && optText.indexOf('cash') !== -1) optMethod = 'cod';
+        else if (!optMethod && optText.indexOf('cod') !== -1) optMethod = 'cod';
+        else if (!optMethod && optText.indexOf('upi') !== -1) optMethod = 'upi';
+        else if (!optMethod && optText.indexOf('card') !== -1) optMethod = 'card';
+        else if (!optMethod && optText.indexOf('qr') !== -1) optMethod = 'qr';
+        opt.classList.toggle('selected', optMethod === normalized);
       });
+
+      var successBadge = document.getElementById('success-payment-badge');
+      if (successBadge && normalized) {
+        successBadge.textContent = iconForMethod(normalized) + ' ' + labelForMethod(normalized);
+      }
     }
 
-    function setSelectedPaymentOptionUI() {
-      const current = normalizePaymentMethod(typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : (window.selectedPaymentMethod || 'cod'));
-      const options = document.querySelectorAll('.payment-opt, .payment-option, .payment-method-option, [data-payment-method], [data-payment], [data-payment-type]');
-      options.forEach(function(opt) {
-        const method = derivePaymentMethodFromElement(opt);
-        const isSelected = method === current;
-        opt.classList.toggle('selected', isSelected);
-        opt.setAttribute('aria-selected', isSelected ? 'true' : 'false');
-        opt.style.pointerEvents = 'auto';
-        opt.style.cursor = 'pointer';
-        opt.style.touchAction = 'manipulation';
-        opt.style.userSelect = 'none';
-        if (isSelected) {
-          opt.style.borderColor = 'var(--saffron)';
-          opt.style.background = '#f0faf4';
-        } else {
-          opt.style.borderColor = '';
-          opt.style.background = '';
-        }
-      });
-    }
+    function selectPaymentMethod(method) {
+      var normalized = String(method || '').toLowerCase();
+      if (normalized === 'cash') normalized = 'cod';
+      if (normalized === 'cashondelivery') normalized = 'cod';
+      if (normalized === 'online') normalized = 'upi';
 
-    function patchPaymentOptionElements(root) {
-      const scope = root || document;
-      removeDuplicateCodOptions(scope);
-      const options = scope.querySelectorAll ? scope.querySelectorAll('.payment-opt, .payment-option, .payment-method-option, [data-payment-method], [data-payment], [data-payment-type]') : [];
-      options.forEach(function(opt) {
-        if (opt.dataset.gfyPaymentPatched) return;
-        opt.dataset.gfyPaymentPatched = '1';
-        opt.style.pointerEvents = 'auto';
-        opt.style.cursor = 'pointer';
-        opt.style.touchAction = 'manipulation';
-        opt.style.userSelect = 'none';
-        opt.setAttribute('role', 'button');
-        opt.setAttribute('tabindex', '0');
-        opt.addEventListener('click', function(evt) {
-          evt.preventDefault();
-          evt.stopPropagation();
-          applyPaymentSelection(derivePaymentMethodFromElement(opt));
-        });
-        opt.addEventListener('keydown', function(evt) {
-          if (evt.key === 'Enter' || evt.key === ' ') {
-            evt.preventDefault();
-            evt.stopPropagation();
-            applyPaymentSelection(derivePaymentMethodFromElement(opt));
-          }
-        });
-      });
-      setSelectedPaymentOptionUI();
-    }
-
-    function applyPaymentSelection(value) {
-      const normalized = normalizePaymentMethod(value);
       if (typeof selectedPaymentMethod !== 'undefined') selectedPaymentMethod = normalized;
       window.selectedPaymentMethod = normalized;
-      setSelectedPaymentOptionUI();
+      updatePaymentSelectionUi(normalized);
       return normalized;
     }
 
-    window.normalizePaymentMethod = normalizePaymentMethod;
-    window.selectPayment = function(method) { return applyPaymentSelection(method); };
-    window.setPaymentMethod = function(method) { return applyPaymentSelection(method); };
+    window.gfySelectPaymentMethod = selectPaymentMethod;
+    window.selectPaymentMethod = selectPaymentMethod;
 
-    document.addEventListener('click', function(evt) {
-      try {
-        const target = evt.target && evt.target.closest ? evt.target.closest('.payment-opt, .payment-option, .payment-method-option, [data-payment-method], [data-payment], [data-payment-type]') : null;
-        if (!target) return;
-        applyPaymentSelection(derivePaymentMethodFromElement(target));
-      } catch (err) {}
-    }, true);
-
-    const originalOpenOrderModal = window.openOrderModal;
-    window.openOrderModal = function() {
-      const result = originalOpenOrderModal && originalOpenOrderModal.apply ? originalOpenOrderModal.apply(this, arguments) : undefined;
-      try {
-        setTimeout(function() {
-          patchPaymentOptionElements(document);
-        }, 120);
-        if (typeof selectedPaymentMethod === 'undefined' || selectedPaymentMethod === '' || selectedPaymentMethod === null) {
-          applyPaymentSelection('cod');
-        } else {
-          applyPaymentSelection(selectedPaymentMethod);
+    function ensurePaymentContainerListener() {
+      var paymentContainer = document.getElementById('payment-options-container');
+      if (!paymentContainer || paymentContainer.__gfyPaymentWired) return;
+      paymentContainer.addEventListener('click', function(ev) {
+        var opt = ev.target && ev.target.closest ? ev.target.closest('.payment-opt') : null;
+        if (!opt) return;
+        var method = (opt.getAttribute('data-payment-method') || opt.getAttribute('data-method') || opt.id || '').toLowerCase();
+        if (!method) {
+          var text = (opt.textContent || '').toLowerCase();
+          if (text.indexOf('cash') !== -1 || text.indexOf('cod') !== -1) method = 'cod';
+          else if (text.indexOf('upi') !== -1) method = 'upi';
+          else if (text.indexOf('card') !== -1) method = 'card';
+          else if (text.indexOf('qr') !== -1) method = 'qr';
         }
-      } catch (err) {}
-      return result;
-    };
-
-    const observer = new MutationObserver(function() {
-      patchPaymentOptionElements(document);
-    });
-    if (document.body) {
-      observer.observe(document.body, { childList: true, subtree: true });
+        if (!method) return;
+        selectPaymentMethod(method);
+      });
+      paymentContainer.__gfyPaymentWired = true;
     }
-    patchPaymentOptionElements(document);
+
+    ensurePaymentContainerListener();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', ensurePaymentContainerListener, { once: true });
+    }
+    setTimeout(ensurePaymentContainerListener, 100);
+
+    var originalRefreshPaymentOptions = window.refreshPaymentOptions;
+    if (typeof window.refreshPaymentOptions === 'function') {
+      window.refreshPaymentOptions = function() {
+        var result;
+        try { result = originalRefreshPaymentOptions.apply(this, arguments); }
+        catch (e) { result = undefined; }
+        setTimeout(function() {
+          selectPaymentMethod(window.selectedPaymentMethod || (typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : ''));
+        }, 0);
+        return result;
+      };
+    } else {
+      window.refreshPaymentOptions = function() {
+        setTimeout(function() {
+          selectPaymentMethod(window.selectedPaymentMethod || (typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : ''));
+        }, 0);
+      };
+    }
+
+    setTimeout(function() {
+      selectPaymentMethod(window.selectedPaymentMethod || (typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : ''));
+    }, 0);
   })();
 
   // ── Single canonical submitOrder ──────────────────────────────────────
@@ -10006,10 +9997,9 @@ window.addEventListener('load', function() {
     const phone   = phoneEl   ? phoneEl.value.trim()   : '';
     const address = addressEl ? addressEl.value.trim() : '';
     const email   = emailEl   ? emailEl.value.trim()   : (user.email || '');
-    const pmRaw = (typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : (window.selectedPaymentMethod || ''));
-    const pm = typeof window.normalizePaymentMethod === 'function' ? window.normalizePaymentMethod(pmRaw) : (pmRaw || 'cod');
-    if (typeof selectedPaymentMethod !== 'undefined') selectedPaymentMethod = pm;
-    window.selectedPaymentMethod = pm;
+    const pm = (typeof selectedPaymentMethod !== 'undefined' && selectedPaymentMethod)
+      ? selectedPaymentMethod
+      : (window.selectedPaymentMethod || '');
 
     const missingDetails = [];
     if (!name) missingDetails.push({ key: 'name', label: 'Name' });
@@ -10031,7 +10021,7 @@ window.addEventListener('load', function() {
         email: 'Please enter your email address',
         address: 'Please enter your delivery address',
         location: 'Please enable location and select your delivery location.',
-        payment: 'Please select payment method'
+        payment: 'Please select a payment method'
       };
 
       let msg = '';
@@ -10084,11 +10074,11 @@ window.addEventListener('load', function() {
       return;
     }
 
-    const paymentMethod = typeof window.normalizePaymentMethod === 'function' ? window.normalizePaymentMethod(selectedPaymentMethod) : (selectedPaymentMethod || 'cod');
-    if (typeof selectedPaymentMethod !== 'undefined') selectedPaymentMethod = paymentMethod;
-    window.selectedPaymentMethod = paymentMethod;
+    const paymentMethod = (typeof selectedPaymentMethod !== 'undefined' && selectedPaymentMethod)
+      ? selectedPaymentMethod
+      : (window.selectedPaymentMethod || 'cod');
 
-    if (paymentMethod === 'upi' || paymentMethod === 'card' || paymentMethod === 'razorpay') {
+    if (paymentMethod === 'upi' || paymentMethod === 'card') {
       // UPI / Razorpay — user must be signed in (already verified above)
       const total = typeof calculateTotals === 'function' ? calculateTotals().grandTotal : (window.currentGrandTotal || 0);
       if (typeof openRazorpayCheckout === 'function') {

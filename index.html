@@ -9864,6 +9864,25 @@ window.addEventListener('load', function() {
       return normalizePaymentMethod(method);
     }
 
+    function removeDuplicateCodOptions(root) {
+      const scope = root || document;
+      if (!scope.querySelectorAll) return;
+      const container = scope.getElementById ? scope.getElementById('payment-options-container') : null;
+      const targetRoot = container || scope;
+      const options = Array.from(targetRoot.querySelectorAll ? targetRoot.querySelectorAll('.payment-opt, .payment-option, .payment-method-option, [data-payment-method], [data-payment], [data-payment-type]') : []);
+      let codSeen = false;
+      options.forEach(function(opt) {
+        const method = derivePaymentMethodFromElement(opt);
+        if (method === 'cod' && codSeen) {
+          opt.remove();
+          return;
+        }
+        if (method === 'cod') {
+          codSeen = true;
+        }
+      });
+    }
+
     function setSelectedPaymentOptionUI() {
       const current = normalizePaymentMethod(typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : (window.selectedPaymentMethod || 'cod'));
       const options = document.querySelectorAll('.payment-opt, .payment-option, .payment-method-option, [data-payment-method], [data-payment], [data-payment-type]');
@@ -9888,6 +9907,7 @@ window.addEventListener('load', function() {
 
     function patchPaymentOptionElements(root) {
       const scope = root || document;
+      removeDuplicateCodOptions(scope);
       const options = scope.querySelectorAll ? scope.querySelectorAll('.payment-opt, .payment-option, .payment-method-option, [data-payment-method], [data-payment], [data-payment-type]') : [];
       options.forEach(function(opt) {
         if (opt.dataset.gfyPaymentPatched) return;

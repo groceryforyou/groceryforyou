@@ -9851,10 +9851,74 @@ window.addEventListener('load', function() {
       return raw;
     }
 
+    function derivePaymentMethodFromElement(target) {
+      let method = target.getAttribute('data-payment-method') || target.getAttribute('data-payment') || target.getAttribute('data-payment-type') || target.getAttribute('value') || '';
+      if (!method) {
+        const text = (target.textContent || '').toLowerCase();
+        if (text.indexOf('cash') !== -1 || text.indexOf('cod') !== -1 || text.indexOf('delivery') !== -1) {
+          method = 'cod';
+        } else if (text.indexOf('upi') !== -1 || text.indexOf('phonepe') !== -1 || text.indexOf('gpay') !== -1 || text.indexOf('paytm') !== -1) {
+          method = 'upi';
+        }
+      }
+      return normalizePaymentMethod(method);
+    }
+
+    function setSelectedPaymentOptionUI() {
+      const current = normalizePaymentMethod(typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : (window.selectedPaymentMethod || 'cod'));
+      const options = document.querySelectorAll('.payment-opt, .payment-option, .payment-method-option, [data-payment-method], [data-payment], [data-payment-type]');
+      options.forEach(function(opt) {
+        const method = derivePaymentMethodFromElement(opt);
+        const isSelected = method === current;
+        opt.classList.toggle('selected', isSelected);
+        opt.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+        opt.style.pointerEvents = 'auto';
+        opt.style.cursor = 'pointer';
+        opt.style.touchAction = 'manipulation';
+        opt.style.userSelect = 'none';
+        if (isSelected) {
+          opt.style.borderColor = 'var(--saffron)';
+          opt.style.background = '#f0faf4';
+        } else {
+          opt.style.borderColor = '';
+          opt.style.background = '';
+        }
+      });
+    }
+
+    function patchPaymentOptionElements(root) {
+      const scope = root || document;
+      const options = scope.querySelectorAll ? scope.querySelectorAll('.payment-opt, .payment-option, .payment-method-option, [data-payment-method], [data-payment], [data-payment-type]') : [];
+      options.forEach(function(opt) {
+        if (opt.dataset.gfyPaymentPatched) return;
+        opt.dataset.gfyPaymentPatched = '1';
+        opt.style.pointerEvents = 'auto';
+        opt.style.cursor = 'pointer';
+        opt.style.touchAction = 'manipulation';
+        opt.style.userSelect = 'none';
+        opt.setAttribute('role', 'button');
+        opt.setAttribute('tabindex', '0');
+        opt.addEventListener('click', function(evt) {
+          evt.preventDefault();
+          evt.stopPropagation();
+          applyPaymentSelection(derivePaymentMethodFromElement(opt));
+        });
+        opt.addEventListener('keydown', function(evt) {
+          if (evt.key === 'Enter' || evt.key === ' ') {
+            evt.preventDefault();
+            evt.stopPropagation();
+            applyPaymentSelection(derivePaymentMethodFromElement(opt));
+          }
+        });
+      });
+      setSelectedPaymentOptionUI();
+    }
+
     function applyPaymentSelection(value) {
       const normalized = normalizePaymentMethod(value);
       if (typeof selectedPaymentMethod !== 'undefined') selectedPaymentMethod = normalized;
       window.selectedPaymentMethod = normalized;
+      setSelectedPaymentOptionUI();
       return normalized;
     }
 
@@ -9866,16 +9930,7 @@ window.addEventListener('load', function() {
       try {
         const target = evt.target && evt.target.closest ? evt.target.closest('.payment-opt, .payment-option, .payment-method-option, [data-payment-method], [data-payment], [data-payment-type]') : null;
         if (!target) return;
-        let method = target.getAttribute('data-payment-method') || target.getAttribute('data-payment') || target.getAttribute('data-payment-type') || target.getAttribute('value') || '';
-        if (!method) {
-          const text = (target.textContent || '').toLowerCase();
-          if (text.indexOf('cash') !== -1 || text.indexOf('cod') !== -1 || text.indexOf('delivery') !== -1) {
-            method = 'cod';
-          } else if (text.indexOf('upi') !== -1 || text.indexOf('phonepe') !== -1 || text.indexOf('gpay') !== -1 || text.indexOf('paytm') !== -1) {
-            method = 'upi';
-          }
-        }
-        if (method) applyPaymentSelection(method);
+        applyPaymentSelection(derivePaymentMethodFromElement(target));
       } catch (err) {}
     }, true);
 
@@ -9883,6 +9938,9 @@ window.addEventListener('load', function() {
     window.openOrderModal = function() {
       const result = originalOpenOrderModal && originalOpenOrderModal.apply ? originalOpenOrderModal.apply(this, arguments) : undefined;
       try {
+        setTimeout(function() {
+          patchPaymentOptionElements(document);
+        }, 120);
         if (typeof selectedPaymentMethod === 'undefined' || selectedPaymentMethod === '' || selectedPaymentMethod === null) {
           applyPaymentSelection('cod');
         } else {
@@ -9891,6 +9949,14 @@ window.addEventListener('load', function() {
       } catch (err) {}
       return result;
     };
+
+    const observer = new MutationObserver(function() {
+      patchPaymentOptionElements(document);
+    });
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+    patchPaymentOptionElements(document);
   })();
 
   // ── Single canonical submitOrder ──────────────────────────────────────

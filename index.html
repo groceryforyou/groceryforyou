@@ -9768,25 +9768,26 @@ window.addEventListener('load', function() {
     // STEP 7: Prefill customer details from signed-in user
     // PATCH [cursor-fix]: Only write to fields that are EMPTY and NOT focused.
     // Never overwrite a field the user is actively typing in — that resets cursor to 0.
-    const nameEl = document.getElementById('om-name');
-    const phoneEl = document.getElementById('om-phone');
-    const emailEl = document.getElementById('om-email');
-    console.log('Input listener attached:', 'om-name');
-    console.log('Input listener attached:', 'om-phone');
-    console.log('Input listener attached:', 'om-email');
-    function safePrefill(el, getValue) {
-      if (!el) return;
-      if (document.activeElement === el) return; // never touch focused field
-      if (el.value.trim()) return;               // never overwrite user-typed content
-      var v = getValue();
-      if (v) el.value = v;
+    var nameEl = document.getElementById('om-name');
+    var phoneEl = document.getElementById('om-phone');
+    var emailEl = document.getElementById('om-email');
+    if (typeof window.prefillOrderCustomerFields === 'function') {
+      window.prefillOrderCustomerFields();
+    } else {
+      function safePrefill(el, getValue) {
+        if (!el) return;
+        if (document.activeElement === el) return;
+        if (el.value && String(el.value).trim()) return;
+        var v = getValue();
+        if (v) el.value = String(v).trim();
+      }
+      var prefName  = typeof getPreferredCustomerName  === 'function' ? getPreferredCustomerName()  : (user.displayName || '');
+      var prefPhone = typeof getPreferredCustomerPhone === 'function' ? getPreferredCustomerPhone() : (user.phoneNumber || '');
+      var prefEmail = user.email || '';
+      safePrefill(nameEl,  function(){ return prefName; });
+      safePrefill(phoneEl, function(){ return prefPhone; });
+      safePrefill(emailEl, function(){ return prefEmail; });
     }
-    var prefName  = typeof getPreferredCustomerName  === 'function' ? getPreferredCustomerName()  : (user.displayName || '');
-    var prefPhone = typeof getPreferredCustomerPhone === 'function' ? getPreferredCustomerPhone() : (user.phoneNumber || '');
-    var prefEmail = user.email || '';
-    safePrefill(nameEl,  function(){ return prefName; });
-    safePrefill(phoneEl, function(){ return prefPhone; });
-    safePrefill(emailEl, function(){ return prefEmail; });
 
     // STEP 8: Sync totals
     if (window.currentDeliveryFee === undefined || window.currentDeliveryFee === null) {
@@ -9820,7 +9821,11 @@ window.addEventListener('load', function() {
     // STEP 10: Payment options and address
     // PATCH [cursor-fix]: Delay address subscription so Firestore snapshot callbacks
     // cannot fire during initial render and reset cursor on focused fields.
-    if (typeof refreshPaymentOptions === 'function') refreshPaymentOptions();
+    if (typeof window.refreshPaymentOptions === 'function') window.refreshPaymentOptions();
+    else if (typeof refreshPaymentOptions === 'function') refreshPaymentOptions();
+    if (typeof window.selectPayment === 'function') {
+      window.selectPayment(window.selectedPaymentMethod || 'cod');
+    }
     setTimeout(function() {
       if (typeof subscribeOrderAddresses === 'function') subscribeOrderAddresses();
     }, 600);
@@ -9939,7 +9944,10 @@ window.addEventListener('load', function() {
       return;
     }
 
-    const paymentMethod = typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : 'cod';
+    var paymentMethod = (typeof window.selectedPaymentMethod !== 'undefined' && window.selectedPaymentMethod) ? String(window.selectedPaymentMethod) : (typeof selectedPaymentMethod !== 'undefined' ? selectedPaymentMethod : 'cod');
+    if (paymentMethod === 'card') paymentMethod = 'upi';
+    if (paymentMethod !== 'cod' && paymentMethod !== 'upi' && paymentMethod !== 'qr') paymentMethod = 'cod';
+    window.selectedPaymentMethod = paymentMethod;
 
     if (paymentMethod === 'upi' || paymentMethod === 'card') {
       // UPI / Razorpay — user must be signed in (already verified above)
@@ -10096,6 +10104,82 @@ window.addEventListener('load', function() {
     }
   })();
 
+})();
+</script>
+
+<script>
+(function() {
+  'use strict';
+
+  function getOrderModalEl(id) {
+    return document.getElementById(id) || null;
+  }
+
+  function getCurrentPaymentMethod() {
+    var value = (typeof window.selectedPaymentMethod !== 'undefined' && window.selectedPaymentMethod) ? String(window.selectedPaymentMethod) : '';
+    if (value === 'card') return 'upi';
+    if (value === 'qr' || value === 'cod' || value === 'upi') return value;
+    return 'cod';
+  }
+
+  window.prefillOrderCustomerFields = function() {
+    var user = window.currentUser || (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
+    var prefName = (typeof getPreferredCustomerName === 'function' ? getPreferredCustomerName() : '') || (user && user.displayName) || '';
+    var prefPhone = (typeof getPreferredCustomerPhone === 'function' ? getPreferredCustomerPhone() : '') || (user && user.phoneNumber) || '';
+    var prefEmail = (user && user.email) || '';
+
+    var nameEl = getOrderModalEl('om-name');
+    var phoneEl = getOrderModalEl('om-phone');
+    var emailEl = getOrderModalEl('om-email');
+
+    function applyPrefill(el, value) {
+      if (!el) return;
+      if (document.activeElement === el) return;
+      if (el.value && String(el.value).trim()) return;
+      if (value) el.value = String(value).trim();
+    }
+
+    applyPrefill(nameEl, prefName);
+    applyPrefill(phoneEl, prefPhone);
+    applyPrefill(emailEl, prefEmail);
+  };
+
+  window.refreshPaymentOptions = function() {
+    var container = getOrderModalEl('payment-options-container');
+    if (!container) return;
+
+    var options = [
+      { key: 'cod', icon: '💵', label: 'Cash on Delivery', sub: 'Pay at doorstep' },
+      { key: 'upi', icon: '📱', label: 'UPI / Card', sub: 'Razorpay secure pay' },
+      { key: 'qr', icon: '📷', label: 'PhonePe QR', sub: 'Scan and pay' }
+    ];
+
+    var selected = getCurrentPaymentMethod();
+    if (options.every(function(opt) { return opt.key !== selected; })) selected = 'cod';
+    window.selectedPaymentMethod = selected;
+
+    container.innerHTML = options.map(function(opt) {
+      var isSelected = opt.key === selected;
+      return '<button type="button" class="payment-opt' + (isSelected ? ' selected' : '') + '" id="payment-opt-' + opt.key + '" data-payment="' + opt.key + '" onclick="window.selectPayment(\'' + opt.key + '\')">' +
+        '<span class="po-icon">' + opt.icon + '</span>' +
+        '<span class="po-text"><span class="po-label">' + opt.label + '</span><span class="po-sub">' + opt.sub + '</span></span>' +
+        '</button>';
+    }).join('');
+  };
+
+  window.selectPayment = function(method) {
+    var normalized = method === 'card' ? 'upi' : (method || 'cod');
+    if (normalized !== 'cod' && normalized !== 'upi' && normalized !== 'qr') normalized = 'cod';
+
+    window.selectedPaymentMethod = normalized;
+    var container = getOrderModalEl('payment-options-container');
+    if (!container) return;
+
+    var buttons = container.querySelectorAll('.payment-opt');
+    buttons.forEach(function(btn) {
+      btn.classList.toggle('selected', btn.getAttribute('data-payment') === normalized);
+    });
+  };
 })();
 </script>
 

@@ -2019,6 +2019,47 @@ body.gfy-menu-loading .gfy-seo-content{
   display:none!important;
 }
 
+
+
+/* GFY FIX: Android APK/WebView admin sidebar opening */
+@media (max-width:768px){
+  #admin-sidebar{
+    display:flex!important;
+    position:fixed!important;
+    top:var(--header-h)!important;
+    left:0!important;
+    bottom:0!important;
+    height:calc(100dvh - var(--header-h))!important;
+    z-index:10020!important;
+    transform:translate3d(-105%,0,0)!important;
+    -webkit-transform:translate3d(-105%,0,0)!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+    will-change:transform;
+  }
+  #admin-sidebar.visible{
+    transform:translate3d(0,0,0)!important;
+    -webkit-transform:translate3d(0,0,0)!important;
+    visibility:visible!important;
+    pointer-events:auto!important;
+  }
+  #admin-sidebar-overlay{
+    z-index:10010!important;
+    pointer-events:none!important;
+  }
+  #admin-sidebar-overlay.visible{
+    display:block!important;
+    pointer-events:auto!important;
+  }
+  #admin-mob-menu-btn{
+    position:relative!important;
+    z-index:10030!important;
+    pointer-events:auto!important;
+    touch-action:manipulation!important;
+  }
+  body.admin-sidebar-open{overflow:hidden!important;}
+}
+
 </style>
 <!-- GFY ETA COUNTDOWN FIX V7 -->
 </head>
@@ -2426,7 +2467,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
         <div class="search-results-drop" id="search-drop"></div>
       </div>
       <button class="mob-search-btn" onclick="openMobSearch()">🔍</button>
-      <button id="admin-mob-menu-btn" onclick="toggleMobileAdminSidebar()" title="Admin Menu">☰</button>
+      <button id="admin-mob-menu-btn" type="button" title="Admin Menu" aria-label="Open admin menu" aria-expanded="false">☰</button>
       <button class="cart-btn" onclick="openCart()">🛒 <span class="cart-btn-text">Cart</span><span class="cart-count" id="cart-count">0</span></button>
     </div>
   </div>
@@ -7730,29 +7771,60 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   window.addEventListener('offline', updateOnlineStatus);
   updateOnlineStatus();
 
-  /* ── 2. Mobile Admin Sidebar Toggle ── */
-  window.toggleMobileAdminSidebar = function() {
-    var sidebar  = document.querySelector('.admin-sidebar');
-    var overlay  = document.getElementById('admin-sidebar-overlay');
+  /* ── 2. Mobile Admin Sidebar Toggle (Android WebView safe) ── */
+  function setMobileAdminSidebar(open) {
+    var sidebar = document.getElementById('admin-sidebar');
+    var overlay = document.getElementById('admin-sidebar-overlay');
+    var button = document.getElementById('admin-mob-menu-btn');
     if (!sidebar) return;
-    var open = sidebar.classList.contains('visible');
-    if (open) {
-      sidebar.classList.remove('visible');
-      if (overlay) overlay.classList.remove('visible');
-      document.body.style.overflow = '';
-    } else {
-      sidebar.classList.add('visible');
-      if (overlay) overlay.classList.add('visible');
-      document.body.style.overflow = 'hidden';
-    }
+
+    sidebar.classList.toggle('visible', !!open);
+    sidebar.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (overlay) overlay.classList.toggle('visible', !!open);
+    if (button) button.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+    /* Force WebView to repaint the transformed fixed element. */
+    sidebar.style.webkitTransform = open ? 'translate3d(0,0,0)' : '';
+    sidebar.style.transform = open ? 'translate3d(0,0,0)' : '';
+    sidebar.style.pointerEvents = open ? 'auto' : '';
+    document.body.classList.toggle('admin-sidebar-open', !!open);
+  }
+
+  window.openMobileAdminSidebar = function() {
+    setMobileAdminSidebar(true);
   };
   window.closeMobileAdminSidebar = function() {
-    var sidebar = document.querySelector('.admin-sidebar');
-    var overlay = document.getElementById('admin-sidebar-overlay');
-    if (sidebar) sidebar.classList.remove('visible');
-    if (overlay) overlay.classList.remove('visible');
-    document.body.style.overflow = '';
+    setMobileAdminSidebar(false);
   };
+  window.toggleMobileAdminSidebar = function() {
+    var sidebar = document.getElementById('admin-sidebar');
+    if (!sidebar) return;
+    setMobileAdminSidebar(!sidebar.classList.contains('visible'));
+  };
+
+  function bindAdminSidebarButton() {
+    var button = document.getElementById('admin-mob-menu-btn');
+    if (!button || button.dataset.sidebarBound === 'true') return;
+    button.dataset.sidebarBound = 'true';
+    var lastActivation = 0;
+    function activate(e) {
+      var now = Date.now();
+      if (now - lastActivation < 350) return;
+      lastActivation = now;
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      window.toggleMobileAdminSidebar();
+    }
+    button.addEventListener('click', activate, true);
+    button.addEventListener('touchend', activate, { passive: false, capture: true });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindAdminSidebarButton, { once: true });
+  } else {
+    bindAdminSidebarButton();
+  }
 
   /* ── 3. Double-click prevention guard ── */
   window.mobileOneClick = function(btn, fn, resetMs) {

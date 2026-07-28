@@ -616,7 +616,7 @@ document.addEventListener('error', function(e) {
     #orders-tab-row .orders-tab{flex:1 1 0;min-width:0;white-space:nowrap;text-align:center;padding:7px 6px;font-size:.72rem}
 
     /* ===== ADMIN ORDER POPUP ===== */
-    #admin-order-popup{position:fixed;right:14px;bottom:14px;width:min(480px,calc(100vw - 20px));background:#fff;border:2px solid var(--saffron);border-radius:18px;box-shadow:0 12px 40px rgba(0,176,78,0.35);z-index:10020;display:none;animation:popupSlideIn .4s cubic-bezier(0.34,1.56,0.64,1);padding:0;flex-direction:column;max-height:92vh;overflow:hidden}
+    #admin-order-popup{position:fixed;right:14px;bottom:14px;width:min(480px,calc(100vw - 20px));background:#fff;border:2px solid var(--saffron);border-radius:18px;box-shadow:0 12px 40px rgba(0,176,78,0.35);z-index:260;display:none;animation:popupSlideIn .4s cubic-bezier(0.34,1.56,0.64,1);padding:0;flex-direction:column;max-height:92vh;overflow:hidden}
     #admin-order-popup.open{display:flex}
     #admin-orders-container{display:flex;flex-direction:column;gap:8px;padding:10px;overflow-y:auto;max-height:calc(92vh - 12px);-webkit-overflow-scrolling:touch}
     #admin-orders-container::-webkit-scrollbar{width:5px}
@@ -6625,13 +6625,13 @@ if (typeof categories !== 'undefined') {
 // ── 2. ADMIN ORDER WATCHER ───────────────────────────────────────────────
 let _adminOrderUnsub=null,_adminInit=false,_adminSeen=new Set();
 function setupAdminOrderWatch(db){
-  if(currentRole!=='admin'||!currentUser||currentUser.email!==ADMIN_EMAIL)return;
+  if(window.currentRole!=='admin'||!window.currentUser||window.currentUser.email!==ADMIN_EMAIL)return;
   if(_adminOrderUnsub)return;
   try{
     _adminOrderUnsub=db.collection('orders')
       .where('status','in',['pending','placed'])
       .onSnapshot(snap=>{
-        if(currentRole!=='admin'||!currentUser||currentUser.email!==ADMIN_EMAIL){
+        if(window.currentRole!=='admin'||!window.currentUser||window.currentUser.email!==ADMIN_EMAIL){
           if(typeof stopZomatoRingtone==='function')stopZomatoRingtone();
           return;
         }
@@ -6975,7 +6975,7 @@ function hideAdminOrdersContainerIfEmpty() {
 
 // Add a new order card to the container (prevent duplicates using orderId)
 function addOrderCard(orderId, orderData) {
-  if(currentRole!=='admin'||!currentUser||currentUser.email!==ADMIN_EMAIL){
+  if(window.currentRole!=='admin'||!window.currentUser||window.currentUser.email!==ADMIN_EMAIL){
     if(typeof stopZomatoRingtone==='function')stopZomatoRingtone();
     return;
   }
@@ -7179,7 +7179,7 @@ async function updateOrderCardStatus(orderId, status) {
 
 // Expose functions to window (overwrite old ones if they exist)
 window.showAdminOrderPopup = function(orderData) {
-  if(currentRole!=='admin'||!currentUser||currentUser.email!==ADMIN_EMAIL){
+  if(window.currentRole!=='admin'||!window.currentUser||window.currentUser.email!==ADMIN_EMAIL){
     if(typeof stopZomatoRingtone==='function')stopZomatoRingtone();
     return;
   }
@@ -11971,37 +11971,90 @@ document.addEventListener('click', function(e) {
     }).join('');
   };
   window.addOrderCard = function(orderId, orderData){
+    const container = document.getElementById('admin-orders-container');
+    const popup = document.getElementById('admin-order-popup');
+    const safeOrderId = String(orderId == null ? '' : orderId);
+
     try{
-      if(typeof _activeOrderIds !== 'undefined' && _activeOrderIds.has(orderId)) return;
-      if(typeof _activeOrderIds !== 'undefined') _activeOrderIds.add(orderId);
-      const container = document.getElementById('admin-orders-container');
-      if(!container) return;
-      const phone = orderPhone(orderData);
-      const cardHTML = `<div class="admin-order-card" data-order-id="${esc(orderId)}">
-        <div class="order-card-header"><div><div class="order-card-title"><span>🔔</span><span>New Order!</span></div><div class="order-card-meta">Order ID: #${esc(orderId)} · <span class="order-card-countdown" id="order-countdown-${esc(orderId)}">Auto-cancel in 10:00</span></div></div><button class="order-card-close" onclick="removeOrderCard('${esc(orderId)}')">✕</button></div>
+      if(!container || !popup || !safeOrderId) return;
+
+      /* Only skip when the card is actually present in the DOM.
+         This clears stale IDs left by an earlier failed render. */
+      const existingCard = Array.from(container.querySelectorAll('.admin-order-card'))
+        .find(card => card.getAttribute('data-order-id') === safeOrderId);
+
+      if(existingCard){
+        popup.classList.add('open');
+        popup.style.setProperty('display','flex','important');
+        return;
+      }
+
+      if(typeof _activeOrderIds !== 'undefined'){
+        _activeOrderIds.delete(safeOrderId);
+      }
+
+      const phone = orderPhone(orderData || {});
+      const card = document.createElement('div');
+      card.className = 'admin-order-card';
+      card.setAttribute('data-order-id', safeOrderId);
+
+      card.innerHTML = `
+        <div class="order-card-header">
+          <div>
+            <div class="order-card-title"><span>🔔</span><span>New Order!</span></div>
+            <div class="order-card-meta">Order ID: #${esc(safeOrderId)} · <span class="order-card-countdown" id="order-countdown-${esc(safeOrderId)}">Auto-cancel in 10:00</span></div>
+          </div>
+          <button class="order-card-close" onclick="removeOrderCard('${esc(safeOrderId)}')">✕</button>
+        </div>
         <div class="order-card-body">
           <span class="order-card-body-line"><strong>${esc(orderData?.customerName || 'Customer')}</strong> · ₹${esc(orderData?.total || 0)}</span>
           <span class="order-card-body-line"><strong>📞 Phone:</strong> ${esc(phone || 'No phone')}</span>
-          ${itemsHtml(orderData)}
-          <span class="order-card-body-line"><strong>📍</strong> ${esc(orderAddress(orderData) || 'N/A').substring(0,80)}</span>
+          ${itemsHtml(orderData || {})}
+          <span class="order-card-body-line"><strong>📍</strong> ${esc(orderAddress(orderData || {}) || 'N/A').substring(0,80)}</span>
           <span class="order-card-body-line"><strong>💳</strong> ${esc((orderData?.paymentMethod || 'COD').toUpperCase())}</span>
         </div>
         <div class="order-card-actions">
-          <button class="order-card-action-btn order-card-accept" onclick="updateOrderCardStatus('${esc(orderId)}','accepted')">✅Accept</button>
-          <button class="order-card-action-btn order-card-reject" onclick="updateOrderCardStatus('${esc(orderId)}','rejected')">❌Reject</button>
-          <button class="order-card-action-btn order-card-ready" onclick="updateOrderCardStatus('${esc(orderId)}','ready')">🍳Ready</button>
-          <button class="order-card-action-btn order-card-ofd" onclick="updateOrderCardStatus('${esc(orderId)}','out_for_delivery')">🚴OFD</button>
-          <button class="order-card-action-btn order-card-delivered" onclick="updateOrderCardStatus('${esc(orderId)}','completed')">🎉Done</button>
-        </div>
-      </div>`;
-      const el = document.createElement('div');
-      el.innerHTML = cardHTML;
-      container.appendChild(el.firstElementChild);
-      if(typeof showAdminOrdersContainer === 'function') showAdminOrdersContainer();
-      if(typeof playZomatoRingtone === 'function') playZomatoRingtone();
-      setTimeout(()=>{container.scrollTop = container.scrollHeight;},50);
-      if(typeof startOrderCountdown === 'function') startOrderCountdown(orderId,600);
-    }catch(e){ console.error('[GFYOrderCardFix] addOrderCard failed', e); }
+          <button class="order-card-action-btn order-card-accept" onclick="updateOrderCardStatus('${esc(safeOrderId)}','accepted')">✅Accept</button>
+          <button class="order-card-action-btn order-card-reject" onclick="updateOrderCardStatus('${esc(safeOrderId)}','rejected')">❌Reject</button>
+          <button class="order-card-action-btn order-card-ready" onclick="updateOrderCardStatus('${esc(safeOrderId)}','ready')">🍳Ready</button>
+          <button class="order-card-action-btn order-card-ofd" onclick="updateOrderCardStatus('${esc(safeOrderId)}','out_for_delivery')">🚴OFD</button>
+          <button class="order-card-action-btn order-card-delivered" onclick="updateOrderCardStatus('${esc(safeOrderId)}','completed')">🎉Done</button>
+        </div>`;
+
+      container.appendChild(card);
+
+      /* Mark active only after the card is successfully inserted. */
+      if(typeof _activeOrderIds !== 'undefined'){
+        _activeOrderIds.add(safeOrderId);
+      }
+
+      popup.classList.add('open');
+      popup.style.setProperty('display','flex','important');
+      popup.style.setProperty('visibility','visible','important');
+      popup.style.setProperty('opacity','1','important');
+      popup.style.setProperty('z-index','2147483000','important');
+
+      if(typeof showAdminOrdersContainer === 'function'){
+        showAdminOrdersContainer();
+      }
+      if(typeof playZomatoRingtone === 'function'){
+        playZomatoRingtone();
+      }
+
+      requestAnimationFrame(function(){
+        card.scrollIntoView({block:'nearest', behavior:'smooth'});
+        container.scrollTop = container.scrollHeight;
+      });
+
+      if(typeof startOrderCountdown === 'function'){
+        startOrderCountdown(safeOrderId,600);
+      }
+    }catch(e){
+      if(typeof _activeOrderIds !== 'undefined'){
+        _activeOrderIds.delete(safeOrderId);
+      }
+      console.error('[GFYOrderCardFix] addOrderCard failed', e);
+    }
   };
 })();
 </script>

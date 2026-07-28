@@ -792,7 +792,7 @@ document.addEventListener('error', function(e) {
       .mob-bottom-nav{display:block}
 
       /* Spacing accounting for bottom nav */
-      .float-order-bar{bottom:calc(var(--mob-nav-h) + var(--safe-bottom));padding:10px 14px;left:0;right:0}
+      .float-order-bar{bottom:0;padding:10px 14px calc(10px + var(--safe-bottom));left:0;right:0}
       .toast{bottom:calc(var(--mob-nav-h) + 12px + var(--safe-bottom));max-width:calc(100vw - 32px)}
       .scroll-top-btn{bottom:calc(var(--mob-nav-h) + 14px + var(--safe-bottom));right:12px}
       .promo-banner-wrap{top:calc(var(--header-h) + 8px);right:8px;left:8px;max-width:100%}

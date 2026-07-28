@@ -2020,32 +2020,33 @@ body.gfy-menu-loading .gfy-seo-content{
 }
 
 
-/* ===== GFY FIX: Android WebView admin hamburger/sidebar ===== */
+/* ===== FINAL GFY FIX: Admin sidebar in Android WebView =====
+   Uses left positioning instead of transform because this WebView kept
+   the sidebar translated off-screen even after the visible class was added. */
 @media (max-width: 768px) {
   #admin-sidebar.admin-sidebar {
     display: flex !important;
     position: fixed !important;
-    left: 0 !important;
-    right: auto !important;
     top: var(--header-h) !important;
     bottom: 0 !important;
+    left: -230px !important;
+    right: auto !important;
     width: 230px !important;
     height: auto !important;
-    min-height: calc(100vh - var(--header-h)) !important;
-    min-height: calc(100dvh - var(--header-h)) !important;
-    max-height: calc(100vh - var(--header-h)) !important;
-    max-height: calc(100dvh - var(--header-h)) !important;
-    transform: translate3d(-100%, 0, 0) !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    transform: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
     pointer-events: none !important;
     overflow: hidden !important;
     z-index: 10002 !important;
-    transition: transform .3s cubic-bezier(.4,0,.2,1), opacity .2s ease !important;
+    transition: left .28s cubic-bezier(.4,0,.2,1), opacity .18s ease !important;
   }
 
   #admin-sidebar.admin-sidebar.visible {
-    transform: translate3d(0, 0, 0) !important;
+    left: 0 !important;
+    transform: none !important;
     visibility: visible !important;
     opacity: 1 !important;
     pointer-events: auto !important;
@@ -7779,29 +7780,18 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     var overlay = document.getElementById('admin-sidebar-overlay');
     if (!sidebar) return;
 
-    var isOpen = sidebar.classList.contains('visible');
-
-    if (isOpen) {
+    if (sidebar.classList.contains('visible')) {
       window.closeMobileAdminSidebar();
       return;
     }
 
     sidebar.classList.add('visible');
-
-    /* Android WebView can incorrectly calculate the original calc() height as 0.
-       Set only the required runtime dimensions; existing sidebar content and
-       navigation remain unchanged. */
-    sidebar.style.setProperty('display', 'flex', 'important');
-    sidebar.style.setProperty('position', 'fixed', 'important');
     sidebar.style.setProperty('left', '0px', 'important');
-    sidebar.style.setProperty('right', 'auto', 'important');
+    sidebar.style.setProperty('transform', 'none', 'important');
+    sidebar.style.setProperty('display', 'flex', 'important');
     sidebar.style.setProperty('top', 'var(--header-h)', 'important');
     sidebar.style.setProperty('bottom', '0px', 'important');
-    sidebar.style.setProperty('width', '230px', 'important');
     sidebar.style.setProperty('height', 'auto', 'important');
-    sidebar.style.setProperty('min-height', 'calc(100dvh - var(--header-h))', 'important');
-    sidebar.style.setProperty('max-height', 'calc(100dvh - var(--header-h))', 'important');
-    sidebar.style.setProperty('transform', 'translate3d(0,0,0)', 'important');
     sidebar.style.setProperty('visibility', 'visible', 'important');
     sidebar.style.setProperty('opacity', '1', 'important');
     sidebar.style.setProperty('pointer-events', 'auto', 'important');
@@ -7823,7 +7813,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
 
     if (sidebar) {
       sidebar.classList.remove('visible');
-      sidebar.style.setProperty('transform', 'translate3d(-100%,0,0)', 'important');
+      sidebar.style.setProperty('left', '-230px', 'important');
+      sidebar.style.setProperty('transform', 'none', 'important');
       sidebar.style.setProperty('visibility', 'hidden', 'important');
       sidebar.style.setProperty('opacity', '0', 'important');
       sidebar.style.setProperty('pointer-events', 'none', 'important');

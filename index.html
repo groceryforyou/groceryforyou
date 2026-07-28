@@ -6625,11 +6625,16 @@ if (typeof categories !== 'undefined') {
 // ── 2. ADMIN ORDER WATCHER ───────────────────────────────────────────────
 let _adminOrderUnsub=null,_adminInit=false,_adminSeen=new Set();
 function setupAdminOrderWatch(db){
+  if(window.currentRole!=='admin'||!window.currentUser||window.currentUser.email!==ADMIN_EMAIL)return;
   if(_adminOrderUnsub)return;
   try{
     _adminOrderUnsub=db.collection('orders')
       .where('status','in',['pending','placed'])
       .onSnapshot(snap=>{
+        if(window.currentRole!=='admin'||!window.currentUser||window.currentUser.email!==ADMIN_EMAIL){
+          if(typeof stopZomatoRingtone==='function')stopZomatoRingtone();
+          return;
+        }
         snap.docChanges().forEach(ch=>{
           if(ch.type==='added'&&!_adminInit)return;
           if(ch.type==='added'){
@@ -6970,6 +6975,10 @@ function hideAdminOrdersContainerIfEmpty() {
 
 // Add a new order card to the container (prevent duplicates using orderId)
 function addOrderCard(orderId, orderData) {
+  if(window.currentRole!=='admin'||!window.currentUser||window.currentUser.email!==ADMIN_EMAIL){
+    if(typeof stopZomatoRingtone==='function')stopZomatoRingtone();
+    return;
+  }
   // Prevent duplicate order cards
   if (_activeOrderIds.has(orderId)) {
     return;
@@ -7170,6 +7179,10 @@ async function updateOrderCardStatus(orderId, status) {
 
 // Expose functions to window (overwrite old ones if they exist)
 window.showAdminOrderPopup = function(orderData) {
+  if(window.currentRole!=='admin'||!window.currentUser||window.currentUser.email!==ADMIN_EMAIL){
+    if(typeof stopZomatoRingtone==='function')stopZomatoRingtone();
+    return;
+  }
   if (!orderData || !orderData.id) return;
   addOrderCard(orderData.id, orderData);
 };

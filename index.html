@@ -2019,50 +2019,6 @@ body.gfy-menu-loading .gfy-seo-content{
   display:none!important;
 }
 
-
-/* ===== FINAL GFY FIX: Admin sidebar in Android WebView =====
-   Uses left positioning instead of transform because this WebView kept
-   the sidebar translated off-screen even after the visible class was added. */
-@media (max-width: 768px) {
-  #admin-sidebar.admin-sidebar {
-    display: flex !important;
-    position: fixed !important;
-    top: var(--header-h) !important;
-    bottom: 0 !important;
-    left: -230px !important;
-    right: auto !important;
-    width: 230px !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    transform: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-    overflow: hidden !important;
-    z-index: 10002 !important;
-    transition: left .28s cubic-bezier(.4,0,.2,1), opacity .18s ease !important;
-  }
-
-  #admin-sidebar.admin-sidebar.visible {
-    left: 0 !important;
-    transform: none !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-  }
-
-  #admin-sidebar-overlay {
-    z-index: 10001 !important;
-    pointer-events: none !important;
-  }
-
-  #admin-sidebar-overlay.visible {
-    display: block !important;
-    pointer-events: auto !important;
-  }
-}
-
 </style>
 <!-- GFY ETA COUNTDOWN FIX V7 -->
 </head>
@@ -2579,11 +2535,6 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
       <span class="admin-sb-label">Manage Menu</span>
     </button>
 
-    <button class="admin-sb-item" id="asb-dashboard" onclick="adminSidebarGo('dashboard')">
-      <span class="admin-sb-icon">📊</span>
-      <span class="admin-sb-label">Real-time Dashboard</span>
-    </button>
-
     <button class="admin-sb-item" id="asb-payments" onclick="adminSidebarGo('payments')">
       <span class="admin-sb-icon">💳</span>
       <span class="admin-sb-label">Payments</span>
@@ -2928,7 +2879,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 
   <!-- PAYMENTS PAGE -->
   <div class="page" id="page-payments">
-    <button class="back-btn-light" onclick="adminSidebarGo('dashboard')">← Back to Dashboard</button>
+    <button class="back-btn-light" onclick="adminSidebarGo('menu')">← Back</button>
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px">
       <div class="section-title" style="margin-bottom:0">💳 Online Payments — Razorpay</div>
       <div style="background:#e8f5e9;border:1px solid var(--green);border-radius:10px;padding:5px 12px;font-size:.78rem;font-weight:800;color:var(--green)" id="payments-live-badge">🟢 Live</div>
@@ -2975,7 +2926,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 
   <!-- CUSTOMERS PAGE -->
   <div class="page" id="page-customers">
-    <button class="back-btn-light" onclick="adminSidebarGo('dashboard')">← Back to Dashboard</button>
+    <button class="back-btn-light" onclick="adminSidebarGo('menu')">← Back</button>
     <div class="section-title">👥 Customers</div>
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -3085,7 +3036,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 
   <!-- ADMIN ORDERS PAGE -->
   <div class="page" id="page-orders">
-    <button class="back-btn-light" onclick="adminSidebarGo('dashboard')">← Back to Dashboard</button>
+    <button class="back-btn-light" onclick="adminSidebarGo('menu')">← Back</button>
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px">
       <div class="section-title" style="margin-bottom:0">🧾 Orders</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -3143,7 +3094,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 
   <!-- ADMIN SUPPORT PAGE -->
   <div class="page" id="page-admin-support">
-    <button class="back-btn-light" onclick="adminSidebarGo('dashboard')">← Back to Dashboard</button>
+    <button class="back-btn-light" onclick="adminSidebarGo('menu')">← Back</button>
     <div class="section-title">💬 Support Tickets</div>
     <div style="margin:14px 0;display:flex;justify-content:flex-start;">
       <input type="text" id="admin-support-search" class="aip-input" placeholder="🔍 Search tickets by Order ID" oninput="filterAdminSupportTickets()" style="width:100%;max-width:320px;font-size:.85rem;" />
@@ -3153,7 +3104,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
 
   <!-- BUSINESS HOURS PAGE -->
   <div class="page" id="page-business-hours">
-    <button class="back-btn-light" onclick="adminSidebarGo('dashboard')">← Back to Dashboard</button>
+    <button class="back-btn-light" onclick="adminSidebarGo('menu')">← Back</button>
     <div class="section-title">🕐 Business Hours</div>
     <section class="business-hours-section" aria-labelledby="bh-heading" style="margin-top:12px;">
       <div class="bh-header">
@@ -7776,57 +7727,25 @@ window.updateOrderCardStatus = updateOrderCardStatus;
 
   /* ── 2. Mobile Admin Sidebar Toggle ── */
   window.toggleMobileAdminSidebar = function() {
-    var sidebar = document.getElementById('admin-sidebar');
-    var overlay = document.getElementById('admin-sidebar-overlay');
+    var sidebar  = document.querySelector('.admin-sidebar');
+    var overlay  = document.getElementById('admin-sidebar-overlay');
     if (!sidebar) return;
-
-    if (sidebar.classList.contains('visible')) {
-      window.closeMobileAdminSidebar();
-      return;
-    }
-
-    sidebar.classList.add('visible');
-    sidebar.style.setProperty('left', '0px', 'important');
-    sidebar.style.setProperty('transform', 'none', 'important');
-    sidebar.style.setProperty('display', 'flex', 'important');
-    sidebar.style.setProperty('top', 'var(--header-h)', 'important');
-    sidebar.style.setProperty('bottom', '0px', 'important');
-    sidebar.style.setProperty('height', 'auto', 'important');
-    sidebar.style.setProperty('visibility', 'visible', 'important');
-    sidebar.style.setProperty('opacity', '1', 'important');
-    sidebar.style.setProperty('pointer-events', 'auto', 'important');
-    sidebar.style.setProperty('z-index', '10002', 'important');
-
-    if (overlay) {
-      overlay.classList.add('visible');
-      overlay.style.setProperty('display', 'block', 'important');
-      overlay.style.setProperty('pointer-events', 'auto', 'important');
-      overlay.style.setProperty('z-index', '10001', 'important');
-    }
-
-    document.body.style.overflow = 'hidden';
-  };
-
-  window.closeMobileAdminSidebar = function() {
-    var sidebar = document.getElementById('admin-sidebar');
-    var overlay = document.getElementById('admin-sidebar-overlay');
-
-    if (sidebar) {
+    var open = sidebar.classList.contains('visible');
+    if (open) {
       sidebar.classList.remove('visible');
-      sidebar.style.setProperty('left', '-230px', 'important');
-      sidebar.style.setProperty('transform', 'none', 'important');
-      sidebar.style.setProperty('visibility', 'hidden', 'important');
-      sidebar.style.setProperty('opacity', '0', 'important');
-      sidebar.style.setProperty('pointer-events', 'none', 'important');
+      if (overlay) overlay.classList.remove('visible');
+      document.body.style.overflow = '';
+    } else {
+      sidebar.classList.add('visible');
+      if (overlay) overlay.classList.add('visible');
+      document.body.style.overflow = 'hidden';
     }
-
-    if (overlay) {
-      overlay.classList.remove('visible');
-      overlay.style.removeProperty('display');
-      overlay.style.removeProperty('pointer-events');
-      overlay.style.removeProperty('z-index');
-    }
-
+  };
+  window.closeMobileAdminSidebar = function() {
+    var sidebar = document.querySelector('.admin-sidebar');
+    var overlay = document.getElementById('admin-sidebar-overlay');
+    if (sidebar) sidebar.classList.remove('visible');
+    if (overlay) overlay.classList.remove('visible');
     document.body.style.overflow = '';
   };
 

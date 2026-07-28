@@ -6966,6 +6966,10 @@ function hideAdminOrdersContainerIfEmpty() {
     const popup = document.getElementById('admin-order-popup');
     if (popup) {
       popup.classList.remove('open');
+      popup.style.removeProperty('display');
+      popup.style.removeProperty('visibility');
+      popup.style.removeProperty('opacity');
+      popup.style.removeProperty('z-index');
     }
     if (typeof stopZomatoRingtone === 'function') {
       stopZomatoRingtone();
@@ -7060,9 +7064,9 @@ function addOrderCard(orderId, orderData) {
 }
 
 // Remove a specific order card from the container
-function removeOrderCard(orderId) {
+function removeOrderCard(orderId, removeImmediately = false) {
   _activeOrderIds.delete(orderId);
-  
+
   // Clear the countdown timer if it exists
   if (_orderCountdownTimers.has(orderId)) {
     clearTimeout(_orderCountdownTimers.get(orderId));
@@ -7075,22 +7079,19 @@ function removeOrderCard(orderId) {
 
   const card = document.querySelector(`[data-order-id="${orderId}"]`);
   if (card) {
-    card.style.transition = 'opacity 0.3s ease';
-    card.style.opacity = '0';
-    setTimeout(() => {
+    if (removeImmediately) {
       card.remove();
       hideAdminOrdersContainerIfEmpty();
-      const container = document.getElementById('admin-orders-container');
-      if (container && container.children.length === 0 && typeof stopZomatoRingtone === 'function') {
-        stopZomatoRingtone();
-      }
-    }, 300);
+    } else {
+      card.style.transition = 'opacity 0.3s ease';
+      card.style.opacity = '0';
+      setTimeout(() => {
+        card.remove();
+        hideAdminOrdersContainerIfEmpty();
+      }, 300);
+    }
   } else {
     hideAdminOrdersContainerIfEmpty();
-    const container = document.getElementById('admin-orders-container');
-    if (container && container.children.length === 0 && typeof stopZomatoRingtone === 'function') {
-      stopZomatoRingtone();
-    }
   }
 }
 
@@ -7155,7 +7156,7 @@ async function updateOrderCardStatus(orderId, status) {
   if (typeof updateOrderStatus === 'function') {
     try {
       await updateOrderStatus(orderId, status);
-      removeOrderCard(orderId);
+      removeOrderCard(orderId, status === 'accepted');
       
       // Show success message
       if (typeof showToast === 'function') {
@@ -7192,6 +7193,10 @@ window.closeAdminOrderPopup = function() {
   const popup = document.getElementById('admin-order-popup');
   if (popup) {
     popup.classList.remove('open');
+    popup.style.removeProperty('display');
+    popup.style.removeProperty('visibility');
+    popup.style.removeProperty('opacity');
+    popup.style.removeProperty('z-index');
   }
   // Clear all timers
   _orderCountdownTimers.forEach(timerId => clearTimeout(timerId));

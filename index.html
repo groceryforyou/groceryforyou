@@ -2019,6 +2019,49 @@ body.gfy-menu-loading .gfy-seo-content{
   display:none!important;
 }
 
+
+/* ===== GFY FIX: Android WebView admin hamburger/sidebar ===== */
+@media (max-width: 768px) {
+  #admin-sidebar.admin-sidebar {
+    display: flex !important;
+    position: fixed !important;
+    left: 0 !important;
+    right: auto !important;
+    top: var(--header-h) !important;
+    bottom: 0 !important;
+    width: 230px !important;
+    height: auto !important;
+    min-height: calc(100vh - var(--header-h)) !important;
+    min-height: calc(100dvh - var(--header-h)) !important;
+    max-height: calc(100vh - var(--header-h)) !important;
+    max-height: calc(100dvh - var(--header-h)) !important;
+    transform: translate3d(-100%, 0, 0) !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+    z-index: 10002 !important;
+    transition: transform .3s cubic-bezier(.4,0,.2,1), opacity .2s ease !important;
+  }
+
+  #admin-sidebar.admin-sidebar.visible {
+    transform: translate3d(0, 0, 0) !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  #admin-sidebar-overlay {
+    z-index: 10001 !important;
+    pointer-events: none !important;
+  }
+
+  #admin-sidebar-overlay.visible {
+    display: block !important;
+    pointer-events: auto !important;
+  }
+}
+
 </style>
 <!-- GFY ETA COUNTDOWN FIX V7 -->
 </head>
@@ -7732,25 +7775,67 @@ window.updateOrderCardStatus = updateOrderCardStatus;
 
   /* ── 2. Mobile Admin Sidebar Toggle ── */
   window.toggleMobileAdminSidebar = function() {
-    var sidebar  = document.querySelector('.admin-sidebar');
-    var overlay  = document.getElementById('admin-sidebar-overlay');
-    if (!sidebar) return;
-    var open = sidebar.classList.contains('visible');
-    if (open) {
-      sidebar.classList.remove('visible');
-      if (overlay) overlay.classList.remove('visible');
-      document.body.style.overflow = '';
-    } else {
-      sidebar.classList.add('visible');
-      if (overlay) overlay.classList.add('visible');
-      document.body.style.overflow = 'hidden';
-    }
-  };
-  window.closeMobileAdminSidebar = function() {
-    var sidebar = document.querySelector('.admin-sidebar');
+    var sidebar = document.getElementById('admin-sidebar');
     var overlay = document.getElementById('admin-sidebar-overlay');
-    if (sidebar) sidebar.classList.remove('visible');
-    if (overlay) overlay.classList.remove('visible');
+    if (!sidebar) return;
+
+    var isOpen = sidebar.classList.contains('visible');
+
+    if (isOpen) {
+      window.closeMobileAdminSidebar();
+      return;
+    }
+
+    sidebar.classList.add('visible');
+
+    /* Android WebView can incorrectly calculate the original calc() height as 0.
+       Set only the required runtime dimensions; existing sidebar content and
+       navigation remain unchanged. */
+    sidebar.style.setProperty('display', 'flex', 'important');
+    sidebar.style.setProperty('position', 'fixed', 'important');
+    sidebar.style.setProperty('left', '0px', 'important');
+    sidebar.style.setProperty('right', 'auto', 'important');
+    sidebar.style.setProperty('top', 'var(--header-h)', 'important');
+    sidebar.style.setProperty('bottom', '0px', 'important');
+    sidebar.style.setProperty('width', '230px', 'important');
+    sidebar.style.setProperty('height', 'auto', 'important');
+    sidebar.style.setProperty('min-height', 'calc(100dvh - var(--header-h))', 'important');
+    sidebar.style.setProperty('max-height', 'calc(100dvh - var(--header-h))', 'important');
+    sidebar.style.setProperty('transform', 'translate3d(0,0,0)', 'important');
+    sidebar.style.setProperty('visibility', 'visible', 'important');
+    sidebar.style.setProperty('opacity', '1', 'important');
+    sidebar.style.setProperty('pointer-events', 'auto', 'important');
+    sidebar.style.setProperty('z-index', '10002', 'important');
+
+    if (overlay) {
+      overlay.classList.add('visible');
+      overlay.style.setProperty('display', 'block', 'important');
+      overlay.style.setProperty('pointer-events', 'auto', 'important');
+      overlay.style.setProperty('z-index', '10001', 'important');
+    }
+
+    document.body.style.overflow = 'hidden';
+  };
+
+  window.closeMobileAdminSidebar = function() {
+    var sidebar = document.getElementById('admin-sidebar');
+    var overlay = document.getElementById('admin-sidebar-overlay');
+
+    if (sidebar) {
+      sidebar.classList.remove('visible');
+      sidebar.style.setProperty('transform', 'translate3d(-100%,0,0)', 'important');
+      sidebar.style.setProperty('visibility', 'hidden', 'important');
+      sidebar.style.setProperty('opacity', '0', 'important');
+      sidebar.style.setProperty('pointer-events', 'none', 'important');
+    }
+
+    if (overlay) {
+      overlay.classList.remove('visible');
+      overlay.style.removeProperty('display');
+      overlay.style.removeProperty('pointer-events');
+      overlay.style.removeProperty('z-index');
+    }
+
     document.body.style.overflow = '';
   };
 

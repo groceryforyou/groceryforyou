@@ -616,13 +616,13 @@ document.addEventListener('error', function(e) {
     #orders-tab-row .orders-tab{flex:1 1 0;min-width:0;white-space:nowrap;text-align:center;padding:7px 6px;font-size:.72rem}
 
     /* ===== ADMIN ORDER POPUP ===== */
-    #admin-order-popup{position:fixed;right:14px;bottom:14px;width:min(480px,calc(100vw - 20px));background:#fff;border:2px solid var(--saffron);border-radius:18px;box-shadow:0 12px 40px rgba(0,176,78,0.35);z-index:260;display:none;animation:popupSlideIn .4s cubic-bezier(0.34,1.56,0.64,1);padding:0;flex-direction:column;max-height:92vh;overflow:hidden}
+    #admin-order-popup{position:fixed;right:14px;bottom:14px;width:min(480px,calc(100vw - 20px));height:auto;min-height:250px;background:#fff;border:2px solid var(--saffron);border-radius:18px;box-shadow:0 12px 40px rgba(0,176,78,0.35);z-index:260;display:none;animation:popupSlideIn .4s cubic-bezier(0.34,1.56,0.64,1);padding:0;flex-direction:column;max-height:92vh;overflow:hidden}
     #admin-order-popup.open{display:flex}
-    #admin-orders-container{display:flex;flex-direction:column;gap:8px;padding:10px;overflow-y:auto;max-height:calc(92vh - 12px);-webkit-overflow-scrolling:touch}
+    #admin-orders-container{display:flex;flex-direction:column;gap:8px;padding:10px;height:auto;min-height:230px;overflow-y:auto;max-height:calc(92vh - 12px);-webkit-overflow-scrolling:touch}
     #admin-orders-container::-webkit-scrollbar{width:5px}
     #admin-orders-container::-webkit-scrollbar-track{background:transparent}
     #admin-orders-container::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-    .admin-order-card{background:#fff;border:1px solid var(--border);border-radius:18px;overflow:hidden;box-shadow:0 18px 44px rgba(0,0,0,0.1);flex-shrink:0}
+    .admin-order-card{background:#fff;border:1px solid var(--border);border-radius:18px;height:auto;min-height:230px;overflow:hidden;box-shadow:0 18px 44px rgba(0,0,0,0.1);flex-shrink:0}
     .order-card-header{display:flex;justify-content:space-between;align-items:flex-start;padding:16px 16px 12px;background:linear-gradient(135deg,#f7fff7,#eef8ec);border-bottom:1px solid var(--border)}
     .order-card-title{font-weight:900;color:var(--brown);font-size:1rem;display:flex;align-items:center;gap:8px;flex:1;min-width:0}
     .order-card-title span:first-child{display:inline-flex;align-items:center;font-size:1.1rem;animation:ringShake 0.7s infinite}

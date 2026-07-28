@@ -7037,7 +7037,7 @@ function addOrderCard(orderId, orderData) {
       <div class="order-card-body">
         <span class="order-card-body-line"><strong>${orderData.customerName || 'Customer'}</strong> · ₹${orderData.total || 0}</span>
         ${itemsHTML}
-        <span class="order-card-body-line"><strong>📍</strong> ${(orderData.address || 'N/A').substring(0, 40)}</span>
+        <span class="order-card-body-line"><strong>📍</strong> ${orderData.address || 'N/A'}</span>
         <span class="order-card-body-line"><strong>📱</strong> ${(orderData.phone || 'N/A').substring(0, 14)} · <strong>💳</strong> ${(orderData.paymentMethod || 'COD').toUpperCase()}</span>
       </div>
       <div class="order-card-actions">
@@ -10593,7 +10593,7 @@ window.addEventListener('load', function() {
             if (d && d.display_name) {
               var addrEl = document.getElementById('om-address');
               if (addrEl) {
-                var autoAddress = d.display_name.split(',').slice(0, 4).join(', ');
+                var autoAddress = d.display_name;
 
                 // Do not touch the field while the user is typing
                 if (document.activeElement !== addrEl && !addrEl.value.trim()) {
@@ -12071,7 +12071,7 @@ document.addEventListener('click', function(e) {
           <span class="order-card-body-line"><strong>${safeEsc(orderData?.customerName || 'Customer')}</strong> · ₹${safeEsc(orderData?.total || 0)}</span>
           <span class="order-card-body-line"><strong>📞 Phone:</strong> ${safeEsc(phone || 'No phone')}</span>
           ${safeItemsHtml(orderData || {})}
-          <span class="order-card-body-line"><strong>📍</strong> ${safeEsc(safeAddress(orderData || {}) || 'N/A').substring(0,80)}</span>
+          <span class="order-card-body-line"><strong>📍</strong> ${safeEsc(safeAddress(orderData || {}) || 'N/A')}</span>
           <span class="order-card-body-line"><strong>💳</strong> ${safeEsc((orderData?.paymentMethod || 'COD').toUpperCase())}</span>
         </div>
         <div class="order-card-actions">

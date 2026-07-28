@@ -6477,8 +6477,39 @@ function toggleSidebar() {
       window.gfyAllowLoginBeforeAuth = !!user;
 
       if (user) {
-        if (typeof showPage === 'function') showPage('menu');
+        const signedInEmail = String(user.email || '').trim().toLowerCase();
+        const configuredAdminEmail = String(
+          typeof ADMIN_EMAIL !== 'undefined' ? ADMIN_EMAIL : ''
+        ).trim().toLowerCase();
+        const shouldOpenAdmin = !!configuredAdminEmail && signedInEmail === configuredAdminEmail;
+
         document.body.classList.remove('gfy-auth-booting');
+
+        if (shouldOpenAdmin) {
+          // The main auth listener assigns currentRole asynchronously after loading
+          // the user record. Wait for that existing role assignment before opening
+          // the dashboard so Android WebView cannot reject the admin page as customer-only.
+          (function openAdminPanelWhenRoleReady(attempt) {
+            if (typeof currentRole !== 'undefined' && currentRole === 'admin') {
+              if (typeof showPage === 'function') showPage('dashboard');
+              return;
+            }
+
+            if (attempt < 30) {
+              setTimeout(function() {
+                openAdminPanelWhenRoleReady(attempt + 1);
+              }, 100);
+              return;
+            }
+
+            // Safe fallback: reuse the original role function instead of creating
+            // a second role system.
+            if (typeof assignRoleByEmail === 'function') assignRoleByEmail(user.email || '');
+            if (typeof showPage === 'function') showPage('dashboard');
+          })(0);
+        } else if (typeof showPage === 'function') {
+          showPage('menu');
+        }
       } else {
         window.gfyAllowLoginBeforeAuth = true;
         if (typeof showPage === 'function') showPage('login');

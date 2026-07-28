@@ -11957,7 +11957,7 @@ document.addEventListener('click', function(e) {
       const id = order?.id || '';
       const adminButtons = isAdmin ? `
         <div class="gfy-order-actions">
-          <button class="cat-save-btn" style="font-size:.76rem;padding:6px 10px" onclick="updateOrderStatus('${esc(id)}','accepted')" ${st !== 'pending' && st !== 'rejected' ? 'disabled' : ''}>✅ Accept</button>
+          <button class="cat-save-btn" style="font-size:.76rem;padding:6px 10px" onclick="updateOrderStatus('${esc(id)}','accepted')" ${st !== 'pending' ? 'disabled' : ''}>✅ Accept</button>
           <button class="cat-cancel-btn" style="font-size:.76rem;padding:6px 10px" onclick="updateOrderStatus('${esc(id)}','rejected')" ${['rejected','completed','delivered','cancelled'].includes(st) ? 'disabled' : ''}>❌ Reject</button>
           <button style="font-size:.76rem;padding:6px 10px;background:linear-gradient(90deg,#ffcc00,#00b04e);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700" onclick="updateOrderStatus('${esc(id)}','ready')" ${['completed','delivered','rejected','cancelled'].includes(st) ? 'disabled' : ''}>🍳 Ready</button>
           <button style="font-size:.76rem;padding:6px 10px;background:linear-gradient(90deg,#1565c0,#1976d2);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700" onclick="updateOrderStatus('${esc(id)}','out_for_delivery')" ${['completed','delivered','rejected','cancelled'].includes(st) ? 'disabled' : ''}>🚴 OFD</button>

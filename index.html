@@ -9853,6 +9853,7 @@ window.addEventListener('load', function() {
   // ── Single canonical openOrderModal ──────────────────────────────────
   window.openOrderModal = function() {
     console.log('[CleanModal] openOrderModal called');
+    window.__gfyOrderGpsConfirmed = false;
 
     // STEP 1: Check cart not empty
     const cartKeys = typeof cart !== 'undefined' ? Object.keys(cart) : [];
@@ -9984,6 +9985,17 @@ window.addEventListener('load', function() {
       const authOverlay = document.getElementById('auth-overlay');
       if (authOverlay) { authOverlay.classList.add('open'); authOverlay.style.display='flex'; }
       showToast('⚠️ Please sign in to place your order', 3500);
+      return;
+    }
+
+    // Require a fresh successful tap on Use My Location for this checkout.
+    if (window.__gfyOrderGpsConfirmed !== true) {
+      showToast('📍 Please tap Use My Location before placing your order.', 3500);
+      const gpsButton = document.querySelector('#order-modal-overlay .om-gps-btn');
+      if (gpsButton) {
+        gpsButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        gpsButton.focus();
+      }
       return;
     }
 
@@ -10553,6 +10565,7 @@ window.addEventListener('load', function() {
 
       var lat = position.coords.latitude;
       var lng = position.coords.longitude;
+      window.__gfyOrderGpsConfirmed = true;
       console.log('Geolocation success:', lat, lng);
       console.log('[GFYGeo] Position detected:', { lat: lat, lng: lng });
 

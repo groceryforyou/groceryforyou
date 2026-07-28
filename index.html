@@ -2020,28 +2020,24 @@ body.gfy-menu-loading .gfy-seo-content{
 }
 
 
-
-/* GFY FIX: Android APK/WebView admin sidebar opening */
+/* ===== GFY FIX: ADMIN HAMBURGER SIDEBAR IN ANDROID APK ===== */
 @media (max-width:768px){
-  #admin-sidebar{
+  #admin-sidebar.admin-sidebar{
     display:flex!important;
-    position:fixed!important;
-    top:var(--header-h)!important;
-    left:0!important;
-    bottom:0!important;
-    height:calc(100dvh - var(--header-h))!important;
-    z-index:10020!important;
-    transform:translate3d(-105%,0,0)!important;
-    -webkit-transform:translate3d(-105%,0,0)!important;
     visibility:hidden!important;
     pointer-events:none!important;
+    transform:translate3d(-105%,0,0)!important;
+    -webkit-transform:translate3d(-105%,0,0)!important;
+    z-index:10020!important;
     will-change:transform;
+    backface-visibility:hidden;
+    -webkit-backface-visibility:hidden;
   }
-  #admin-sidebar.visible{
-    transform:translate3d(0,0,0)!important;
-    -webkit-transform:translate3d(0,0,0)!important;
+  #admin-sidebar.admin-sidebar.visible{
     visibility:visible!important;
     pointer-events:auto!important;
+    transform:translate3d(0,0,0)!important;
+    -webkit-transform:translate3d(0,0,0)!important;
   }
   #admin-sidebar-overlay{
     z-index:10010!important;
@@ -2051,15 +2047,18 @@ body.gfy-menu-loading .gfy-seo-content{
     display:block!important;
     pointer-events:auto!important;
   }
-  #admin-mob-menu-btn{
-    position:relative!important;
-    z-index:10030!important;
-    pointer-events:auto!important;
-    touch-action:manipulation!important;
+  body.admin-sidebar-open,
+  html.admin-sidebar-open{
+    overflow:hidden!important;
+    overscroll-behavior:none;
   }
-  body.admin-sidebar-open{overflow:hidden!important;}
+  body.admin-mode #admin-mob-menu-btn{
+    display:flex!important;
+    position:relative;
+    z-index:10030;
+    pointer-events:auto!important;
+  }
 }
-
 </style>
 <!-- GFY ETA COUNTDOWN FIX V7 -->
 </head>
@@ -2467,7 +2466,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
         <div class="search-results-drop" id="search-drop"></div>
       </div>
       <button class="mob-search-btn" onclick="openMobSearch()">🔍</button>
-      <button id="admin-mob-menu-btn" type="button" title="Admin Menu" aria-label="Open admin menu" aria-expanded="false">☰</button>
+      <button id="admin-mob-menu-btn" onclick="toggleMobileAdminSidebar()" title="Admin Menu">☰</button>
       <button class="cart-btn" onclick="openCart()">🛒 <span class="cart-btn-text">Cart</span><span class="cart-count" id="cart-count">0</span></button>
     </div>
   </div>
@@ -7771,59 +7770,102 @@ window.updateOrderCardStatus = updateOrderCardStatus;
   window.addEventListener('offline', updateOnlineStatus);
   updateOnlineStatus();
 
-  /* ── 2. Mobile Admin Sidebar Toggle (Android WebView safe) ── */
-  function setMobileAdminSidebar(open) {
+  /* ── 2. Mobile Admin Sidebar Toggle — Android WebView safe ── */
+  var gfyAdminSidebarTouchAt = 0;
+
+  function gfySetMobileAdminSidebar(open) {
     var sidebar = document.getElementById('admin-sidebar');
     var overlay = document.getElementById('admin-sidebar-overlay');
     var button = document.getElementById('admin-mob-menu-btn');
-    if (!sidebar) return;
+    if (!sidebar) return false;
 
     sidebar.classList.toggle('visible', !!open);
     sidebar.setAttribute('aria-hidden', open ? 'false' : 'true');
-    if (overlay) overlay.classList.toggle('visible', !!open);
+
+    if (overlay) {
+      overlay.classList.toggle('visible', !!open);
+      overlay.setAttribute('aria-hidden', open ? 'false' : 'true');
+    }
     if (button) button.setAttribute('aria-expanded', open ? 'true' : 'false');
 
-    /* Force WebView to repaint the transformed fixed element. */
-    sidebar.style.webkitTransform = open ? 'translate3d(0,0,0)' : '';
-    sidebar.style.transform = open ? 'translate3d(0,0,0)' : '';
-    sidebar.style.pointerEvents = open ? 'auto' : '';
-    document.body.classList.toggle('admin-sidebar-open', !!open);
-  }
-
-  window.openMobileAdminSidebar = function() {
-    setMobileAdminSidebar(true);
-  };
-  window.closeMobileAdminSidebar = function() {
-    setMobileAdminSidebar(false);
-  };
-  window.toggleMobileAdminSidebar = function() {
-    var sidebar = document.getElementById('admin-sidebar');
-    if (!sidebar) return;
-    setMobileAdminSidebar(!sidebar.classList.contains('visible'));
-  };
-
-  function bindAdminSidebarButton() {
-    var button = document.getElementById('admin-mob-menu-btn');
-    if (!button || button.dataset.sidebarBound === 'true') return;
-    button.dataset.sidebarBound = 'true';
-    var lastActivation = 0;
-    function activate(e) {
-      var now = Date.now();
-      if (now - lastActivation < 350) return;
-      lastActivation = now;
-      if (e) {
-        e.preventDefault();
-        e.stopPropagation();
+    /* Inline state is intentional: older Android WebViews can fail to repaint
+       the transformed fixed sidebar when only a class is changed. */
+    if (window.innerWidth <= 768) {
+      sidebar.style.setProperty('display', 'flex', 'important');
+      sidebar.style.setProperty('visibility', open ? 'visible' : 'hidden', 'important');
+      sidebar.style.setProperty('pointer-events', open ? 'auto' : 'none', 'important');
+      sidebar.style.setProperty('transform', open ? 'translate3d(0,0,0)' : 'translate3d(-105%,0,0)', 'important');
+      sidebar.style.setProperty('-webkit-transform', open ? 'translate3d(0,0,0)' : 'translate3d(-105%,0,0)', 'important');
+      sidebar.style.setProperty('z-index', '10020', 'important');
+      if (overlay) {
+        overlay.style.setProperty('display', open ? 'block' : 'none', 'important');
+        overlay.style.setProperty('pointer-events', open ? 'auto' : 'none', 'important');
+        overlay.style.setProperty('z-index', '10010', 'important');
       }
-      window.toggleMobileAdminSidebar();
     }
-    button.addEventListener('click', activate, true);
-    button.addEventListener('touchend', activate, { passive: false, capture: true });
+
+    document.documentElement.classList.toggle('admin-sidebar-open', !!open);
+    document.body.classList.toggle('admin-sidebar-open', !!open);
+    return true;
   }
+
+  window.toggleMobileAdminSidebar = function(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    var sidebar = document.getElementById('admin-sidebar');
+    if (!sidebar) return false;
+    return gfySetMobileAdminSidebar(!sidebar.classList.contains('visible'));
+  };
+
+  window.closeMobileAdminSidebar = function(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    return gfySetMobileAdminSidebar(false);
+  };
+
+  function gfyWireAdminHamburger() {
+    var button = document.getElementById('admin-mob-menu-btn');
+    var overlay = document.getElementById('admin-sidebar-overlay');
+    if (!button || button.dataset.gfySidebarWired === 'true') return;
+
+    button.dataset.gfySidebarWired = 'true';
+    button.setAttribute('type', 'button');
+    button.setAttribute('aria-controls', 'admin-sidebar');
+    button.setAttribute('aria-expanded', 'false');
+
+    /* touchend is used for APK WebViews; the following synthetic click is ignored. */
+    button.addEventListener('touchend', function(event) {
+      gfyAdminSidebarTouchAt = Date.now();
+      window.toggleMobileAdminSidebar(event);
+    }, { passive: false });
+
+    button.addEventListener('click', function(event) {
+      if (Date.now() - gfyAdminSidebarTouchAt < 700) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      window.toggleMobileAdminSidebar(event);
+    }, false);
+
+    /* Remove the inline handler so one tap cannot toggle twice. */
+    button.removeAttribute('onclick');
+
+    if (overlay) {
+      overlay.removeAttribute('onclick');
+      overlay.addEventListener('click', window.closeMobileAdminSidebar, false);
+      overlay.addEventListener('touchend', window.closeMobileAdminSidebar, { passive: false });
+    }
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bindAdminSidebarButton, { once: true });
+    document.addEventListener('DOMContentLoaded', gfyWireAdminHamburger, { once: true });
   } else {
-    bindAdminSidebarButton();
+    gfyWireAdminHamburger();
   }
 
   /* ── 3. Double-click prevention guard ── */

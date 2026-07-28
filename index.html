@@ -2110,6 +2110,14 @@ body.admin-sidebar-open {
   background: rgba(198, 40, 40, .45) !important;
 }
 
+
+/* ===== GFY FIX: Keep Leaflet/OpenStreetMap attribution visible but non-clickable ===== */
+.leaflet-control-attribution,
+.leaflet-control-attribution a {
+  pointer-events: none !important;
+  cursor: default !important;
+}
+
 </style>
 <!-- GFY ETA COUNTDOWN FIX V7 -->
 </head>

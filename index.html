@@ -2061,6 +2061,33 @@ body.gfy-menu-loading .gfy-seo-content{
   }
 }
 
+
+/* ===== GFY FIX: Lock background while admin sidebar is open ===== */
+html.admin-sidebar-open,
+body.admin-sidebar-open {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+}
+
+@media (max-width: 768px) {
+  #admin-sidebar.admin-sidebar {
+    overscroll-behavior: contain !important;
+  }
+
+  #admin-sidebar .admin-sb-nav {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+    touch-action: pan-y !important;
+  }
+
+  #admin-sidebar .admin-sb-footer,
+  #admin-sidebar .admin-sb-logo {
+    touch-action: manipulation !important;
+  }
+}
+
 </style>
 <!-- GFY ETA COUNTDOWN FIX V7 -->
 </head>
@@ -7800,6 +7827,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       overlay.style.setProperty('z-index', '10001', 'important');
     }
 
+    document.documentElement.classList.add('admin-sidebar-open');
+    document.body.classList.add('admin-sidebar-open');
     document.body.style.overflow = 'hidden';
   };
 
@@ -7823,8 +7852,22 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       overlay.style.removeProperty('z-index');
     }
 
+    document.documentElement.classList.remove('admin-sidebar-open');
+    document.body.classList.remove('admin-sidebar-open');
     document.body.style.overflow = '';
   };
+
+
+  function gfyAdminSidebarTouchGuard(event) {
+    var sidebar = document.getElementById('admin-sidebar');
+    if (!sidebar || !sidebar.classList.contains('visible')) return;
+
+    if (!sidebar.contains(event.target)) {
+      event.preventDefault();
+    }
+  }
+
+  document.addEventListener('touchmove', gfyAdminSidebarTouchGuard, { passive: false });
 
   /* ── 3. Double-click prevention guard ── */
   window.mobileOneClick = function(btn, fn, resetMs) {

@@ -11974,12 +11974,47 @@ document.addEventListener('click', function(e) {
     const container = document.getElementById('admin-orders-container');
     const popup = document.getElementById('admin-order-popup');
     const safeOrderId = String(orderId == null ? '' : orderId);
+    const activeIds = window.__gfyActiveOrderIds || (window.__gfyActiveOrderIds = new Set());
+
+    const safeEsc = (value) => {
+      if(typeof esc === 'function') return esc(value);
+      const div = document.createElement('div');
+      div.textContent = String(value == null ? '' : value);
+      return div.innerHTML;
+    };
+
+    const safePhone = (data) => {
+      try{
+        if(typeof orderPhone === 'function') return orderPhone(data);
+      }catch(e){}
+      return data?.phone || data?.customerPhone || data?.mobile || '';
+    };
+
+    const safeAddress = (data) => {
+      try{
+        if(typeof orderAddress === 'function') return orderAddress(data);
+      }catch(e){}
+      return data?.address || data?.deliveryAddress || data?.customerAddress || '';
+    };
+
+    const safeItemsHtml = (data) => {
+      try{
+        if(typeof itemsHtml === 'function') return itemsHtml(data);
+      }catch(e){}
+      const items = Array.isArray(data?.items) ? data.items : [];
+      return items.map(item => {
+        const name = item?.name || item?.itemName || 'Item';
+        const qty = item?.qty || item?.quantity || 1;
+        const price = item?.price != null ? ' · ₹' + safeEsc(item.price) : '';
+        return '<div class="order-card-item"><span class="order-card-item-name">' +
+          safeEsc(name) + '</span><span class="order-card-item-meta">×' +
+          safeEsc(qty) + price + '</span></div>';
+      }).join('');
+    };
 
     try{
       if(!container || !popup || !safeOrderId) return;
 
-      /* Only skip when the card is actually present in the DOM.
-         This clears stale IDs left by an earlier failed render. */
       const existingCard = Array.from(container.querySelectorAll('.admin-order-card'))
         .find(card => card.getAttribute('data-order-id') === safeOrderId);
 
@@ -11989,11 +12024,9 @@ document.addEventListener('click', function(e) {
         return;
       }
 
-      if(typeof _activeOrderIds !== 'undefined'){
-        _activeOrderIds.delete(safeOrderId);
-      }
+      activeIds.delete(safeOrderId);
 
-      const phone = orderPhone(orderData || {});
+      const phone = safePhone(orderData || {});
       const card = document.createElement('div');
       card.className = 'admin-order-card';
       card.setAttribute('data-order-id', safeOrderId);
@@ -12002,31 +12035,27 @@ document.addEventListener('click', function(e) {
         <div class="order-card-header">
           <div>
             <div class="order-card-title"><span>🔔</span><span>New Order!</span></div>
-            <div class="order-card-meta">Order ID: #${esc(safeOrderId)} · <span class="order-card-countdown" id="order-countdown-${esc(safeOrderId)}">Auto-cancel in 10:00</span></div>
+            <div class="order-card-meta">Order ID: #${safeEsc(safeOrderId)} · <span class="order-card-countdown" id="order-countdown-${safeEsc(safeOrderId)}">Auto-cancel in 10:00</span></div>
           </div>
-          <button class="order-card-close" onclick="removeOrderCard('${esc(safeOrderId)}')">✕</button>
+          <button class="order-card-close" onclick="removeOrderCard('${safeEsc(safeOrderId)}')">✕</button>
         </div>
         <div class="order-card-body">
-          <span class="order-card-body-line"><strong>${esc(orderData?.customerName || 'Customer')}</strong> · ₹${esc(orderData?.total || 0)}</span>
-          <span class="order-card-body-line"><strong>📞 Phone:</strong> ${esc(phone || 'No phone')}</span>
-          ${itemsHtml(orderData || {})}
-          <span class="order-card-body-line"><strong>📍</strong> ${esc(orderAddress(orderData || {}) || 'N/A').substring(0,80)}</span>
-          <span class="order-card-body-line"><strong>💳</strong> ${esc((orderData?.paymentMethod || 'COD').toUpperCase())}</span>
+          <span class="order-card-body-line"><strong>${safeEsc(orderData?.customerName || 'Customer')}</strong> · ₹${safeEsc(orderData?.total || 0)}</span>
+          <span class="order-card-body-line"><strong>📞 Phone:</strong> ${safeEsc(phone || 'No phone')}</span>
+          ${safeItemsHtml(orderData || {})}
+          <span class="order-card-body-line"><strong>📍</strong> ${safeEsc(safeAddress(orderData || {}) || 'N/A').substring(0,80)}</span>
+          <span class="order-card-body-line"><strong>💳</strong> ${safeEsc((orderData?.paymentMethod || 'COD').toUpperCase())}</span>
         </div>
         <div class="order-card-actions">
-          <button class="order-card-action-btn order-card-accept" onclick="updateOrderCardStatus('${esc(safeOrderId)}','accepted')">✅Accept</button>
-          <button class="order-card-action-btn order-card-reject" onclick="updateOrderCardStatus('${esc(safeOrderId)}','rejected')">❌Reject</button>
-          <button class="order-card-action-btn order-card-ready" onclick="updateOrderCardStatus('${esc(safeOrderId)}','ready')">🍳Ready</button>
-          <button class="order-card-action-btn order-card-ofd" onclick="updateOrderCardStatus('${esc(safeOrderId)}','out_for_delivery')">🚴OFD</button>
-          <button class="order-card-action-btn order-card-delivered" onclick="updateOrderCardStatus('${esc(safeOrderId)}','completed')">🎉Done</button>
+          <button class="order-card-action-btn order-card-accept" onclick="updateOrderCardStatus('${safeEsc(safeOrderId)}','accepted')">✅ Accept</button>
+          <button class="order-card-action-btn order-card-reject" onclick="updateOrderCardStatus('${safeEsc(safeOrderId)}','rejected')">❌ Reject</button>
+          <button class="order-card-action-btn order-card-ready" onclick="updateOrderCardStatus('${safeEsc(safeOrderId)}','ready')">🍳 Ready</button>
+          <button class="order-card-action-btn order-card-ofd" onclick="updateOrderCardStatus('${safeEsc(safeOrderId)}','out_for_delivery')">🚴 OFD</button>
+          <button class="order-card-action-btn order-card-delivered" onclick="updateOrderCardStatus('${safeEsc(safeOrderId)}','completed')">🎉 Done</button>
         </div>`;
 
       container.appendChild(card);
-
-      /* Mark active only after the card is successfully inserted. */
-      if(typeof _activeOrderIds !== 'undefined'){
-        _activeOrderIds.add(safeOrderId);
-      }
+      activeIds.add(safeOrderId);
 
       popup.classList.add('open');
       popup.style.setProperty('display','flex','important');
@@ -12034,15 +12063,9 @@ document.addEventListener('click', function(e) {
       popup.style.setProperty('opacity','1','important');
       popup.style.setProperty('z-index','2147483000','important');
 
-      if(typeof showAdminOrdersContainer === 'function'){
-        showAdminOrdersContainer();
-      }
-      if(typeof playZomatoRingtone === 'function'){
-        playZomatoRingtone();
-      }
+      if(typeof playZomatoRingtone === 'function') playZomatoRingtone();
 
       requestAnimationFrame(function(){
-        card.scrollIntoView({block:'nearest', behavior:'smooth'});
         container.scrollTop = container.scrollHeight;
       });
 
@@ -12050,10 +12073,8 @@ document.addEventListener('click', function(e) {
         startOrderCountdown(safeOrderId,600);
       }
     }catch(e){
-      if(typeof _activeOrderIds !== 'undefined'){
-        _activeOrderIds.delete(safeOrderId);
-      }
-      console.error('[GFYOrderCardFix] addOrderCard failed', e);
+      activeIds.delete(safeOrderId);
+      console.error('[GFYOrderCardFinalFix] addOrderCard failed', e);
     }
   };
 })();

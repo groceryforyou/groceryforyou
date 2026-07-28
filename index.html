@@ -10603,23 +10603,8 @@ window.addEventListener('load', function() {
         if (typeof showToast === 'function')
           showToast('✅ Location detected! Verify the pin on the map.', 3000);
 
-        // Non-blocking reverse-geocode to prefill address field
-        fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng)
-          .then(function(r) { return r.json(); })
-          .then(function(d) {
-            if (d && d.display_name) {
-              var addrEl = document.getElementById('om-address');
-              if (addrEl) {
-                var autoAddress = d.display_name;
-
-                // Do not touch the field while the user is typing
-                if (document.activeElement !== addrEl && !addrEl.value.trim()) {
-                  addrEl.value = autoAddress;
-                }
-              }
-            }
-          })
-          .catch(function() {});
+        // Address is entered manually by the customer.
+        // GPS updates only the map pin and delivery coordinates.
 
       } catch (e) {
         console.warn('[GFYGeo] Map pin error:', e);

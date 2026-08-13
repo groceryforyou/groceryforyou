@@ -8607,7 +8607,10 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       return;
     }
 
-    if (inputEl) inputEl.disabled = true;
+    if (inputEl) {
+      inputEl.disabled = true;
+      inputEl.checked = !!desiredState;
+    }
 
     try {
       const allCats = (typeof window.categories !== 'undefined' && Array.isArray(window.categories))
@@ -8677,7 +8680,12 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       }
     } catch (err) {
       console.error('[CategoryStockToggle] Firestore update failed:', err);
-      if (inputEl) inputEl.checked = !desiredState;
+      if (inputEl) {
+        inputEl.checked = !desiredState;
+        const wrap = inputEl.closest('.gfy-cat-stock-wrap');
+        const label = wrap ? wrap.querySelector('.gfy-cat-stock-label') : null;
+        if (label) label.textContent = desiredState ? 'In' : 'Out';
+      }
       if (typeof showToast === 'function') {
         showToast('⚠️ Could not update category stock: ' + (err.message || err), 4000);
       }
@@ -8779,6 +8787,14 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     // Desktop HTML5 drag/drop support.
     let draggedRow = null;
     listContainer.addEventListener('dragstart', function(e) {
+      if (
+        e.target &&
+        e.target.closest &&
+        e.target.closest('.gfy-cat-stock-wrap, input, textarea, select, button, label')
+      ) {
+        e.preventDefault();
+        return;
+      }
       const row = rowFromEventTarget(e.target);
       if (!row) return;
       draggedRow = row;
@@ -8815,7 +8831,11 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     let startY = 0;
 
     listContainer.addEventListener('pointerdown', function(e) {
-      if (e.target && e.target.closest && e.target.closest('input, textarea, select, button')) return;
+      if (
+        e.target &&
+        e.target.closest &&
+        e.target.closest('.gfy-cat-stock-wrap, input, textarea, select, button, label')
+      ) return;
       const handle = e.target.closest && e.target.closest('.gfy-cat-drag-handle, .gfy-manage-cat-row');
       if (!handle) return;
       const row = rowFromEventTarget(handle);
@@ -8895,6 +8915,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
             <span class="gfy-cat-stock-label">${cat.inStock !== false ? 'In' : 'Out'}</span>
             <label class="gfy-cat-stock-switch"
                    onclick="event.stopPropagation()"
+                   onpointerdown="event.stopPropagation()"
                    onmousedown="event.stopPropagation()"
                    ontouchstart="event.stopPropagation()"
                    draggable="false">
@@ -8902,10 +8923,14 @@ window.updateOrderCardStatus = updateOrderCardStatus;
                 type="checkbox"
                 ${cat.inStock !== false ? 'checked' : ''}
                 aria-label="Toggle ${gfyEscapeAttr(cat.name || 'category')} stock"
-                onclick="event.stopPropagation(); toggleCategoryStock('${gfyEscapeAttr(cat.id)}', this.checked, this)"
+                onclick="event.stopPropagation()"
+                onpointerdown="event.stopPropagation()"
+                onchange="event.stopPropagation(); toggleCategoryStock('${gfyEscapeAttr(cat.id)}', this.checked, this)"
                 draggable="false"
               />
-              <span class="gfy-cat-stock-slider"></span>
+              <span class="gfy-cat-stock-slider"
+                    onpointerdown="event.stopPropagation()"
+                    onclick="event.stopPropagation()"></span>
             </label>
           </div>
           <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="up" title="Move up">↑</button>

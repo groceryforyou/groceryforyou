@@ -9235,6 +9235,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
             id: doc.id,
             name: data.name || '',
             price: Number(data.price) || 0,
+            mrp: Number(data.mrp) || Number(data.price) || 0,
             category: category,
             catId: category, // compatibility catId mapping
             inStock: data.inStock !== false,
@@ -9316,6 +9317,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
               } else {
                 window.cart[itemId].name = matched.name;
                 window.cart[itemId].price = matched.price;
+                window.cart[itemId].mrp = matched.mrp;
               }
             }
           });

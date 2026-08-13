@@ -8607,52 +8607,65 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       return;
     }
 
-    const normalizedCatId = gfySafeSyncedCategoryId(catId);
     if (inputEl) inputEl.disabled = true;
 
     try {
-      // Read once, then update only documents that belong to this category.
-      // Client-side matching also supports older records that used category/catId
-      // names or unsafe IDs, because the same normalizer is used by menu sync.
+      const allCats = (typeof window.categories !== 'undefined' && Array.isArray(window.categories))
+        ? window.categories : [];
+      const catObj = allCats.find(function(c){ return String(c.id) === String(catId); }) || {};
+      const aliases = [
+        gfySafeSyncedCategoryId(catId),
+        gfySafeSyncedCategoryId(catObj.name || ''),
+        String(catId || '').trim().toLowerCase(),
+        String(catObj.name || '').trim().toLowerCase()
+      ].filter(Boolean);
+
       const menuSnapshot = await firebaseDB.collection('menuItems').get();
       const matchingDocs = [];
 
       menuSnapshot.forEach(function(itemDoc) {
         const data = itemDoc.data() || {};
-        const itemCat = gfySafeSyncedCategoryId(data.category || data.catId || 'grocery');
-        if (itemCat === normalizedCatId) matchingDocs.push(itemDoc);
+        const rawValues = [
+          data.category,
+          data.catId,
+          data.categoryId,
+          data.categoryName
+        ].filter(Boolean);
+
+        const matched = rawValues.some(function(v) {
+          const raw = String(v).trim().toLowerCase();
+          const safe = gfySafeSyncedCategoryId(v);
+          return aliases.indexOf(raw) !== -1 || aliases.indexOf(safe) !== -1;
+        });
+
+        if (matched) matchingDocs.push(itemDoc);
       });
 
-      const categoryRef = firebaseDB.collection('categories').doc(catId);
-
-      // Firestore batches support up to 500 writes. Normal categories are well
-      // below that; for an unusually large category, use safe chunks.
-      if (matchingDocs.length <= 450) {
-        const batch = firebaseDB.batch();
-        matchingDocs.forEach(function(itemDoc) {
-          batch.update(itemDoc.ref, { inStock: !!desiredState });
+      // Use the same proven updateDoc/doc compatibility layer already used by
+      // the existing single-item stock toggle. This avoids creating a second
+      // Firestore write system.
+      for (const itemDoc of matchingDocs) {
+        await updateDoc(doc(firebaseDB, "menuItems", itemDoc.id), {
+          inStock: !!desiredState
         });
-        batch.set(categoryRef, {
-          id: catId,
-          inStock: !!desiredState,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-        await batch.commit();
-      } else {
-        for (let i = 0; i < matchingDocs.length; i += 400) {
-          const chunk = matchingDocs.slice(i, i + 400);
-          const batch = firebaseDB.batch();
-          chunk.forEach(function(itemDoc) {
-            batch.update(itemDoc.ref, { inStock: !!desiredState });
-          });
-          await batch.commit();
-        }
-        await categoryRef.set({
-          id: catId,
-          inStock: !!desiredState,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
       }
+
+      // Persist the category toggle state itself.
+      await setDoc(doc(firebaseDB, "categories", catId), {
+        id: catId,
+        inStock: !!desiredState,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Update current in-memory state immediately so the toggle label stays
+      // correct even before the realtime snapshot arrives.
+      const liveCat = allCats.find(function(c){ return String(c.id) === String(catId); });
+      if (liveCat) liveCat.inStock = !!desiredState;
+
+      const wrap = inputEl ? inputEl.closest('.gfy-cat-stock-wrap') : null;
+      const label = wrap ? wrap.querySelector('.gfy-cat-stock-label') : null;
+      if (label) label.textContent = desiredState ? 'In' : 'Out';
+      if (wrap) wrap.title = desiredState ? 'Category is In Stock' : 'Category is Out of Stock';
 
       if (typeof showToast === 'function') {
         showToast(
@@ -8665,7 +8678,9 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     } catch (err) {
       console.error('[CategoryStockToggle] Firestore update failed:', err);
       if (inputEl) inputEl.checked = !desiredState;
-      if (typeof showToast === 'function') showToast('⚠️ Could not update category stock: ' + (err.message || err), 4000);
+      if (typeof showToast === 'function') {
+        showToast('⚠️ Could not update category stock: ' + (err.message || err), 4000);
+      }
     } finally {
       if (inputEl) inputEl.disabled = false;
     }
@@ -8878,12 +8893,17 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         <div style="display:flex; gap:6px; flex-shrink:0; align-items:center; justify-content:flex-end;">
           <div class="gfy-cat-stock-wrap" title="${cat.inStock !== false ? 'Category is In Stock' : 'Category is Out of Stock'}">
             <span class="gfy-cat-stock-label">${cat.inStock !== false ? 'In' : 'Out'}</span>
-            <label class="gfy-cat-stock-switch" onclick="event.stopPropagation()">
+            <label class="gfy-cat-stock-switch"
+                   onclick="event.stopPropagation()"
+                   onmousedown="event.stopPropagation()"
+                   ontouchstart="event.stopPropagation()"
+                   draggable="false">
               <input
                 type="checkbox"
                 ${cat.inStock !== false ? 'checked' : ''}
                 aria-label="Toggle ${gfyEscapeAttr(cat.name || 'category')} stock"
-                onchange="event.stopPropagation(); toggleCategoryStock('${gfyEscapeAttr(cat.id)}', this.checked, this)"
+                onclick="event.stopPropagation(); toggleCategoryStock('${gfyEscapeAttr(cat.id)}', this.checked, this)"
+                draggable="false"
               />
               <span class="gfy-cat-stock-slider"></span>
             </label>

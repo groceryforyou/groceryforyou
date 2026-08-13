@@ -3227,6 +3227,7 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
     </div>
     <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px">
       <button id="admin-otab-active" class="orders-tab" data-orders-status-tab="active" onclick="filterOrdersByTab('active')">🔄 Active</button>
+      <button id="admin-otab-scheduled" class="orders-tab" data-orders-status-tab="scheduled" onclick="filterOrdersByTab('scheduled')">⏰ Schedule for Later</button>
       <button id="admin-otab-delivered" class="orders-tab" data-orders-status-tab="delivered" onclick="filterOrdersByTab('delivered')">✅ Delivered</button>
       <button id="admin-otab-rejected" class="orders-tab" data-orders-status-tab="rejected" onclick="filterOrdersByTab('rejected')">❌ Rejected</button>
       <button id="admin-otab-all" class="orders-tab" data-orders-status-tab="all" onclick="filterOrdersByTab('all')">📋 All Orders</button>
@@ -12232,7 +12233,7 @@ document.addEventListener('click', function(e) {
     return [
       order?.id, orderNumber(order), order?.orderId, order?.orderNumber,
       order?.customerName, order?.name, order?.email, orderPhone(order),
-      orderAddress(order), order?.status, order?.paymentMethod, order?.total,
+      orderAddress(order), order?.status, order?.paymentMethod, order?.total, order?.deliveryTime,
       items
     ].filter(Boolean).join(' ').toLowerCase();
   }
@@ -12298,6 +12299,7 @@ document.addEventListener('click', function(e) {
         <div style="display:flex;gap:6px;flex-wrap:wrap">${statusBadge(st)}<span class="om-route-badge">${paymentIcon(order?.paymentMethod)} ${esc((order?.paymentMethod || 'COD').toUpperCase())}</span>${mapLink}</div>
         <div class="gfy-order-line"><strong>Customer:</strong> ${esc(order?.customerName || '—')} ${phoneHtml}</div>
         <div class="gfy-order-line"><strong>Address:</strong> ${esc(address || '—')}</div>
+        ${isAdmin && order?.deliveryTime ? `<div class="gfy-order-line" style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:7px 9px"><strong>⏰ Selected Delivery Time:</strong> ${esc(order.deliveryTime)}</div>` : ''}
         ${itemsHtml(order)}
         ${adminButtons}
       </div>`;
@@ -12463,6 +12465,25 @@ document.addEventListener('click', function(e) {
     } catch(e) {
       console.error('[AdminOrdersDateFilter]', e);
     }
+  };
+
+  function gfyIsScheduledDeliveryOrder(order){
+    var delivery = String(order && order.deliveryTime || '').trim().toLowerCase();
+    return delivery === 'in 1 hour' ||
+      delivery === 'schedule for later' ||
+      delivery.indexOf('scheduled:') === 0;
+  }
+
+  var gfyOriginalRenderOrdersByTab = renderOrdersByTab;
+  renderOrdersByTab = function(tab){
+    if (tab === 'scheduled' && typeof currentRole !== 'undefined' && currentRole === 'admin') {
+      var scheduledOrders = (Array.isArray(_allOrders) ? _allOrders : []).filter(gfyIsScheduledDeliveryOrder);
+      var subtitle = document.getElementById('admin-orders-subtitle');
+      if (subtitle) subtitle.textContent = '⏰ In 1 hour + scheduled delivery orders (' + scheduledOrders.length + ')';
+      renderOrdersList(scheduledOrders, tab);
+      return;
+    }
+    return gfyOriginalRenderOrdersByTab(tab);
   };
 
   window.filterOrdersByTab = function(tab){

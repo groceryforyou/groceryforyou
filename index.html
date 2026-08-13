@@ -8607,85 +8607,101 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       return;
     }
 
-    if (inputEl) {
-      inputEl.disabled = true;
-      inputEl.checked = !!desiredState;
-    }
+    const allCats = (typeof window.categories !== 'undefined' && Array.isArray(window.categories))
+      ? window.categories : [];
+    const allItems = (typeof window.items !== 'undefined' && Array.isArray(window.items))
+      ? window.items : [];
 
-    try {
-      const allCats = (typeof window.categories !== 'undefined' && Array.isArray(window.categories))
-        ? window.categories : [];
-      const catObj = allCats.find(function(c){ return String(c.id) === String(catId); }) || {};
-      const aliases = [
-        gfySafeSyncedCategoryId(catId),
-        gfySafeSyncedCategoryId(catObj.name || ''),
-        String(catId || '').trim().toLowerCase(),
-        String(catObj.name || '').trim().toLowerCase()
+    const catObj = allCats.find(function(c) {
+      return String(c.id) === String(catId);
+    }) || {};
+
+    const aliases = [
+      gfySafeSyncedCategoryId(catId),
+      gfySafeSyncedCategoryId(catObj.name || ''),
+      String(catId || '').trim().toLowerCase(),
+      String(catObj.name || '').trim().toLowerCase()
+    ].filter(Boolean);
+
+    const matchingItems = allItems.filter(function(item) {
+      const rawValues = [
+        item.category,
+        item.catId,
+        item.categoryId,
+        item.categoryName
       ].filter(Boolean);
 
-      const menuSnapshot = await firebaseDB.collection('menuItems').get();
-      const matchingDocs = [];
-
-      menuSnapshot.forEach(function(itemDoc) {
-        const data = itemDoc.data() || {};
-        const rawValues = [
-          data.category,
-          data.catId,
-          data.categoryId,
-          data.categoryName
-        ].filter(Boolean);
-
-        const matched = rawValues.some(function(v) {
-          const raw = String(v).trim().toLowerCase();
-          const safe = gfySafeSyncedCategoryId(v);
-          return aliases.indexOf(raw) !== -1 || aliases.indexOf(safe) !== -1;
-        });
-
-        if (matched) matchingDocs.push(itemDoc);
+      return rawValues.some(function(v) {
+        const raw = String(v).trim().toLowerCase();
+        const safe = gfySafeSyncedCategoryId(v);
+        return aliases.indexOf(raw) !== -1 || aliases.indexOf(safe) !== -1;
       });
+    });
 
-      // Use the same proven updateDoc/doc compatibility layer already used by
-      // the existing single-item stock toggle. This avoids creating a second
-      // Firestore write system.
-      for (const itemDoc of matchingDocs) {
-        await updateDoc(doc(firebaseDB, "menuItems", itemDoc.id), {
+    // Optimistic UI: switch immediately, no long "loading" state.
+    const previousState = catObj.inStock !== false;
+    if (inputEl) {
+      inputEl.checked = !!desiredState;
+      inputEl.disabled = true;
+    }
+    catObj.inStock = !!desiredState;
+
+    const wrap = inputEl ? inputEl.closest('.gfy-cat-stock-wrap') : null;
+    const label = wrap ? wrap.querySelector('.gfy-cat-stock-label') : null;
+    if (label) label.textContent = desiredState ? 'In' : 'Out';
+    if (wrap) wrap.title = desiredState ? 'Category is In Stock' : 'Category is Out of Stock';
+
+    // Update local item state immediately so existing UI can react without waiting.
+    matchingItems.forEach(function(item) {
+      item.inStock = !!desiredState;
+    });
+
+    try {
+      // ONE Firestore batch instead of 40+ sequential network requests.
+      // This is what removes the endless loading behavior.
+      const batch = firebaseDB.batch();
+
+      matchingItems.forEach(function(item) {
+        if (!item || !item.id) return;
+        batch.update(firebaseDB.collection('menuItems').doc(String(item.id)), {
           inStock: !!desiredState
         });
-      }
-
-      // Persist the category toggle state itself.
-      await setDoc(doc(firebaseDB, "categories", catId), {
-        id: catId,
-        inStock: !!desiredState,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      // Update current in-memory state immediately so the toggle label stays
-      // correct even before the realtime snapshot arrives.
-      const liveCat = allCats.find(function(c){ return String(c.id) === String(catId); });
-      if (liveCat) liveCat.inStock = !!desiredState;
+      // Save the category switch state in the same atomic commit.
+      batch.set(
+        firebaseDB.collection('categories').doc(String(catId)),
+        {
+          id: String(catId),
+          inStock: !!desiredState,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        },
+        { merge: true }
+      );
 
-      const wrap = inputEl ? inputEl.closest('.gfy-cat-stock-wrap') : null;
-      const label = wrap ? wrap.querySelector('.gfy-cat-stock-label') : null;
-      if (label) label.textContent = desiredState ? 'In' : 'Out';
-      if (wrap) wrap.title = desiredState ? 'Category is In Stock' : 'Category is Out of Stock';
+      await batch.commit();
 
       if (typeof showToast === 'function') {
         showToast(
           desiredState
-            ? `✅ ${matchingDocs.length} item${matchingDocs.length === 1 ? '' : 's'} marked In Stock`
-            : `❌ ${matchingDocs.length} item${matchingDocs.length === 1 ? '' : 's'} marked Out of Stock`,
+            ? `✅ ${matchingItems.length} item${matchingItems.length === 1 ? '' : 's'} marked In Stock`
+            : `❌ ${matchingItems.length} item${matchingItems.length === 1 ? '' : 's'} marked Out of Stock`,
           2500
         );
       }
     } catch (err) {
-      console.error('[CategoryStockToggle] Firestore update failed:', err);
-      if (inputEl) {
-        inputEl.checked = !desiredState;
-        const wrap = inputEl.closest('.gfy-cat-stock-wrap');
-        const label = wrap ? wrap.querySelector('.gfy-cat-stock-label') : null;
-        if (label) label.textContent = desiredState ? 'In' : 'Out';
-      }
+      console.error('[CategoryStockToggle] Firestore batch update failed:', err);
+
+      // Revert only if Firestore rejects the change.
+      catObj.inStock = previousState;
+      matchingItems.forEach(function(item) {
+        item.inStock = previousState;
+      });
+
+      if (inputEl) inputEl.checked = previousState;
+      if (label) label.textContent = previousState ? 'In' : 'Out';
+      if (wrap) wrap.title = previousState ? 'Category is In Stock' : 'Category is Out of Stock';
+
       if (typeof showToast === 'function') {
         showToast('⚠️ Could not update category stock: ' + (err.message || err), 4000);
       }

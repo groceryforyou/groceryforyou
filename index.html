@@ -3668,13 +3668,54 @@ document.addEventListener('DOMContentLoaded', () => {
             <option value="In 1 hour">In 1 hour</option>
             <option value="Schedule for later">Schedule for later</option>
           </select>
-          <div id="om-schedule-wrap" style="display:none;margin-top:8px">
+          <div id="om-schedule-wrap" style="display:none;margin-top:10px;padding:12px;border:1.5px solid #c8e6c9;border-radius:12px;background:#f8fff9">
+            <div style="font-size:.78rem;font-weight:800;color:#1b5e20;margin-bottom:8px">Choose delivery date & time</div>
+
+            <label for="om-schedule-date" style="font-size:.7rem;margin-bottom:4px">DATE</label>
             <input
-              id="om-schedule-datetime"
-              type="datetime-local"
-              aria-label="Scheduled delivery date and time"
-              style="width:100%;box-sizing:border-box"
+              id="om-schedule-date"
+              type="date"
+              aria-label="Scheduled delivery date"
+              style="width:100%;box-sizing:border-box;margin-bottom:10px"
             />
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+              <div>
+                <label for="om-schedule-hour" style="font-size:.7rem;margin-bottom:4px">HOUR</label>
+                <select id="om-schedule-hour" aria-label="Scheduled delivery hour" style="width:100%">
+                  <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                  <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                  <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+                  <option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="om-schedule-minute" style="font-size:.7rem;margin-bottom:4px">MINUTE</label>
+                <select id="om-schedule-minute" aria-label="Scheduled delivery minute" style="width:100%">
+                  <option value="00">00</option><option value="05">05</option><option value="10">10</option>
+                  <option value="15">15</option><option value="20">20</option><option value="25">25</option>
+                  <option value="30">30</option><option value="35">35</option><option value="40">40</option>
+                  <option value="45">45</option><option value="50">50</option><option value="55">55</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="om-schedule-ampm" style="font-size:.7rem;margin-bottom:4px">AM / PM</label>
+                <select id="om-schedule-ampm" aria-label="AM or PM" style="width:100%">
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              id="om-schedule-set-btn"
+              style="width:100%;margin-top:10px;border:none;border-radius:10px;padding:10px 12px;background:#1b7a3a;color:#fff;font-weight:800;cursor:pointer"
+            >Set Delivery Time</button>
+
+            <div id="om-schedule-selected" style="display:none;margin-top:8px;font-size:.78rem;font-weight:700;color:#1b5e20"></div>
           </div>
         </div>
         <div class="full"><label for="om-note">Special Instructions</label><textarea id="om-note" rows="2" placeholder="Extra spicy, less oil..."></textarea></div>
@@ -13221,85 +13262,135 @@ document.addEventListener('click', function(e) {
 
 <script id="gfy-delivery-time-fix">
 (function () {
-  if (window.__GFY_DELIVERY_TIME_FIX__) return;
-  window.__GFY_DELIVERY_TIME_FIX__ = true;
+  if (window.__GFY_DELIVERY_TIME_FIX_V2__) return;
+  window.__GFY_DELIVERY_TIME_FIX_V2__ = true;
 
   function pad(n){ return String(n).padStart(2,'0'); }
 
-  function localDateTimeValue(date){
-    return date.getFullYear() + '-' +
-      pad(date.getMonth()+1) + '-' +
-      pad(date.getDate()) + 'T' +
-      pad(date.getHours()) + ':' +
-      pad(date.getMinutes());
+  function localDateValue(date){
+    return date.getFullYear() + '-' + pad(date.getMonth()+1) + '-' + pad(date.getDate());
+  }
+
+  function parseLocalSchedule(dateValue, hour12, minute, ampm){
+    if (!dateValue) return null;
+
+    var parts = dateValue.split('-').map(Number);
+    if (parts.length !== 3) return null;
+
+    var h = Number(hour12);
+    var m = Number(minute);
+
+    if (ampm === 'AM') {
+      if (h === 12) h = 0;
+    } else {
+      if (h !== 12) h += 12;
+    }
+
+    return new Date(parts[0], parts[1] - 1, parts[2], h, m, 0, 0);
   }
 
   function formatScheduled(date){
     return 'Scheduled: ' +
       date.toLocaleDateString([], { day:'2-digit', month:'short', year:'numeric' }) +
       ' ' +
-      date.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+      date.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', hour12:true });
+  }
+
+  function setControlsFromDate(date, dateInput, hourSelect, minuteSelect, ampmSelect){
+    dateInput.value = localDateValue(date);
+
+    var h24 = date.getHours();
+    var ampm = h24 >= 12 ? 'PM' : 'AM';
+    var h12 = h24 % 12;
+    if (h12 === 0) h12 = 12;
+
+    var mins = date.getMinutes();
+    var rounded = Math.ceil(mins / 5) * 5;
+    if (rounded >= 60) {
+      date = new Date(date.getTime() + (60 - mins) * 60000);
+      h24 = date.getHours();
+      ampm = h24 >= 12 ? 'PM' : 'AM';
+      h12 = h24 % 12 || 12;
+      rounded = 0;
+      dateInput.value = localDateValue(date);
+    }
+
+    hourSelect.value = String(h12);
+    minuteSelect.value = pad(rounded);
+    ampmSelect.value = ampm;
   }
 
   function initDeliveryTimeFix(){
-    const select = document.getElementById('om-time');
-    const wrap = document.getElementById('om-schedule-wrap');
-    const picker = document.getElementById('om-schedule-datetime');
-    if (!select || !wrap || !picker || select.dataset.gfyDeliveryBound === '1') return;
+    var select = document.getElementById('om-time');
+    var wrap = document.getElementById('om-schedule-wrap');
+    var dateInput = document.getElementById('om-schedule-date');
+    var hourSelect = document.getElementById('om-schedule-hour');
+    var minuteSelect = document.getElementById('om-schedule-minute');
+    var ampmSelect = document.getElementById('om-schedule-ampm');
+    var setBtn = document.getElementById('om-schedule-set-btn');
+    var selectedText = document.getElementById('om-schedule-selected');
 
-    select.dataset.gfyDeliveryBound = '1';
+    if (!select || !wrap || !dateInput || !hourSelect || !minuteSelect || !ampmSelect || !setBtn) return;
+    if (select.dataset.gfyDeliveryBoundV2 === '1') return;
+    select.dataset.gfyDeliveryBoundV2 = '1';
 
-    // Earliest scheduled delivery = 1 hour from now.
-    const setMinimum = function(){
-      const minDate = new Date(Date.now() + 60 * 60 * 1000);
-      picker.min = localDateTimeValue(minDate);
-      if (!picker.value) picker.value = localDateTimeValue(minDate);
-    };
+    function setDefaults(){
+      var minimum = new Date(Date.now() + 60 * 60 * 1000);
+      dateInput.min = localDateValue(new Date());
+      setControlsFromDate(minimum, dateInput, hourSelect, minuteSelect, ampmSelect);
+    }
 
-    setMinimum();
+    function clearScheduledOption(){
+      var old = select.querySelector('option[data-gfy-scheduled="1"]');
+      if (old) old.remove();
+      if (selectedText) {
+        selectedText.style.display = 'none';
+        selectedText.textContent = '';
+      }
+    }
+
+    setDefaults();
 
     select.addEventListener('change', function(){
-      const chosen = select.value;
+      var chosen = select.value;
 
       if (chosen === 'Schedule for later') {
-        setMinimum();
+        clearScheduledOption();
+        setDefaults();
         wrap.style.display = 'block';
-
-        // Open the native Android/browser date-time picker where supported.
-        setTimeout(function(){
-          try {
-            if (typeof picker.showPicker === 'function') picker.showPicker();
-            else picker.focus();
-          } catch(e) {
-            try { picker.focus(); } catch(_) {}
-          }
-        }, 50);
+        select.dataset.deliveryTime = 'Schedule for later';
       } else {
-        // "ASAP" and "In 1 hour" now remain selected normally.
         wrap.style.display = 'none';
+        clearScheduledOption();
         select.dataset.deliveryTime = chosen;
       }
     });
 
-    picker.addEventListener('change', function(){
-      if (!picker.value) return;
+    setBtn.addEventListener('click', function(){
+      var selectedDate = parseLocalSchedule(
+        dateInput.value,
+        hourSelect.value,
+        minuteSelect.value,
+        ampmSelect.value
+      );
 
-      const selectedDate = new Date(picker.value);
-      const minimumDate = new Date(Date.now() + 60 * 60 * 1000);
-
-      if (isNaN(selectedDate.getTime()) || selectedDate < minimumDate) {
-        if (typeof showToast === 'function') {
-          showToast('⚠️ Please choose a time at least 1 hour from now', 3000);
-        }
-        setMinimum();
+      if (!selectedDate || isNaN(selectedDate.getTime())) {
+        if (typeof showToast === 'function') showToast('⚠️ Please choose a valid date and time', 3000);
         return;
       }
 
-      const formatted = formatScheduled(selectedDate);
+      var minimumDate = new Date(Date.now() + 60 * 60 * 1000);
 
-      // Reuse the existing select/value read by Place Order.
-      // Only one temporary scheduled option is maintained.
-      let scheduledOption = select.querySelector('option[data-gfy-scheduled="1"]');
+      if (selectedDate < minimumDate) {
+        if (typeof showToast === 'function') {
+          showToast('⚠️ Please choose a delivery time at least 1 hour from now', 3000);
+        }
+        return;
+      }
+
+      var formatted = formatScheduled(selectedDate);
+
+      var scheduledOption = select.querySelector('option[data-gfy-scheduled="1"]');
       if (!scheduledOption) {
         scheduledOption = document.createElement('option');
         scheduledOption.dataset.gfyScheduled = '1';
@@ -13310,27 +13401,34 @@ document.addEventListener('click', function(e) {
       scheduledOption.textContent = formatted;
       select.value = formatted;
       select.dataset.deliveryTime = formatted;
-      wrap.style.display = 'block';
+
+      if (selectedText) {
+        selectedText.textContent = '✅ ' + formatted;
+        selectedText.style.display = 'block';
+      }
+
+      if (typeof showToast === 'function') {
+        showToast('✅ Delivery time set', 1800);
+      }
     });
 
-    // If the order modal is reopened, reset only this field to its normal default.
-    const modal = document.getElementById('order-modal');
+    var modal = document.getElementById('order-modal');
     if (modal && typeof MutationObserver !== 'undefined') {
-      let wasOpen = false;
+      var wasOpen = false;
+
       new MutationObserver(function(){
-        const isOpen =
+        var isOpen =
           modal.classList.contains('open') ||
           getComputedStyle(modal).display !== 'none';
 
         if (isOpen && !wasOpen) {
-          const scheduledOption = select.querySelector('option[data-gfy-scheduled="1"]');
-          if (scheduledOption) scheduledOption.remove();
+          clearScheduledOption();
           select.value = 'ASAP (~30 mins)';
           select.dataset.deliveryTime = 'ASAP (~30 mins)';
-          picker.value = '';
           wrap.style.display = 'none';
-          setMinimum();
+          setDefaults();
         }
+
         wasOpen = isOpen;
       }).observe(modal, { attributes:true, attributeFilter:['class','style'] });
     }

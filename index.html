@@ -2974,7 +2974,8 @@ window.updateSupportBadgeState = window.updateSupportBadgeState || function(){};
       <div class="aip-grid">
         <div><label class="aip-label" for="aip-cat">Category *</label><select class="aip-select" id="aip-cat"></select></div>
         <div class="half2"><label class="aip-label" for="aip-name">Item Name *</label><input class="aip-input" type="text" id="aip-name" placeholder="e.g. Fresh Tomatoes"/></div>
-        <div><label class="aip-label" for="aip-price">Price (₹) *</label><input class="aip-input" type="number" id="aip-price" placeholder="e.g. 20" min="1"/></div>
+        <div><label class="aip-label" for="aip-price">Offer / Selling Price (₹) *</label><input class="aip-input" type="number" id="aip-price" placeholder="e.g. 39" min="1"/></div>
+        <div><label class="aip-label" for="aip-mrp">MRP (₹)</label><input class="aip-input" type="number" id="aip-mrp" placeholder="e.g. 40" min="1"/><div style="font-size:.68rem;color:#888;margin-top:4px">Keep blank if there is no MRP discount.</div></div>
         <div><label class="aip-label" for="aip-type">Sub-label</label><input class="aip-input" type="text" id="aip-type" placeholder="e.g. 500g bag"/></div>
         <div><label class="aip-label" for="aip-stock">Stock</label><select class="aip-select" id="aip-stock"><option value="1">✅ In Stock</option><option value="0">❌ Out of Stock</option></select></div>
         <div class="full">
@@ -8100,8 +8101,12 @@ window.updateOrderCardStatus = updateOrderCardStatus;
             <input type="text" id="edit-item-name" class="aip-input" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff;" />
           </div>
           <div style="margin-bottom: 12px;">
-            <label class="aip-label" for="edit-item-price" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Price (₹)</label>
+            <label class="aip-label" for="edit-item-price" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Offer / Selling Price (₹)</label>
             <input type="number" id="edit-item-price" class="aip-input" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff;" />
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label class="aip-label" for="edit-item-mrp" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">MRP (₹)</label>
+            <input type="number" id="edit-item-mrp" class="aip-input" placeholder="Leave blank if no discount" style="width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .88rem; outline: none; background: #fff;" />
           </div>
           <div style="margin-bottom: 12px;">
             <label class="aip-label" for="edit-item-type" style="font-size: .72rem; font-weight: 800; color: var(--brown); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px;">Sub-label</label>
@@ -8170,6 +8175,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     
     document.getElementById('edit-item-name').value = item.name || '';
     document.getElementById('edit-item-price').value = item.price || 0;
+    var editMrpInput = document.getElementById('edit-item-mrp');
+    if (editMrpInput) editMrpInput.value = (Number(item.mrp) > 0 ? item.mrp : '');
     var editItemType = document.getElementById('edit-item-type');
     if (editItemType) editItemType.value = item.type || item.description || '';
     document.getElementById('edit-item-stock').value = item.inStock ? '1' : '0';
@@ -8209,6 +8216,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
 
     const nameInput = document.getElementById('aip-name');
     const priceInput = document.getElementById('aip-price');
+    const mrpInput = document.getElementById('aip-mrp');
     const catSelect = document.getElementById('aip-cat');
     const emojiCustom = document.getElementById('aip-emoji-custom');
     const stockSelect = document.getElementById('aip-stock');
@@ -8216,6 +8224,8 @@ window.updateOrderCardStatus = updateOrderCardStatus;
 
     const name = nameInput ? nameInput.value.trim() : '';
     const price = priceInput ? parseFloat(priceInput.value) : 0;
+    const mrpRaw = mrpInput ? mrpInput.value.trim() : '';
+    const mrp = mrpRaw ? parseFloat(mrpRaw) : 0;
     const category = catSelect ? catSelect.value : '';
     const type = typeInput ? typeInput.value.trim() : '';
     const emojiCustomVal = (emojiCustom && emojiCustom.value.trim()) || '';
@@ -8231,7 +8241,17 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     }
     if (isNaN(price) || price <= 0) {
       if (priceInput) priceInput.focus();
-      if (typeof showToast === 'function') showToast('⚠️ Please enter a valid price');
+      if (typeof showToast === 'function') showToast('⚠️ Please enter a valid offer price');
+      return;
+    }
+    if (mrpRaw && (isNaN(mrp) || mrp <= 0)) {
+      if (mrpInput) mrpInput.focus();
+      if (typeof showToast === 'function') showToast('⚠️ Please enter a valid MRP');
+      return;
+    }
+    if (mrp > 0 && mrp < price) {
+      if (mrpInput) mrpInput.focus();
+      if (typeof showToast === 'function') showToast('⚠️ MRP cannot be lower than the offer price');
       return;
     }
     if (!category) {
@@ -8254,6 +8274,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         id: itemId,
         name,
         price,
+        mrp: mrp > 0 ? mrp : price,
         category,
         catId: category,
         inStock,
@@ -8273,6 +8294,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       // Reset fields
       if (nameInput) nameInput.value = '';
       if (priceInput) priceInput.value = '';
+      if (mrpInput) mrpInput.value = '';
       if (emojiCustom) emojiCustom.value = '';
       if (typeInput) typeInput.value = '';
       if (stockSelect) stockSelect.value = '1';
@@ -8321,6 +8343,9 @@ window.updateOrderCardStatus = updateOrderCardStatus;
     const itemId = document.getElementById('edit-item-id').value;
     const name = document.getElementById('edit-item-name').value.trim();
     const price = parseFloat(document.getElementById('edit-item-price').value);
+    const editMrpInput = document.getElementById('edit-item-mrp');
+    const mrpRaw = editMrpInput ? editMrpInput.value.trim() : '';
+    const mrp = mrpRaw ? parseFloat(mrpRaw) : price;
     const typeInput = document.getElementById('edit-item-type');
     const type = typeInput ? typeInput.value.trim() : '';
     const emojiInput = document.getElementById('edit-item-emoji-custom');
@@ -8332,7 +8357,17 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       return;
     }
     if (isNaN(price) || price <= 0) {
-      if (typeof showToast === 'function') showToast('⚠️ Please enter a valid price');
+      if (typeof showToast === 'function') showToast('⚠️ Please enter a valid offer price');
+      return;
+    }
+    if (isNaN(mrp) || mrp <= 0) {
+      if (editMrpInput) editMrpInput.focus();
+      if (typeof showToast === 'function') showToast('⚠️ Please enter a valid MRP');
+      return;
+    }
+    if (mrp < price) {
+      if (editMrpInput) editMrpInput.focus();
+      if (typeof showToast === 'function') showToast('⚠️ MRP cannot be lower than the offer price');
       return;
     }
 
@@ -8348,6 +8383,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       await updateDoc(doc(firebaseDB, "menuItems", itemId), {
         name,
         price,
+        mrp,
         description: type,
         type: type,
         emoji: emoji,
@@ -12713,6 +12749,208 @@ document.addEventListener('click', function(e) {
   }, true);
   document.addEventListener('DOMContentLoaded', function(){ reconcile(); });
   setInterval(function(){ reconcile(); }, 700);
+})();
+</script>
+
+
+<!-- ===== GFY MRP + OFFER PRICE DISPLAY PATCH ===== -->
+<style id="gfy-mrp-offer-price-style">
+  .card-price.gfy-price-box,
+  .mng-price.gfy-price-box,
+  .sri-price.gfy-price-box{
+    display:flex!important;
+    align-items:baseline!important;
+    justify-content:flex-end!important;
+    gap:5px!important;
+    flex-wrap:wrap!important;
+    white-space:normal!important;
+  }
+  .gfy-offer-price{
+    font-family:var(--site-font)!important;
+    font-size:1.05rem!important;
+    font-weight:900!important;
+    color:var(--saffron)!important;
+    white-space:nowrap!important;
+  }
+  .gfy-mrp-price{
+    font-family:var(--site-font)!important;
+    font-size:.68rem!important;
+    font-weight:700!important;
+    color:#7b847d!important;
+    white-space:nowrap!important;
+  }
+  .gfy-mrp-price s{
+    text-decoration-thickness:1.5px!important;
+    text-decoration-color:#7b847d!important;
+  }
+  .gfy-discount-badge{
+    font-family:var(--site-font)!important;
+    font-size:.62rem!important;
+    line-height:1!important;
+    padding:3px 5px!important;
+    border-radius:6px!important;
+    background:#e8f5e9!important;
+    color:#1b7f36!important;
+    font-weight:900!important;
+    white-space:nowrap!important;
+  }
+  @media(max-width:768px){
+    .card-price.gfy-price-box{justify-content:flex-start!important;}
+    .gfy-offer-price{font-size:.95rem!important;}
+    .gfy-mrp-price{font-size:.64rem!important;}
+    .gfy-discount-badge{font-size:.58rem!important;}
+  }
+</style>
+<script>
+(function(){
+  if (window.__GFY_MRP_OFFER_PRICE_PATCH__) return;
+  window.__GFY_MRP_OFFER_PRICE_PATCH__ = true;
+
+  function num(v){
+    var n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function money(v){
+    var n = num(v);
+    return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.00$/, '');
+  }
+
+  function cleanName(value){
+    return String(value || '')
+      .replace(/^[\s\u00a0]*(?:🍎|🍌|🥭|🍇|🍉|🥥|🥦|🥬|🥕|🍅|🧅|🥔|🫘|🍚|🌾|🥛|🧀|🧈|☕|🍯|🍪|🥤|🛒|📦|🍽️?|🍴|🥣|🍲|🍛|🍱)\s*/u,'')
+      .trim()
+      .toLowerCase();
+  }
+
+  function findItemForCard(card){
+    var list = Array.isArray(window.items) ? window.items : [];
+    if (!card || !list.length) return null;
+
+    var id = String(card.id || '');
+    var candidates = [
+      id,
+      id.replace(/^item[-_]/,''),
+      id.replace(/^menu[-_]item[-_]/,''),
+      id.replace(/^card[-_]/,'')
+    ].filter(Boolean);
+
+    for (var i=0;i<list.length;i++){
+      if (candidates.indexOf(String(list[i].id || '')) !== -1) return list[i];
+    }
+
+    var nameEl = card.querySelector('.card-name,.mng-name,.sri-name');
+    var cardName = cleanName(nameEl ? nameEl.textContent : '');
+    if (!cardName) return null;
+
+    return list.find(function(item){
+      var itemName = cleanName(item && item.name);
+      return itemName && (cardName === itemName || cardName.indexOf(itemName) !== -1);
+    }) || null;
+  }
+
+  function priceHtml(item){
+    var offer = num(item && item.price);
+    var mrp = num(item && (item.mrp || item.MRP || item.originalPrice || item.listPrice));
+    if (!mrp) mrp = offer;
+
+    var html = '<span class="gfy-offer-price">₹' + money(offer) + '</span>';
+
+    if (mrp > offer && offer > 0){
+      var discount = Math.round(((mrp - offer) / mrp) * 100);
+      html += '<span class="gfy-mrp-price">MRP <s>₹' + money(mrp) + '</s></span>';
+      if (discount > 0) {
+        html += '<span class="gfy-discount-badge">' + discount + '% OFF</span>';
+      }
+    }
+    return html;
+  }
+
+  function updatePriceElement(el, item){
+    if (!el || !item) return;
+    var offer = num(item.price);
+    if (offer <= 0) return;
+    var key = String(offer) + '|' + String(num(item.mrp || item.MRP || item.originalPrice || item.listPrice));
+    if (el.dataset.gfyPriceKey === key) return;
+    el.dataset.gfyPriceKey = key;
+    el.classList.add('gfy-price-box');
+    el.innerHTML = priceHtml(item);
+  }
+
+  function applyPrices(root){
+    root = root || document;
+    try{
+      root.querySelectorAll('.menu-card').forEach(function(card){
+        var item = findItemForCard(card);
+        if (item) updatePriceElement(card.querySelector('.card-price'), item);
+      });
+
+      root.querySelectorAll('.mng-card').forEach(function(card){
+        var item = findItemForCard(card);
+        if (item) updatePriceElement(card.querySelector('.mng-price'), item);
+      });
+
+      root.querySelectorAll('.search-result-item').forEach(function(card){
+        var item = findItemForCard(card);
+        if (item) updatePriceElement(card.querySelector('.sri-price'), item);
+      });
+    }catch(e){
+      console.warn('[GFY Price Display]', e);
+    }
+  }
+
+  window.GFY_applyMrpOfferPrices = applyPrices;
+
+  function wrapRender(name){
+    var fn = window[name];
+    if (typeof fn !== 'function' || fn.__gfyMrpWrapped) return;
+    window[name] = function(){
+      var result = fn.apply(this, arguments);
+      setTimeout(function(){ applyPrices(document); }, 0);
+      return result;
+    };
+    window[name].__gfyMrpWrapped = true;
+  }
+
+  function install(){
+    wrapRender('renderMenuPage');
+    wrapRender('renderMenu');
+    wrapRender('renderManageItems');
+    wrapRender('renderManagePage');
+
+    // Ensure newly-created edit modal always receives current MRP value.
+    var oldOpenEdit = window.openEditItemModal;
+    if (typeof oldOpenEdit === 'function' && !oldOpenEdit.__gfyMrpWrapped){
+      window.openEditItemModal = function(itemId){
+        var result = oldOpenEdit.apply(this, arguments);
+        setTimeout(function(){
+          var item = (Array.isArray(window.items) ? window.items : []).find(function(x){
+            return String(x.id) === String(itemId);
+          });
+          var input = document.getElementById('edit-item-mrp');
+          if (input && item) input.value = num(item.mrp) > 0 ? item.mrp : (num(item.price) || '');
+        },0);
+        return result;
+      };
+      window.openEditItemModal.__gfyMrpWrapped = true;
+    }
+
+    applyPrices(document);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);
+  else install();
+
+  new MutationObserver(function(mutations){
+    var shouldRun = mutations.some(function(m){ return m.addedNodes && m.addedNodes.length; });
+    if (shouldRun) requestAnimationFrame(function(){ applyPrices(document); });
+  }).observe(document.documentElement, {childList:true, subtree:true});
+
+  // Firestore/menu refreshes may replace item objects without replacing all surrounding DOM at once.
+  setInterval(function(){
+    install();
+    applyPrices(document);
+  }, 1200);
 })();
 </script>
 

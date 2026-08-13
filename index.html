@@ -1926,6 +1926,64 @@ body.support-create-ticket-mode #support-form-section{
   min-height:52px!important;
 }
 
+/* GFY: category-wide stock toggle shown only in Admin > Manage Categories. */
+.gfy-cat-stock-wrap{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:5px!important;
+  flex-shrink:0!important;
+}
+.gfy-cat-stock-label{
+  font-size:.62rem!important;
+  font-weight:900!important;
+  color:#66736a!important;
+  white-space:nowrap!important;
+}
+.gfy-cat-stock-switch{
+  position:relative!important;
+  display:inline-block!important;
+  width:36px!important;
+  height:20px!important;
+  flex-shrink:0!important;
+}
+.gfy-cat-stock-switch input{
+  opacity:0!important;
+  width:0!important;
+  height:0!important;
+  position:absolute!important;
+}
+.gfy-cat-stock-slider{
+  position:absolute!important;
+  inset:0!important;
+  cursor:pointer!important;
+  background:#cfd8d3!important;
+  border-radius:999px!important;
+  transition:.2s ease!important;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)!important;
+}
+.gfy-cat-stock-slider:before{
+  content:""!important;
+  position:absolute!important;
+  width:16px!important;
+  height:16px!important;
+  left:2px!important;
+  top:2px!important;
+  background:#fff!important;
+  border-radius:50%!important;
+  box-shadow:0 1px 4px rgba(0,0,0,.22)!important;
+  transition:.2s ease!important;
+}
+.gfy-cat-stock-switch input:checked + .gfy-cat-stock-slider{
+  background:var(--green)!important;
+}
+.gfy-cat-stock-switch input:checked + .gfy-cat-stock-slider:before{
+  transform:translateX(16px)!important;
+}
+.gfy-cat-stock-switch input:disabled + .gfy-cat-stock-slider{
+  opacity:.55!important;
+  cursor:wait!important;
+}
+
 
 
 /* GFY FIX: Visible startup/latest-prices loader. Independent from auth splash. */
@@ -8507,6 +8565,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         name: name,
         emoji: emoji,
         subLabel: subLabel,
+        inStock: true,
         sortOrder: getNextCategorySortOrder(),
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -8522,6 +8581,93 @@ window.updateOrderCardStatus = updateOrderCardStatus;
       const user = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth().currentUser : null;
       const emailInfo = user ? ` (Logged in as: ${user.email})` : ' (Not logged in)';
       if (typeof showToast === 'function') showToast('⚠️ Category save failed: ' + (err.message || err) + emailInfo, 5000);
+    }
+  };
+
+  // Category-wide stock control.
+  // OFF => every item in this category is saved as inStock:false.
+  // ON  => every item in this category is saved as inStock:true.
+  // This intentionally reuses the existing menuItems.inStock field so all
+  // current customer/admin stock UI continues to work without duplicate logic.
+  window.toggleCategoryStock = async function(catId, desiredState, inputEl) {
+    if (currentRole !== 'admin') {
+      if (inputEl) inputEl.checked = !desiredState;
+      if (typeof showToast === 'function') showToast('⚠️ Only admin can change category stock');
+      return;
+    }
+
+    const firebaseDB = (typeof db !== 'undefined' && db) ? db :
+      (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.firestore === 'function')
+        ? firebase.firestore()
+        : null;
+
+    if (!firebaseDB) {
+      if (inputEl) inputEl.checked = !desiredState;
+      if (typeof showToast === 'function') showToast('⚠️ Database not ready');
+      return;
+    }
+
+    const normalizedCatId = gfySafeSyncedCategoryId(catId);
+    if (inputEl) inputEl.disabled = true;
+
+    try {
+      // Read once, then update only documents that belong to this category.
+      // Client-side matching also supports older records that used category/catId
+      // names or unsafe IDs, because the same normalizer is used by menu sync.
+      const menuSnapshot = await firebaseDB.collection('menuItems').get();
+      const matchingDocs = [];
+
+      menuSnapshot.forEach(function(itemDoc) {
+        const data = itemDoc.data() || {};
+        const itemCat = gfySafeSyncedCategoryId(data.category || data.catId || 'grocery');
+        if (itemCat === normalizedCatId) matchingDocs.push(itemDoc);
+      });
+
+      const categoryRef = firebaseDB.collection('categories').doc(catId);
+
+      // Firestore batches support up to 500 writes. Normal categories are well
+      // below that; for an unusually large category, use safe chunks.
+      if (matchingDocs.length <= 450) {
+        const batch = firebaseDB.batch();
+        matchingDocs.forEach(function(itemDoc) {
+          batch.update(itemDoc.ref, { inStock: !!desiredState });
+        });
+        batch.set(categoryRef, {
+          id: catId,
+          inStock: !!desiredState,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        await batch.commit();
+      } else {
+        for (let i = 0; i < matchingDocs.length; i += 400) {
+          const chunk = matchingDocs.slice(i, i + 400);
+          const batch = firebaseDB.batch();
+          chunk.forEach(function(itemDoc) {
+            batch.update(itemDoc.ref, { inStock: !!desiredState });
+          });
+          await batch.commit();
+        }
+        await categoryRef.set({
+          id: catId,
+          inStock: !!desiredState,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      }
+
+      if (typeof showToast === 'function') {
+        showToast(
+          desiredState
+            ? `✅ ${matchingDocs.length} item${matchingDocs.length === 1 ? '' : 's'} marked In Stock`
+            : `❌ ${matchingDocs.length} item${matchingDocs.length === 1 ? '' : 's'} marked Out of Stock`,
+          2500
+        );
+      }
+    } catch (err) {
+      console.error('[CategoryStockToggle] Firestore update failed:', err);
+      if (inputEl) inputEl.checked = !desiredState;
+      if (typeof showToast === 'function') showToast('⚠️ Could not update category stock: ' + (err.message || err), 4000);
+    } finally {
+      if (inputEl) inputEl.disabled = false;
     }
   };
 
@@ -8730,6 +8876,18 @@ window.updateOrderCardStatus = updateOrderCardStatus;
           </div>
         </div>
         <div style="display:flex; gap:6px; flex-shrink:0; align-items:center; justify-content:flex-end;">
+          <div class="gfy-cat-stock-wrap" title="${cat.inStock !== false ? 'Category is In Stock' : 'Category is Out of Stock'}">
+            <span class="gfy-cat-stock-label">${cat.inStock !== false ? 'In' : 'Out'}</span>
+            <label class="gfy-cat-stock-switch" onclick="event.stopPropagation()">
+              <input
+                type="checkbox"
+                ${cat.inStock !== false ? 'checked' : ''}
+                aria-label="Toggle ${gfyEscapeAttr(cat.name || 'category')} stock"
+                onchange="event.stopPropagation(); toggleCategoryStock('${gfyEscapeAttr(cat.id)}', this.checked, this)"
+              />
+              <span class="gfy-cat-stock-slider"></span>
+            </label>
+          </div>
           <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="up" title="Move up">↑</button>
           <button type="button" class="gfy-cat-move-btn" data-gfy-cat-move="down" title="Move down">↓</button>
           <button onclick="openEditCatModal('${gfyEscapeAttr(cat.id)}')" style="background:#eef7f2; border:1.5px solid #c8e6c9; color:var(--brown); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center;" title="Edit Category">✏️</button>
@@ -8786,6 +8944,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         name: name,
         emoji: emoji,
         subLabel: subLabel,
+        inStock: existingCat.inStock !== false,
         sortOrder: (Number.isFinite(Number(existingCat.sortOrder)) ? Number(existingCat.sortOrder) : (existingIndex >= 0 ? existingIndex * 10 + 10 : getNextCategorySortOrder())),
         deleted: false,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -8882,6 +9041,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         name: name,
         emoji: emoji,
         subLabel: subLabel,
+        inStock: existingCat.inStock !== false,
         sortOrder: (Number.isFinite(Number(existingCat.sortOrder)) ? Number(existingCat.sortOrder) : (existingIndex >= 0 ? existingIndex * 10 + 10 : getNextCategorySortOrder())),
         deleted: false,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -9067,6 +9227,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
               name: data.name || '',
               emoji: data.emoji || '📂',
               subLabel: data.subLabel || data.subtitle || data.description || '',
+              inStock: data.inStock !== false,
               sortOrder: Number.isFinite(Number(data.sortOrder ?? data.order ?? data.orderIndex)) ? Number(data.sortOrder ?? data.order ?? data.orderIndex) : null,
               deleted: data.deleted === true
             });
@@ -9075,7 +9236,9 @@ window.updateOrderCardStatus = updateOrderCardStatus;
 
         const mergedCats = defaultCategories.map(dc => {
           const matched = loadedCats.find(lc => lc.id === dc.id);
-          return matched ? { ...dc, ...matched, sortOrder: matched.sortOrder ?? dc.sortOrder } : dc;
+          return matched
+            ? { ...dc, ...matched, inStock: matched.inStock !== false, sortOrder: matched.sortOrder ?? dc.sortOrder }
+            : { ...dc, inStock: dc.inStock !== false };
         }).filter(cat => {
           const matched = loadedCats.find(lc => lc.id === cat.id);
           return !(matched && matched.deleted === true);
@@ -9083,7 +9246,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         loadedCats.forEach(lc => {
           if (lc.deleted !== true && !mergedCats.some(mc => mc.id === lc.id)) {
             const fallbackOrder = (mergedCats.length + 1) * 10;
-            mergedCats.push({ ...lc, sortOrder: lc.sortOrder ?? fallbackOrder });
+            mergedCats.push({ ...lc, inStock: lc.inStock !== false, sortOrder: lc.sortOrder ?? fallbackOrder });
           }
         });
 

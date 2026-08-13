@@ -12802,6 +12802,29 @@ document.addEventListener('click', function(e) {
     .gfy-mrp-price{font-size:.64rem!important;}
     .gfy-discount-badge{font-size:.58rem!important;}
   }
+
+  /* Keep Admin > Manage Menu cards at their original size.
+     MRP stays visible, but the discount badge is hidden in admin cards
+     so price content cannot squeeze the product name or increase card height. */
+  .mng-price.gfy-price-box{
+    display:inline-flex!important;
+    align-items:baseline!important;
+    justify-content:flex-end!important;
+    flex-wrap:nowrap!important;
+    gap:3px!important;
+    white-space:nowrap!important;
+    flex-shrink:0!important;
+  }
+  .mng-price.gfy-price-box .gfy-offer-price{
+    font-size:1rem!important;
+  }
+  .mng-price.gfy-price-box .gfy-mrp-price{
+    font-size:.58rem!important;
+  }
+  .mng-price.gfy-price-box .gfy-discount-badge{
+    display:none!important;
+  }
+
 </style>
 <script>
 (function(){

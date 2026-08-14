@@ -13153,26 +13153,70 @@ document.addEventListener('click', function(e) {
     var list = Array.isArray(window.items) ? window.items : [];
     if (!card || !list.length) return null;
 
-    var id = String(card.id || '');
-    var candidates = [
-      id,
-      id.replace(/^item[-_]/,''),
-      id.replace(/^menu[-_]item[-_]/,''),
-      id.replace(/^card[-_]/,'')
-    ].filter(Boolean);
+    // GFY FIX: Price/MRP must be matched by the unique Firestore item document ID.
+    // Never use item name for Manage Menu cards because duplicate item names are valid
+    // and name matching caused one item's price to appear on another same-name item.
+    var exactIds = [];
 
-    for (var i=0;i<list.length;i++){
-      if (candidates.indexOf(String(list[i].id || '')) !== -1) return list[i];
+    function addId(value){
+      value = String(value == null ? '' : value).trim();
+      if (value && exactIds.indexOf(value) === -1) exactIds.push(value);
     }
 
-    var nameEl = card.querySelector('.card-name,.mng-name,.sri-name');
+    // 1. Explicit dataset used by the existing Manage Menu drag/edit system.
+    if (card.dataset) {
+      addId(card.dataset.itemId);
+      addId(card.dataset.id);
+    }
+
+    // 2. IDs already present on customer/menu cards.
+    var domId = String(card.id || '');
+    addId(domId);
+    addId(domId.replace(/^mcard[-_]/,''));
+    addId(domId.replace(/^item[-_]/,''));
+    addId(domId.replace(/^menu[-_]item[-_]/,''));
+    addId(domId.replace(/^card[-_]/,''));
+
+    // 3. Existing action buttons contain the real Firestore document ID.
+    // Reuse those IDs rather than matching by product name.
+    var actionNodes = card.querySelectorAll(
+      '[onclick*="openEditItemModal"],' +
+      '[onclick*="deleteItem"],' +
+      '[onclick*="toggleItemStock"],' +
+      '[onclick*="searchGoToItem"]'
+    );
+
+    actionNodes.forEach(function(node){
+      var onclickText = node.getAttribute('onclick') || '';
+      var match = onclickText.match(
+        /(?:openEditItemModal|deleteItem|toggleItemStock|searchGoToItem)\s*\(\s*['"]([^'"]+)['"]/
+      );
+      if (match && match[1]) addId(match[1]);
+    });
+
+    for (var i = 0; i < list.length; i++) {
+      if (exactIds.indexOf(String(list[i].id || '')) !== -1) {
+        return list[i];
+      }
+    }
+
+    // IMPORTANT: Manage Menu item cards must never fall back to item-name matching.
+    // If two products have the same name, each card must remain tied to its own ID.
+    if (card.classList && card.classList.contains('mng-card')) {
+      return null;
+    }
+
+    // Fallback is retained only for old customer/search markup that has no ID at all.
+    var nameEl = card.querySelector('.card-name,.sri-name');
     var cardName = cleanName(nameEl ? nameEl.textContent : '');
     if (!cardName) return null;
 
-    return list.find(function(item){
-      var itemName = cleanName(item && item.name);
-      return itemName && (cardName === itemName || cardName.indexOf(itemName) !== -1);
-    }) || null;
+    var sameName = list.filter(function(item){
+      return cleanName(item && item.name) === cardName;
+    });
+
+    // Use a name fallback only when it is unambiguous.
+    return sameName.length === 1 ? sameName[0] : null;
   }
 
   function priceHtml(item){

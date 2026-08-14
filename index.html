@@ -8280,7 +8280,7 @@ window.updateOrderCardStatus = updateOrderCardStatus;
 
   window.openEditItemModal = function(itemId) {
     const allItems = (typeof window.items !== 'undefined') ? window.items : [];
-    const item = allItems.find(i => i.id === itemId);
+    const item = allItems.find(i => String(i.id) === String(itemId));
     if (!item) {
       if (typeof showToast === 'function') showToast('⚠️ Item not found', 2500);
       return;
@@ -8505,6 +8505,37 @@ window.updateOrderCardStatus = updateOrderCardStatus;
         inStock,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
+
+      // GFY FIX: update ONLY the item with this Firestore document ID.
+      // Duplicate item names are allowed and must remain independent.
+      var localLists = [
+        (typeof window.items !== 'undefined' ? window.items : null),
+        (typeof window.menuItems !== 'undefined' ? window.menuItems : null),
+        (typeof window.allItems !== 'undefined' ? window.allItems : null),
+        (typeof window.products !== 'undefined' ? window.products : null),
+        (typeof window.menuData !== 'undefined' ? window.menuData : null)
+      ];
+
+      localLists.forEach(function(list) {
+        if (!Array.isArray(list)) return;
+        var localItem = list.find(function(x) {
+          return x && String(x.id) === String(itemId);
+        });
+        if (!localItem) return;
+        localItem.name = name;
+        localItem.price = price;
+        localItem.mrp = mrp;
+        localItem.description = type;
+        localItem.type = type;
+        localItem.emoji = emoji;
+        localItem.inStock = inStock;
+      });
+
+      if (typeof window.refreshManageList === 'function') window.refreshManageList();
+      if (typeof window.renderManagePage === 'function') window.renderManagePage();
+      if (typeof window.GFY_applyMrpOfferPrices === 'function') {
+        setTimeout(function(){ window.GFY_applyMrpOfferPrices(document); }, 0);
+      }
 
       if (typeof showToast === 'function') showToast('🎉 Item updated successfully!', 3000);
       window.closeEditItemModal();
@@ -13172,6 +13203,7 @@ document.addEventListener('click', function(e) {
     // 2. IDs already present on customer/menu cards.
     var domId = String(card.id || '');
     addId(domId);
+    addId(domId.replace(/^mng[-_]/,''));
     addId(domId.replace(/^mcard[-_]/,''));
     addId(domId.replace(/^item[-_]/,''));
     addId(domId.replace(/^menu[-_]item[-_]/,''));

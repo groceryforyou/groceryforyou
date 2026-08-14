@@ -12655,128 +12655,97 @@ document.addEventListener('click', function(e) {
       el.classList.remove('gfy-item-drop-before','gfy-item-drop-after');
     });
   }
-  function moveBeforeAfter(target, clientX, clientY){
+  function moveBeforeAfter(target, clientY){
     if (!draggingCard || !target || target === draggingCard || !target.classList.contains('mng-card')) return;
     var list = document.getElementById('manage-items-list');
     if (!list || target.parentElement !== list) return;
-
-    // GFY FIX: Manage Menu is a multi-column CSS grid.
-    // Decide before/after using both X and Y so dragging left/right and
-    // up/down follows the actual visual card order.
     var rect = target.getBoundingClientRect();
-    var dx = clientX - (rect.left + rect.width / 2);
-    var dy = clientY - (rect.top + rect.height / 2);
-
-    var sameVisualRow = Math.abs(dy) < rect.height * 0.45;
-    var after = sameVisualRow ? (dx > 0) : (dy > 0);
-
+    var after = clientY > rect.top + rect.height / 2;
     clearDropMarkers();
     target.classList.add(after ? 'gfy-item-drop-after' : 'gfy-item-drop-before');
-
     if (after) list.insertBefore(draggingCard, target.nextSibling);
     else list.insertBefore(draggingCard, target);
   }
   function enhanceCard(card){
     var id = getItemId(card);
     if (!id) return;
-
     card.dataset.itemId = id;
-
-    // Use one pointer-based reorder system for the grid.
-    // Native HTML5 draggable conflicts with buttons and the custom pointer drag.
-    card.setAttribute('draggable', 'false');
-
-    var handle = card.querySelector('.gfy-item-drag-handle');
-    if (!handle) {
-      handle = document.createElement('button');
+    card.setAttribute('draggable', 'true');
+    if (!card.querySelector('.gfy-item-drag-handle')) {
+      var handle = document.createElement('button');
       handle.type = 'button';
       handle.className = 'gfy-item-drag-handle';
       handle.title = 'Drag to move item';
       handle.setAttribute('aria-label', 'Drag to move item');
       handle.innerHTML = '↕';
+      handle.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); });
       card.insertBefore(handle, card.firstChild);
+
+      handle.addEventListener('pointerdown', function(e){
+        if (typeof currentRole !== 'undefined' && currentRole !== 'admin') return;
+        draggingCard = card;
+        pointerStarted = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        card.classList.add('gfy-item-dragging');
+        try { handle.setPointerCapture(e.pointerId); } catch(_) {}
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      handle.addEventListener('pointermove', function(e){
+        if (!pointerStarted || !draggingCard) return;
+        if (Math.abs(e.clientX - dragStartX) < 4 && Math.abs(e.clientY - dragStartY) < 4) return;
+        draggingCard.style.pointerEvents = 'none';
+        var target = document.elementFromPoint(e.clientX, e.clientY);
+        draggingCard.style.pointerEvents = '';
+        var targetCard = target ? target.closest('.mng-card') : null;
+        moveBeforeAfter(targetCard, e.clientY);
+        e.preventDefault();
+      });
+      handle.addEventListener('pointerup', function(e){
+        if (!pointerStarted) return;
+        pointerStarted = false;
+        if (draggingCard) draggingCard.classList.remove('gfy-item-dragging');
+        draggingCard = null;
+        clearDropMarkers();
+        scheduleSave();
+        try { handle.releasePointerCapture(e.pointerId); } catch(_) {}
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      handle.addEventListener('pointercancel', function(){
+        pointerStarted = false;
+        if (draggingCard) draggingCard.classList.remove('gfy-item-dragging');
+        draggingCard = null;
+        clearDropMarkers();
+      });
     }
-
-    if (card.__gfyPointerDragBound) return;
-    card.__gfyPointerDragBound = true;
-
-    function isInteractive(target){
-      return !!(target && target.closest && target.closest(
-        '.mng-edit,.mng-del,.stock-toggle,button:not(.gfy-item-drag-handle),input,select,textarea,a'
-      ));
+    if (!card.__gfyNativeDragBound) {
+      card.__gfyNativeDragBound = true;
+      card.addEventListener('dragstart', function(e){
+        draggingCard = card;
+        card.classList.add('gfy-item-dragging');
+        try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', id); } catch(_) {}
+      });
+      card.addEventListener('dragend', function(){
+        if (draggingCard) draggingCard.classList.remove('gfy-item-dragging');
+        draggingCard = null;
+        clearDropMarkers();
+        scheduleSave();
+      });
+      card.addEventListener('dragover', function(e){
+        if (!draggingCard || draggingCard === card) return;
+        e.preventDefault();
+        moveBeforeAfter(card, e.clientY);
+      });
+      card.addEventListener('drop', function(e){
+        e.preventDefault();
+        if (draggingCard) draggingCard.classList.remove('gfy-item-dragging');
+        draggingCard = null;
+        clearDropMarkers();
+        scheduleSave();
+      });
     }
-
-    function beginDrag(e){
-      if (typeof currentRole !== 'undefined' && currentRole !== 'admin') return;
-      if (e.button != null && e.button !== 0) return;
-      if (isInteractive(e.target)) return;
-
-      draggingCard = card;
-      pointerStarted = true;
-      dragStartX = e.clientX;
-      dragStartY = e.clientY;
-
-      card.classList.add('gfy-item-dragging');
-      try { card.setPointerCapture(e.pointerId); } catch(_) {}
-
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    function moveDrag(e){
-      if (!pointerStarted || draggingCard !== card) return;
-
-      // Ignore tiny movement so a normal click does not reorder anything.
-      if (Math.abs(e.clientX - dragStartX) < 5 &&
-          Math.abs(e.clientY - dragStartY) < 5) return;
-
-      var oldPointerEvents = card.style.pointerEvents;
-      card.style.pointerEvents = 'none';
-      var target = document.elementFromPoint(e.clientX, e.clientY);
-      card.style.pointerEvents = oldPointerEvents;
-
-      var targetCard = target && target.closest ? target.closest('.mng-card') : null;
-      moveBeforeAfter(targetCard, e.clientX, e.clientY);
-
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    function finishDrag(e){
-      if (!pointerStarted || draggingCard !== card) return;
-
-      pointerStarted = false;
-      card.classList.remove('gfy-item-dragging');
-      draggingCard = null;
-      clearDropMarkers();
-
-      try { card.releasePointerCapture(e.pointerId); } catch(_) {}
-
-      // Save the final DOM order only once after the drag ends.
-      scheduleSave();
-
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    function cancelDrag(e){
-      if (draggingCard === card) card.classList.remove('gfy-item-dragging');
-      pointerStarted = false;
-      draggingCard = null;
-      clearDropMarkers();
-      try { card.releasePointerCapture(e.pointerId); } catch(_) {}
-    }
-
-    // Drag from the handle OR any non-interactive empty part of the item card.
-    card.addEventListener('pointerdown', beginDrag);
-    card.addEventListener('pointermove', moveDrag);
-    card.addEventListener('pointerup', finishDrag);
-    card.addEventListener('pointercancel', cancelDrag);
-
-    handle.addEventListener('click', function(e){
-      e.preventDefault();
-      e.stopPropagation();
-    });
   }
   function enhanceList(){
     var list = document.getElementById('manage-items-list');

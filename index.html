@@ -10738,6 +10738,34 @@ window.addEventListener('load', function() {
     window.__gfyFinalizePatched = true;
 
     function resetCartAfterSuccessfulOrder() {
+      /* GFY FIX: preserve the just-placed order totals while the success view is open.
+         Clearing the cart is correct, but recalculating totals from the now-empty cart
+         was changing Items Total to ₹0 and Grand Total to only the delivery fee. */
+      var gfyPlacedOrderTotals = {
+        itemsTotal: (document.getElementById('om-total') || {}).textContent || '',
+        deliveryFee: (document.getElementById('om-delivery-fee-display') || {}).textContent || '',
+        grandTotal: (document.getElementById('om-grand-total') || {}).textContent || ''
+      };
+
+      function restorePlacedOrderTotals() {
+        var successEl = document.getElementById('om-success');
+        if (!successEl || successEl.style.display === 'none') return;
+
+        var itemsTotalEl = document.getElementById('om-total');
+        var deliveryFeeEl = document.getElementById('om-delivery-fee-display');
+        var grandTotalEl = document.getElementById('om-grand-total');
+
+        if (itemsTotalEl && gfyPlacedOrderTotals.itemsTotal) {
+          itemsTotalEl.textContent = gfyPlacedOrderTotals.itemsTotal;
+        }
+        if (deliveryFeeEl && gfyPlacedOrderTotals.deliveryFee) {
+          deliveryFeeEl.textContent = gfyPlacedOrderTotals.deliveryFee;
+        }
+        if (grandTotalEl && gfyPlacedOrderTotals.grandTotal) {
+          grandTotalEl.textContent = gfyPlacedOrderTotals.grandTotal;
+        }
+      }
+
       try {
         var cartState = window.cart && typeof window.cart === 'object' ? window.cart : {};
         Object.keys(cartState).forEach(function(key) {
@@ -10803,12 +10831,23 @@ window.addEventListener('load', function() {
 
       try {
         if (typeof window.requestAnimationFrame === 'function') {
-          window.requestAnimationFrame(refreshCartUi);
+          window.requestAnimationFrame(function() {
+            refreshCartUi();
+            restorePlacedOrderTotals();
+            window.requestAnimationFrame(restorePlacedOrderTotals);
+          });
         } else {
-          setTimeout(refreshCartUi, 0);
+          setTimeout(function() {
+            refreshCartUi();
+            restorePlacedOrderTotals();
+            setTimeout(restorePlacedOrderTotals, 0);
+          }, 0);
         }
       } catch (e) {
-        setTimeout(refreshCartUi, 0);
+        setTimeout(function() {
+          refreshCartUi();
+          restorePlacedOrderTotals();
+        }, 0);
       }
     }
 

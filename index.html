@@ -10737,146 +10737,19 @@ window.addEventListener('load', function() {
     if (window.__gfyFinalizePatched) return;
     window.__gfyFinalizePatched = true;
 
-    function resetCartAfterSuccessfulOrder() {
-      /* GFY FIX: preserve the just-placed order totals while the success view is open.
-         Clearing the cart is correct, but recalculating totals from the now-empty cart
-         was changing Items Total to ₹0 and Grand Total to only the delivery fee. */
-      var gfyPlacedOrderTotals = {
-        itemsTotal: (document.getElementById('om-total') || {}).textContent || '',
-        deliveryFee: (document.getElementById('om-delivery-fee-display') || {}).textContent || '',
-        grandTotal: (document.getElementById('om-grand-total') || {}).textContent || ''
-      };
-
-      function restorePlacedOrderTotals() {
-        var successEl = document.getElementById('om-success');
-        if (!successEl || successEl.style.display === 'none') return;
-
-        var itemsTotalEl = document.getElementById('om-total');
-        var deliveryFeeEl = document.getElementById('om-delivery-fee-display');
-        var grandTotalEl = document.getElementById('om-grand-total');
-
-        if (itemsTotalEl && gfyPlacedOrderTotals.itemsTotal) {
-          itemsTotalEl.textContent = gfyPlacedOrderTotals.itemsTotal;
-        }
-        if (deliveryFeeEl && gfyPlacedOrderTotals.deliveryFee) {
-          deliveryFeeEl.textContent = gfyPlacedOrderTotals.deliveryFee;
-        }
-        if (grandTotalEl && gfyPlacedOrderTotals.grandTotal) {
-          grandTotalEl.textContent = gfyPlacedOrderTotals.grandTotal;
-        }
-      }
-
-      try {
-        var cartState = window.cart && typeof window.cart === 'object' ? window.cart : {};
-        Object.keys(cartState).forEach(function(key) {
-          delete cartState[key];
-        });
-        window.cart = cartState;
-        if (typeof globalThis !== 'undefined') {
-          globalThis.cart = cartState;
-        }
-      } catch (e) {
-        try {
-          window.cart = {};
-        } catch (_e) {}
-      }
-      try {
-        if (typeof localStorage !== 'undefined') {
-          ['cart', 'gfy_cart', 'gfyCart', 'gfyCartData', 'cartData', 'cartItems'].forEach(function(key) {
-            try { localStorage.removeItem(key); } catch (_e) {}
-            try { sessionStorage.removeItem(key); } catch (_e) {}
-          });
-        }
-      } catch (e) {}
-      try {
-        if (window.currentSubtotal !== undefined) window.currentSubtotal = 0;
-        if (window.currentGrandTotal !== undefined) window.currentGrandTotal = 0;
-        if (window.finalAmount !== undefined) window.finalAmount = 0;
-        if (window._pendingUPIAmount !== undefined) window._pendingUPIAmount = 0;
-      } catch (e) {}
-
-      function refreshCartUi() {
-        try {
-          if (typeof window.updateCart === 'function') {
-            window.updateCart();
-          }
-        } catch (e) {}
-        try {
-          if (typeof window.syncTotalsUI === 'function') {
-            window.syncTotalsUI();
-          }
-        } catch (e) {}
-        try {
-          if (typeof window.updateFloatingBar === 'function') {
-            window.updateFloatingBar();
-          }
-        } catch (e) {}
-        try {
-          if (typeof window.renderMenuPage === 'function') {
-            window.renderMenuPage(window._currentMenuFilter || 'all');
-          }
-        } catch (e) {}
-        try {
-          if (typeof window.refreshCard === 'function') {
-            var cardEls = document.querySelectorAll('[id^="qblock-"]');
-            if (cardEls && cardEls.length) {
-              Array.prototype.forEach.call(cardEls, function(el) {
-                var id = el.id.replace(/^qblock-/, '');
-                if (id) window.refreshCard(id);
-              });
-            }
-          }
-        } catch (e) {}
-      }
-
-      try {
-        if (typeof window.requestAnimationFrame === 'function') {
-          window.requestAnimationFrame(function() {
-            refreshCartUi();
-            restorePlacedOrderTotals();
-            window.requestAnimationFrame(restorePlacedOrderTotals);
-          });
-        } else {
-          setTimeout(function() {
-            refreshCartUi();
-            restorePlacedOrderTotals();
-            setTimeout(restorePlacedOrderTotals, 0);
-          }, 0);
-        }
-      } catch (e) {
-        setTimeout(function() {
-          refreshCartUi();
-          restorePlacedOrderTotals();
-        }, 0);
-      }
-    }
-
     var _origFinalize = window.finalizeOrder;
     window.finalizeOrder = function(payMethod, isPaid, payId) {
-      // Ensure uid is available for Firestore queries
+      // Ensure uid is available for Firestore queries.
+      // Do not clear the cart here: the original finalizeOrder already clears it
+      // after the Order Placed success view, and clearing it here immediately
+      // makes the shared Items Total recalculate to ₹0.
       var user = window.currentUser || (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
       if (user && !window._gfyOrderUid) {
         window._gfyOrderUid = user.uid;
       }
-      try {
-        var result = _origFinalize.apply(this, arguments);
-        if (result && typeof result.then === 'function') {
-          return result.then(function(value) {
-            resetCartAfterSuccessfulOrder();
-            return value;
-          }).catch(function(err) {
-            console.warn('[GFYFinalFixes] finalizeOrder failed; cart preserved', err);
-            throw err;
-          });
-        }
-        resetCartAfterSuccessfulOrder();
-        return result;
-      } catch (err) {
-        console.warn('[GFYFinalFixes] finalizeOrder threw; cart preserved', err);
-        throw err;
-      }
+      return _origFinalize.apply(this, arguments);
     };
-    console.log('[GFYFinalFixes] finalizeOrder patched with uid injection and cart reset');
+    console.log('[GFYFinalFixes] finalizeOrder patched with uid injection');
   }, 500);
 
   console.log('[GFYFinalFixes] ✅ Utility fixes loaded');
